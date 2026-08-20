@@ -1,0 +1,73 @@
+\chapter{Cú pháp Python cơ bản}
+
+Chương này trình bày các khái niệm nền tảng trong lập trình Python, bao gồm biến, kiểu dữ liệu, cấu trúc điều khiển và hàm. Đây là các kiến thức bắt buộc trước khi đi vào xử lý dữ liệu và Machine Learning.
+
+\section{Biến và Kiểu dữ liệu}
+
+Trong Python, biến được khởi tạo tự động khi gán giá trị. Python là ngôn ngữ dynamically typed (định kiểu động).
+
+\begin{definition}[Biến trong Python]
+Biến là tên gọi đại diện cho một vùng nhớ chứa dữ liệu. Giá trị của biến có thể thay đổi trong quá trình thực thi chương trình.
+\end{definition}
+
+\subsection{Các kiểu dữ liệu cơ bản}
+Python hỗ trợ nhiều kiểu dữ liệu mặc định:
+\begin{itemize}
+    \item \textbf{Integer} (\texttt{int}): Số nguyên, ví dụ: \texttt{x = 10}.
+    \item \textbf{Float} (\texttt{float}): Số thực, ví dụ: \texttt{pi = 3.14159}.
+    \item \textbf{String} (\texttt{str}): Chuỗi ký tự, ví dụ: \texttt{name = "Machine Learning"}.
+    \item \textbf{Boolean} (\texttt{bool}): Giá trị đúng/sai (\texttt{True} hoặc \texttt{False}).
+\end{itemize}
+
+\begin{example}
+Ví dụ về khai báo và kiểm tra kiểu dữ liệu trong Python:
+\end{example}
+
+\begin{lstlisting}[caption={Khai báo biến và hiển thị kiểu dữ liệu}]
+a = 100
+b = 3.14
+c = "Python ML"
+is_ready = True
+
+print(type(a))  # Output: <class 'int'>
+print(type(b))  # Output: <class 'float'>
+\end{lstlisting}
+
+\section{Cấu trúc dữ liệu nâng cao}
+
+Đối với Machine Learning, 3 cấu trúc dữ liệu cơ bản hay dùng nhất bao gồm List, Tuple và Dictionary.
+
+\subsection{List (Danh sách)}
+List là tập hợp các phần tử có thứ tự và có thể thay đổi (mutable).
+
+\begin{lstlisting}[caption={Thao tác cơ bản trên List}]
+# Khoi tao list
+features = [1.2, 3.4, 5.1, 2.8]
+
+# Truy cap va thay doi phan tu
+features[0] = 0.9
+features.append(4.5)
+
+print("List sau khi cap nhat:", features)
+\end{lstlisting}
+
+\section{Cấu trúc điều khiển và Vòng lặp}
+
+\subsection{Câu lệnh điều kiện if-else}
+\begin{lstlisting}[caption={Sử dụng cấu trúc điều kiện}]
+score = 0.85
+
+if score >= 0.8:
+    print("Mo hinh dat do chinh xac cao")
+else:
+    print("Cần can thiep hoac toi uu them")
+\end{lstlisting}
+
+\section{Tóm tắt chương}
+Trong chương này, chúng ta đã nắm được:
+\begin{itemize}
+    \item Cách khai báo biến và các kiểu dữ liệu cơ bản.
+    \item Cấu trúc dữ liệu List, Tuple, Dictionary.
+    \item Vòng lặp và cấu trúc rẽ nhánh trong Python.
+\end{itemize}
+

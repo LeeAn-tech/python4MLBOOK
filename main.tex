@@ -1,0 +1,122 @@
+\documentclass[12pt,a4paper,oneside]{book}
+
+% =========================================
+% FONT VÀ TIẾNG VIỆT
+% =========================================
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\usepackage{polyglossia}
+\setdefaultlanguage{vietnamese}
+\usepackage{titlesec}
+
+\titleformat{\chapter}
+  {\normalfont\huge\bfseries}
+  {Chương \thechapter:}
+  {1em}
+  {}
+% =========================================
+% TOÁN HỌC
+% =========================================
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathtools}
+
+% =========================================
+% HÌNH ẢNH
+% =========================================
+\usepackage{graphicx}
+\usepackage{float}
+
+% =========================================
+% BẢNG
+% =========================================
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+
+% =========================================
+% CODE PYTHON
+% =========================================
+\usepackage{listings}
+
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    numbers=left,
+    numberstyle=\tiny,
+    frame=single,
+    breaklines=true,
+    showstringspaces=false
+}
+
+% =========================================
+% LINK
+% =========================================
+\usepackage{hyperref}
+
+% =========================================
+% LỀ TRANG
+% =========================================
+\usepackage[
+    top=2.5cm,
+    bottom=2.5cm,
+    left=3cm,
+    right=2cm
+]{geometry}
+
+% =========================================
+% ĐỊNH NGHĨA
+% =========================================
+\newtheorem{definition}{Định nghĩa}[chapter]
+\newtheorem{theorem}{Định lý}[chapter]
+\newtheorem{example}{Ví dụ}[chapter]
+
+% =========================================
+% DOCUMENT
+% =========================================
+
+\begin{document}
+
+% ----- Phần đầu -----
+
+\frontmatter
+
+\title{
+    \Huge\textbf{LẬP TRÌNH PYTHON CHO MACHINE LEARNING}
+    
+    \vspace{1cm}
+    
+    \large Từ Python cơ bản đến Machine Learning
+}
+
+\author{Ngô Hoàng Dũng - Lê Hoàng Ân}
+
+\date{\today}
+
+\maketitle
+
+\tableofcontents
+
+% ----- Nội dung chính -----
+
+\mainmatter
+
+\include{chapters/01-introduction}
+\include{chapters/02-python-essentials}
+\include{chapters/03-oop-python}
+\include{chapters/04-numpy-pandas}
+\include{chapters/05-preprocessing}
+\include{chapters/06-regression}
+\include{chapters/07-classify}
+\include{chapters/08-ensemble}
+\include{chapters/09-clustering}
+\include{chapters/09-reduce-dimension}
+\include{chapters/10-validation}
+\include{chapters/11-neural-network}
+
+% ----- Tài liệu tham khảo -----
+
+\backmatter
+
+\end{document}

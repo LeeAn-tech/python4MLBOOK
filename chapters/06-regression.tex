@@ -1,0 +1,55 @@
+\chapter{Hồi quy tuyến tính (Linear Regression)}
+
+Hồi quy tuyến tính là một trong những thuật toán học có giám sát (Supervised Learning) cơ bản và phổ biến nhất trong Machine Learning, dùng để dự đoán giá trị đầu ra liên tục.
+
+\section{Mô hình Hồi quy tuyến tính đơn biến}
+
+\begin{definition}[Hồi quy tuyến tính đơn biến]
+Cho tập dữ liệu $(x_1, y_1), (x_2, y_2), \dots, (x_n, y_n)$. Mô hình biểu diễn mối quan hệ giữa biến độc lập $x$ và biến phụ thuộc $y$ theo dạng tuyến tính:
+\begin{equation}
+    y = w_0 + w_1 x + \epsilon
+\end{equation}
+trong đó $w_0$ là hệ số chặn (intercept), $w_1$ là hệ số góc (slope), và $\epsilon$ là sai số ngẫu nhiên.
+\end{definition}
+
+\section{Hàm mất mát (Loss Function)}
+
+Để tìm các hệ số $w_0, w_1$ tối ưu, người ta sử dụng sai số bình phương trung bình (Mean Squared Error - MSE):
+
+\begin{equation}
+    J(w_0, w_1) = \frac{1}{2n} \sum_{i=1}^{n} \left( y_i - (w_0 + w_1 x_i) \right)^2
+\end{equation}
+
+Mục tiêu của bài toán là tìm $(w_0, w_1)$ sao cho $J(w_0, w_1)$ đạt giá trị nhỏ nhất.
+
+\section{Cài đặt Hồi quy tuyến tính với Scikit-Learn}
+
+Dưới đây là đoạn code Python minh họa việc xây dựng mô hình Linear Regression trên tập dữ liệu thực tế:
+
+\begin{lstlisting}[caption={Thực thi Linear Regression bằng Scikit-Learn}]
+import numpy as np
+from sklearn.linear_model import LinearRegression
+
+# 1. Tao du lieu gia dinh
+X = np.array([[1], [2], [3], [4], [5]])
+y = np.array([2.1, 3.9, 6.1, 8.2, 9.9])
+
+# 2. Khoi tao va huan luyen mo hinh
+model = LinearRegression()
+model.fit(X, y)
+
+# 3. In ket qua trong so w0 va w1
+print("He so w1 (slope):", model.coef_[0])
+print("He so w0 (intercept):", model.intercept_)
+
+# 4. Du doan gia tri moi
+y_pred = model.predict([[6]])
+print("Du doan cho X=6:", y_pred[0])
+\end{lstlisting}
+
+\section{Tóm tắt chương}
+\begin{itemize}
+    \item Bản chất mô hình Hồi quy tuyến tính và bài toán tối ưu hàm MSE.
+    \item Phương pháp hạ độ dốc (Gradient Descent) để cập nhật trọng số.
+    \item Thao tác huấn luyện mô hình bằng thư viện \texttt{scikit-learn}.
+\end{itemize}
