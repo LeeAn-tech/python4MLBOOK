@@ -1,0 +1,114 @@
+\chapter{Lập trình hướng đối tượng trong Python}
+
+Lập trình hướng đối tượng (Object-Oriented Programming - OOP) là phương pháp luận lập trình đóng vai trò then chốt trong việc thiết kế các thư viện Machine Learning hiện đại như Scikit-Learn, PyTorch và TensorFlow. Chương này trình bày các khái niệm OOP cốt lõi và hướng dẫn cách ứng dụng OOP để tự đóng gói một mô hình Machine Learning.
+
+\section{Lớp và Đối tượng (Class and Object)}
+
+\begin{definition}[Lớp và Đối tượng]
+\textbf{Lớp (Class)} là khuôn mẫu định nghĩa các thuộc tính (dữ liệu) và phương thức (hành vi). \textbf{Đối tượng (Object)} là một thể hiện cụ thể được khởi tạo từ lớp đó.
+\end{definition}
+
+\begin{example}
+Khai báo một lớp cơ bản lưu trữ mẫu dữ liệu:
+\end{example}
+
+\begin{lstlisting}[caption={Khai báo Class và tạo Object trong Python}]
+class DataSample:
+    def __init__(self, feature_name, value):
+        self.feature_name = feature_name  # Thuoc tinh
+        self.value = value
+
+    def display_info(self):              # Phuong thuc
+        print(f"Feature: {self.feature_name}, Value: {self.value}")
+
+# Khoi tao doi tuong
+sample = DataSample(feature_name="Age", value=25)
+sample.display_info()
+\end{lstlisting}
+
+\section{Các phương thức đặc biệt (Magic Methods)}
+
+Các phương thức có cú pháp hai dấu gạch dưới (\texttt{\_\_method\_\_}) giúp tùy biến hành vi của đối tượng trong Python.
+
+\subsection{Phương thức \texttt{\_\_init\_\_} và \texttt{\_\_call\_\_}}
+\begin{itemize}
+    \item \texttt{\_\_init\_\_}: Hàm khởi tạo (constructor), tự động thực thi khi tạo mới một đối tượng.
+    \item \texttt{\_\_call\_\_}: Cho phép gọi trực tiếp một đối tượng giống như một hàm, thường dùng khi thiết kế các Layer trong Neural Network.
+\end{itemize}
+
+\begin{lstlisting}[caption={Sử dụng phương thức \_\_call\_\_}]
+class Multiplier:
+    def __init__(self, factor):
+        self.factor = factor
+
+    def __call__(self, x):
+        return x * self.factor
+
+# Su dung nhu mot ham
+double = Multiplier(factor=2)
+print(double(5))  # Output: 10
+\end{lstlisting}
+
+\section{Tính Kế thừa (Inheritance)}
+
+Tính kế thừa cho phép tạo một lớp mới dựa trên lớp đã có, giúp tái sử dụng mã nguồn và chuẩn hóa giao diện các mô hình.
+
+\begin{lstlisting}[caption={Kế thừa lớp mô hình cơ sở}]
+class BaseModel:
+    def __init__(self, name):
+        self.name = name
+
+    def fit(self, X, y):
+        raise NotImplementedError("Phuong thuc fit() phai duoc cai dat o lop con.")
+
+class LinearModel(BaseModel):
+    def __init__(self):
+        super().__init__(name="Linear Regression")
+
+    def fit(self, X, y):
+        print(f"Dang huan luyen mo hinh {self.name}...")
+
+# Khoi tao va huan luyen
+model = LinearModel()
+model.fit(X=None, y=None)
+\end{lstlisting}
+
+\section{Thiết kế Custom Estimator chuẩn Scikit-Learn}
+
+Trọng tâm ứng dụng OOP trong Machine Learning là đóng gói thuật toán thành một Class có các giao diện chuẩn (\texttt{fit}, \texttt{predict}).
+
+\begin{lstlisting}[caption={Đóng gói thuật toán thành Class trong Python}]
+import numpy as np
+
+class CustomLinearRegressor:
+    def __init__(self, learning_rate=0.01, epochs=1000):
+        self.lr = learning_rate
+        self.epochs = epochs
+        self.weights = None
+        self.bias = None
+
+    def fit(self, X, y):
+        n_samples, n_features = X.shape
+        self.weights = np.zeros(n_features)
+        self.bias = 0.0
+
+        for _ in range(self.epochs):
+            y_predicted = np.dot(X, self.weights) + self.bias
+            dw = (1 / n_samples) * np.dot(X.T, (y_predicted - y))
+            db = (1 / n_samples) * np.sum(y_predicted - y)
+
+            self.weights -= self.lr * dw
+            self.bias -= self.lr * db
+
+    def predict(self, X):
+        return np.dot(X, self.weights) + self.bias
+\end{lstlisting}
+
+\section{Tóm tắt chương}
+
+\begin{itemize}
+    \item Khái niệm Lớp, Đối tượng và tư duy lập trình hướng đối tượng.
+    \item Ứng dụng các Magic Methods (\texttt{\_\_init\_\_}, \texttt{\_\_call\_\_}) trong xây dựng Framework.
+    \item Nguyên lý Kế thừa giúp tái sử dụng và quản lý mã nguồn linh hoạt.
+    \item Đóng gói thuật toán Machine Learning thành Class theo giao diện tiêu chuẩn.
+\end{itemize}
