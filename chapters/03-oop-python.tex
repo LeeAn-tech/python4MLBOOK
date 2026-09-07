@@ -51,57 +51,111 @@ print(double(5))  # Output: 10
 
 \section{Tính Kế thừa (Inheritance)}
 
-Tính kế thừa cho phép tạo một lớp mới dựa trên lớp đã có, giúp tái sử dụng mã nguồn và chuẩn hóa giao diện các mô hình.
+Tính kế thừa cho phép tạo một lớp mới dựa trên lớp đã có, giúp tái sử dụng mã nguồn và chuẩn hóa giao diện của các bộ biến đổi dữ liệu (Transformers).
 
-\begin{lstlisting}[caption={Kế thừa lớp mô hình cơ sở}]
-class BaseModel:
-    def __init__(self, name):
-        self.name = name
+\begin{lstlisting}[caption={Kế thừa lớp BaseTransformer trong tiền xử lý dữ liệu}, language=Python]
+class BaseTransformer:
+    def fit(self, arr):
+        raise NotImplementedError("Phuong thuc fit() bat buoc phai duoc trien khai o lop con.")
+        
+    def transform(self, arr):
+        raise NotImplementedError("Phuong thuc transform() bat buoc phai trien khai o lop con.")
+        
+    def fit_transform(self, arr):
+        self.fit(arr)
+        return self.transform(arr)
 
-    def fit(self, X, y):
-        raise NotImplementedError("Phuong thuc fit() phai duoc cai dat o lop con.")
+class MinMaxScaler(BaseTransformer):
+    def fit(self, arr):
+        self.min_ = min(arr)
+        self.max_ = max(arr)
+        return self
+        
+    def transform(self, arr):
+        return [(x - self.min_) / (self.max_ - self.min_) for x in arr]
+        
+    def inverse_transform(self, arr):
+        return [x * (self.max_ - self.min_) + self.min_ for x in arr]
+\end{lstlisting}
 
-class LinearModel(BaseModel):
-    def __init__(self):
-        super().__init__(name="Linear Regression")
+\section{Quản lý thuộc tính: Siêu tham số (Hyperparameters) và Tham số học được (Learned Parameters)}
 
-    def fit(self, X, y):
-        print(f"Dang huan luyen mo hinh {self.name}...")
+Trong thiết kế Machine Learning, ta cần phân biệt rõ giữa siêu tham số (cấu hình trước khi huấn luyện) và tham số học được (được sinh ra sau khi gọi hàm \texttt{fit}).
 
-# Khoi tao va huan luyen
-model = LinearModel()
-model.fit(X=None, y=None)
+\begin{lstlisting}[caption={Bắt lỗi an toàn khi quản lý tham số học được}, language=Python]
+class MinMaxScaler(BaseTransformer):
+    def __init__(self, feature_range=(0, 1)):
+        self.feature_range = feature_range  # Hyperparameter
+
+    def fit(self, arr):
+        self.min = float(min(arr))          # Learned Parameter
+        self.max = float(max(arr))          # Learned Parameter
+        return self
+
+    def transform(self, arr):
+        # Kiem tra an toan: Đam bao mo hinh da duoc fit()
+        if not hasattr(self, 'min') or not hasattr(self, 'max'):
+            raise RuntimeError("Loi: Ban phai goi ham fit() truoc khi goi transform()!")
+            
+        low, high = self.feature_range
+        std = [(x - self.min) / (self.max - self.min) for x in arr]
+        return [x * (high - low) + low for x in std]
 \end{lstlisting}
 
 \section{Thiết kế Custom Estimator chuẩn Scikit-Learn}
 
-Trọng tâm ứng dụng OOP trong Machine Learning là đóng gói thuật toán thành một Class có các giao diện chuẩn (\texttt{fit}, \texttt{predict}).
+Trọng tâm ứng dụng OOP trong Machine Learning là đóng gói thuật toán thành một Class có các giao diện chuẩn (\texttt{fit}, \texttt{predict}, \texttt{evaluate}). Dưới đây là triển khai mô hình Hồi quy tuyến tính đơn biến (Simple Linear Regression) bằng công thức đại số.
 
-\begin{lstlisting}[caption={Đóng gói thuật toán thành Class trong Python}]
-import numpy as np
-
-class CustomLinearRegressor:
-    def __init__(self, learning_rate=0.01, epochs=1000):
-        self.lr = learning_rate
-        self.epochs = epochs
-        self.weights = None
-        self.bias = None
+\begin{lstlisting}[caption={Đóng gói thuật toán Simple Linear Regression}, language=Python]
+class SimpleLinearRegression:
+    def __init__(self):
+        self.w0 = 0  
+        self.w1 = 0
 
     def fit(self, X, y):
-        n_samples, n_features = X.shape
-        self.weights = np.zeros(n_features)
-        self.bias = 0.0
+        n = len(X)
+        mean_x = sum(X) / n
+        mean_y = sum(y) / n
+        
+        numerator = sum((X[i] - mean_x) * (y[i] - mean_y) for i in range(n))
+        denominator = sum((X[i] - mean_x) ** 2 for i in range(n))
+        
+        if denominator == 0:
+            raise ValueError("Bao loi: Phuong sai cua X bang 0, khong the tinh toan.")
 
-        for _ in range(self.epochs):
-            y_predicted = np.dot(X, self.weights) + self.bias
-            dw = (1 / n_samples) * np.dot(X.T, (y_predicted - y))
-            db = (1 / n_samples) * np.sum(y_predicted - y)
-
-            self.weights -= self.lr * dw
-            self.bias -= self.lr * db
+        self.w1 = numerator / denominator
+        self.w0 = mean_y - (self.w1 * mean_x)
+        return self
 
     def predict(self, X):
-        return np.dot(X, self.weights) + self.bias
+        return [(self.w1 * x_i + self.w0) for x_i in X]
+
+    def evaluate(self, X, y):
+        predictions = self.predict(X)
+        mse = sum((predictions[i] - y[i]) ** 2 for i in range(len(y))) / len(y)
+        return mse
+\end{lstlisting}
+
+\section{Mẫu thiết kế Pipeline}
+
+Pipeline là lớp quản lý chuỗi các bước biến đổi dữ liệu nối tiếp nhau, cho phép tự động hóa toàn bộ quy trình tiền xử lý trước khi đưa vào mô hình dự đoán.
+
+\begin{lstlisting}[caption={Triển khai cấu trúc Pipeline cơ bản}, language=Python]
+class Pipeline:
+    def __init__(self, steps):
+        self.steps = steps
+
+    def fit_transform(self, arr):
+        data = arr
+        for transformer in self.steps:
+            data = transformer.fit_transform(data)
+        return data
+
+    def transform(self, arr):
+        data = arr
+        for transformer in self.steps:
+            data = transformer.transform(data)
+        return data
 \end{lstlisting}
 
 \section{Tóm tắt chương}
@@ -111,4 +165,5 @@ class CustomLinearRegressor:
     \item Ứng dụng các Magic Methods (\texttt{\_\_init\_\_}, \texttt{\_\_call\_\_}) trong xây dựng Framework.
     \item Nguyên lý Kế thừa giúp tái sử dụng và quản lý mã nguồn linh hoạt.
     \item Đóng gói thuật toán Machine Learning thành Class theo giao diện tiêu chuẩn.
+    \item Phân biệt rõ ràng siêu tham số và tham số học được thông qua các thuộc tính của đối tượng
 \end{itemize}
