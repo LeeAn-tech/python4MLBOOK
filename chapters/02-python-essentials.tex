@@ -1,41 +1,148 @@
 \chapter{Cú pháp Python cơ bản}
 
-Chương này trình bày các khái niệm nền tảng trong lập trình Python, bao gồm biến, kiểu dữ liệu, cấu trúc điều khiển và hàm. Đây là các kiến thức bắt buộc trước khi đi vào xử lý dữ liệu và Machine Learning.
+Chương này trình bày các khái niệm nền tảng trong lập trình Python, bao gồm biến, kiểu dữ liệu, toán tử, cấu trúc điều khiển và các hàm toán học. Đây là các kiến thức bắt buộc trước khi đi vào xử lý dữ liệu và Machine Learning.
 
 \section{Biến và Kiểu dữ liệu}
 
-Trong Python, biến được khởi tạo tự động khi gán giá trị. Python là ngôn ngữ dynamically typed (định kiểu động).
+Trong Python, biến được khởi tạo tự động khi gán giá trị. Python là ngôn ngữ \textit{dynamically typed} (định kiểu động).
 
 \begin{definition}[Biến trong Python]
 Biến là tên gọi đại diện cho một vùng nhớ chứa dữ liệu. Giá trị của biến có thể thay đổi trong quá trình thực thi chương trình.
 \end{definition}
 
 \subsection{Các kiểu dữ liệu cơ bản}
-Python hỗ trợ nhiều kiểu dữ liệu mặc định:
+Dựa trên nền tảng Python Basic, dưới đây là bảng tổng hợp các kiểu dữ liệu cốt lõi thường xuyên được sử dụng:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Tên} & \textbf{Kiểu dữ liệu} & \textbf{Ví dụ} \\
+\hline
+\texttt{str} & Kiểu chuỗi (string) & \texttt{a = 'Thien Thanh'} \\
+\hline
+\texttt{int} & Kiểu số nguyên & \texttt{a = 79} \\
+\hline
+\texttt{float} & Kiểu số thực & \texttt{a = 7.6} \\
+\hline
+\texttt{NoneType} & Kiểu None & \texttt{a = None} \\
+\hline
+\texttt{bool} & Kiểu luận lý (True, False) & \texttt{a = True} \\
+\hline
+\texttt{list} & Kiểu danh sách & \texttt{a = [3, 2, 1, 5]} \\
+\hline
+\texttt{tuple} & Kiểu bộ & \texttt{a = (1, 5, 3)} \\
+\hline
+\texttt{dict} & Kiểu từ điển & \texttt{b = \{'one': 1, 'four': 4\}} \\
+\hline
+\texttt{set} & Kiểu tập hợp & \texttt{a = \{1, 3, 5\}} \\
+\hline
+\end{tabular}
+\caption{Các kiểu dữ liệu cơ bản trong Python}
+\end{table}
+
+Để kiểm tra kiểu dữ liệu của một biến trong Python, ta sử dụng hàm \texttt{type()}:
+
+\begin{lstlisting}[caption={Kiểm tra kiểu dữ liệu}]
+a = 7
+print(type(a))  # Output: <class 'int'>
+\end{lstlisting}
+
+\section{Toán tử trong Python}
+
+Toán tử là thành phần không thể thiếu để thực hiện các phép tính từ cơ bản đến phức tạp trong các thuật toán.
+
+\subsection{Toán tử cơ bản}
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|l|l|}
+\hline
+\textbf{Tên toán tử} & \textbf{Ký hiệu} & \textbf{Ví dụ} & \textbf{Kết quả} \\
+\hline
+Cộng & \texttt{+} & \texttt{3 + 7} & \texttt{10} \\
+\hline
+Trừ & \texttt{-} & \texttt{7 - 2} & \texttt{5} \\
+\hline
+Nhân & \texttt{*} & \texttt{2 * 7} & \texttt{14} \\
+\hline
+Chia & \texttt{/} & \texttt{7 / 5} & \texttt{1.4} \\
+\hline
+Chia lấy phần nguyên & \texttt{//} & \texttt{10 // 4} & \texttt{2} \\
+\hline
+Chia lấy phần dư & \texttt{\%} & \texttt{9 \% 5} & \texttt{4} \\
+\hline
+Lấy mũ & \texttt{**} & \texttt{2 ** 3} & \texttt{8} \\
+\hline
+\end{tabular}
+\caption{Các toán tử số học cơ bản}
+\end{table}
+
+\subsection{Toán tử gán mở rộng}
+Để mã nguồn ngắn gọn hơn, Python hỗ trợ các toán tử gán mở rộng kết hợp phép tính và phép gán:
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|l|l|}
+\hline
+\textbf{Tên toán tử} & \textbf{Ký hiệu} & \textbf{Ví dụ} & \textbf{Kết quả} \\
+\hline
+Cộng & \texttt{+=} & \texttt{a = 7; a += 3} & \texttt{10} \\
+\hline
+Trừ & \texttt{-=} & \texttt{b = 9; b -= 4} & \texttt{5} \\
+\hline
+Nhân & \texttt{*=} & \texttt{a = 2; a *= 7} & \texttt{14} \\
+\hline
+Chia & \texttt{/=} & \texttt{a = 7; b /= 5} & \texttt{1.4} \\
+\hline
+Chia lấy phần nguyên & \texttt{//=} & \texttt{a = 10; a //= 4} & \texttt{2} \\
+\hline
+Chia lấy phần dư & \texttt{\%=} & \texttt{a = 9; a \%= 5} & \texttt{4} \\
+\hline
+Lấy mũ & \texttt{**=} & \texttt{a = 2; a **= 3} & \texttt{8} \\
+\hline
+\end{tabular}
+\caption{Các toán tử gán mở rộng}
+\end{table}
+
+\section{Hàm toán học trong Python}
+
+Đối với các ứng dụng khoa học dữ liệu, thư viện \texttt{math} cung cấp các hằng số và hàm tính toán nâng cao. Để sử dụng, ta cần import thư viện:
+
+\begin{lstlisting}[caption={Import thư viện math}]
+import math
+\end{lstlisting}
+
+\subsection{Các hằng số toán học}
 \begin{itemize}
-    \item \textbf{Integer} (\texttt{int}): Số nguyên, ví dụ: \texttt{x = 10}.
-    \item \textbf{Float} (\texttt{float}): Số thực, ví dụ: \texttt{pi = 3.14159}.
-    \item \textbf{String} (\texttt{str}): Chuỗi ký tự, ví dụ: \texttt{name = "Machine Learning"}.
-    \item \textbf{Boolean} (\texttt{bool}): Giá trị đúng/sai (\texttt{True} hoặc \texttt{False}).
+    \item Hằng số Euler ($E$): \texttt{math.e} $\approx 2.718$
+    \item Hằng số Pi ($\pi$): \texttt{math.pi} $\approx 3.14159$
 \end{itemize}
 
-\begin{example}
-Ví dụ về khai báo và kiểm tra kiểu dữ liệu trong Python:
-\end{example}
-
-\begin{lstlisting}[caption={Khai báo biến và hiển thị kiểu dữ liệu}]
-a = 100
-b = 3.14
-c = "Python ML"
-is_ready = True
-
-print(type(a))  # Output: <class 'int'>
-print(type(b))  # Output: <class 'float'>
-\end{lstlisting}
+\subsection{Các hàm toán học thường dùng}
+\begin{table}[h]
+\centering
+\begin{tabular}{|c|l|}
+\hline
+\textbf{Tên hàm (Toán học)} & \textbf{Mã lệnh Python} \\
+\hline
+$\ln(x)$ & \texttt{math.log(math.e)} \\
+\hline
+$\log_2(x)$ & \texttt{math.log2(3)} \\
+\hline
+$e^x$ & \texttt{math.exp(3)} \\
+\hline
+$\log_{10}(x)$ & \texttt{math.log10(3)} \\
+\hline
+$\sqrt{x}$ & \texttt{math.sqrt(3)} \\
+\hline
+$a^x$ & \texttt{math.pow(2, 3)} \\
+\hline
+\end{tabular}
+\caption{Một số hàm toán học từ thư viện math}
+\end{table}
 
 \section{Cấu trúc dữ liệu nâng cao}
 
-Đối với Machine Learning, 3 cấu trúc dữ liệu cơ bản hay dùng nhất bao gồm List, Tuple và Dictionary.
+Đối với Machine Learning, ngoài mảng 1 chiều, ta thường sử dụng 3 cấu trúc dữ liệu cơ bản bao gồm List, Tuple và Dictionary.
 
 \subsection{List (Danh sách)}
 List là tập hợp các phần tử có thứ tự và có thể thay đổi (mutable).
@@ -60,14 +167,15 @@ score = 0.85
 if score >= 0.8:
     print("Mo hinh dat do chinh xac cao")
 else:
-    print("Cần can thiep hoac toi uu them")
+    print("Can can thiep hoac toi uu them")
 \end{lstlisting}
 
 \section{Tóm tắt chương}
 Trong chương này, chúng ta đã nắm được:
 \begin{itemize}
-    \item Cách khai báo biến và các kiểu dữ liệu cơ bản.
-    \item Cấu trúc dữ liệu List, Tuple, Dictionary.
-    \item Vòng lặp và cấu trúc rẽ nhánh trong Python.
+    \item Cách khai báo biến và chi tiết các kiểu dữ liệu cơ bản trong Python.
+    \item Các toán tử số học và toán tử gán mở rộng.
+    \item Cách sử dụng thư viện \texttt{math} cho các hàm toán học phức tạp.
+    \item Cấu trúc dữ liệu nâng cao: List, Tuple, Dictionary.
+    \item Cấu trúc rẽ nhánh trong Python.
 \end{itemize}
-
