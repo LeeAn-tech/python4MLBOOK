@@ -2,15 +2,9 @@
 
 \section{Python là gì?}
 
-Python là một ngôn ngữ lập trình bậc cao, thông dịch và đa mục đích.
-Python được thiết kế với mục tiêu tạo ra một ngôn ngữ có cú pháp rõ ràng,
-dễ đọc và dễ học.
+Python là một ngôn ngữ lập trình được sử dụng rộng rãi trong các ứng dụng web, phát triển phần mềm, khoa học dữ liệu và máy học (ML). Các nhà phát triển sử dụng Python vì nó hiệu quả, dễ học và có thể chạy trên nhiều nền tảng khác nhau. Phần mềm Python được tải xuống miễn phí, tích hợp tốt với tất cả các loại hệ thống và tăng tốc độ phát triển. (Nguồn: \url{https://aws.amazon.com/vi/what-is/python/})
 
-Python hỗ trợ nhiều mô hình lập trình, trong đó có lập trình thủ tục,
-lập trình hướng đối tượng và lập trình hàm. Nhờ cú pháp đơn giản cùng
-hệ sinh thái thư viện phong phú, Python được sử dụng rộng rãi trong
-nhiều lĩnh vực như phát triển phần mềm, phát triển Web, khoa học dữ liệu,
-trí tuệ nhân tạo, Machine Learning và tự động hóa.
+Python hỗ trợ nhiều mô hình lập trình, trong đó có lập trình thủ tục, lập trình hướng đối tượng và lập trình hàm. 
 
 Một chương trình Python đơn giản:
 
@@ -18,8 +12,7 @@ Một chương trình Python đơn giản:
 print("Hello, Python!")
 \end{lstlisting}
 
-Cú pháp của Python có xu hướng sử dụng khoảng trắng để thể hiện cấu trúc
-của chương trình. Ví dụ:
+Cú pháp của Python có xu hướng sử dụng khoảng trắng để thể hiện cấu trúc của chương trình. Ví dụ:
 
 \begin{lstlisting}
 if age >= 18:
@@ -32,100 +25,86 @@ Cách tổ chức này giúp mã nguồn Python có cấu trúc rõ ràng và d�
 
 \section{Lịch sử phát triển của Python}
 
-Python được tạo ra bởi Guido van Rossum vào cuối những năm 1980 và
-được phát triển trong những năm đầu của thập niên 1990.
+\subsection{Khởi nguồn \& Phiên bản thử nghiệm (1989 – 1991)}
+Vào cuối năm 1989, khi đang làm việc tại Viện Nghiên cứu Quốc gia về Toán học và Khoa học Máy tính (CWI) ở Hà Lan, Guido van Rossum quyết định viết một ngôn ngữ lập trình mới trong kỳ nghỉ Giáng sinh để làm dự án phụ. Ông muốn tạo ra một ngôn ngữ kết hợp tính đơn giản của ngôn ngữ ABC với khả năng tương tác tốt với hệ điều hành Amoeba.
 
-Guido van Rossum bắt đầu phát triển Python như một dự án kế thừa từ
-ngôn ngữ lập trình ABC. Mục tiêu của ông là xây dựng một ngôn ngữ có
-cú pháp đơn giản, dễ sử dụng nhưng vẫn đủ mạnh để phát triển các
-chương trình thực tế.
+Tháng 2/1991, Guido đăng tải mã nguồn lên nhóm tin alt.sources với phiên bản Python 0.9.0. Dù chỉ là bản phôi thai, nó đã có những nền móng rất hiện đại: Mô hình OOP, Hệ thống xử lý ngoại lệ, Các kiểu dữ liệu cốt lõi (list, dict, str) và Hệ thống module.
 
-Phiên bản Python đầu tiên được công bố rộng rãi là Python 0.9.0,
-phát hành vào năm 1991. Phiên bản này đã có nhiều đặc điểm quan trọng
-của Python hiện đại, bao gồm các kiểu dữ liệu như danh sách (list),
-chuỗi (string), từ điển (dictionary), hàm và cơ chế xử lý ngoại lệ.
+\subsection{Python 1.0 \& Chuẩn hóa quản trị (1994 – 1999)}
+Tháng 1/1994, Python 1.0 chính thức ra mắt, tích hợp mạnh mẽ các công cụ của Lập trình chức năng (Functional Programming) như lambda, map, filter và reduce.
 
-\subsection{Python 1.x}
+Năm 1995 (Python 1.2), Guido tiếp tục phát triển Python tại Tập đoàn Sáng kiến Nghiên cứu Quốc gia (CNRI) ở Mỹ, bổ sung khả năng truyền tham số theo tên (Keyword arguments). Trong giai đoạn này, Guido được cộng đồng trao danh hiệu BDFL (Benevolent Dictator for Life).
 
-Python 1.0 được phát hành vào năm 1994. Trong giai đoạn này, ngôn ngữ
-tiếp tục được phát triển và bổ sung nhiều tính năng quan trọng.
+\subsection{Python 2.0 \& Sự trỗi dậy của Cộng đồng (Tháng 10/2000)}
+Python 2.0 đánh dấu sự chuyển dịch lớn sang mô hình phát triển mã nguồn mở hoàn toàn. Các tính năng đột phá bao gồm: List Comprehension, Garbage Collector (GC), và ra đời quy trình PEP (Python Enhancement Proposal). Phiên bản Python 2.7 (2010) trở thành phiên bản ổn định nhất của dòng Python 2.
 
-\subsection{Python 2.x}
+\subsection{Python 3.0 – "Cuộc đại tái thiết" (Tháng 12/2008)}
+Sau nhiều năm phát triển, Python 2 bị tích tụ nhiều lỗi thiết kế. Guido quyết định phát hành Python 3.0 với đặc điểm cốt lõi là Không tương thích ngược (Backwards Incompatible) với Python 2. Những cải tiến quan trọng bao gồm:
+\begin{itemize}
+    \item Đồng bộ Unicode cho mọi chuỗi ký tự.
+    \item Thay đổi câu lệnh \texttt{print} thành hàm \texttt{print()}.
+    \item Tối ưu hóa bộ nhớ bằng cách chuyển các hàm như \texttt{range()}, \texttt{zip()}, \texttt{map()} sang dạng trả về Iterator.
+\end{itemize}
 
-Python 2.0 được phát hành vào năm 2000. Đây là một cột mốc quan trọng
-trong lịch sử Python, với nhiều cải tiến về ngôn ngữ và khả năng xử lý
-dữ liệu.
+\subsection{Kỷ nguyên AI/Machine Learning \& Khai tử Python 2 (2015 – Nay)}
+Cú pháp đơn giản giúp Python trở thành lựa chọn hàng đầu trong Khoa học dữ liệu và AI với các thư viện như NumPy, Pandas, Scikit-Learn, TensorFlow, PyTorch.
 
-Python 2 tiếp tục được sử dụng trong nhiều năm. Tuy nhiên, Python 2
-cuối cùng đã được ngừng hỗ trợ chính thức vào năm 2020.
-
-\subsection{Python 3.x}
-
-Python 3.0 được phát hành vào năm 2008. Đây là một phiên bản được
-thiết kế để cải thiện ngôn ngữ và khắc phục một số hạn chế của Python 2.
-
-Python 3 không hoàn toàn tương thích ngược với Python 2. Vì vậy, quá
-trình chuyển đổi từ Python 2 sang Python 3 diễn ra trong nhiều năm.
-
-Ngày nay, Python 3 là dòng phiên bản chính được sử dụng và phát triển.
+Ngày 01/01/2020, Python 2 chính thức bị khai tử (EOL), đưa Python 3 trở thành tiêu chuẩn duy nhất. Giai đoạn hiện tại (Python 3.8 – 3.13+) tập trung vào bổ sung các toán tử mới và dự án Faster CPython nhằm tối ưu hóa hiệu năng.
 
 \section{Guido van Rossum -- tác giả của Python}
 
-Guido van Rossum là lập trình viên người Hà Lan và là người tạo ra
-ngôn ngữ lập trình Python.
+Guido van Rossum là một nhà khoa học máy tính người Hà Lan. Ông là người giữ quyền quyết định tối cao về định hướng kiến trúc của ngôn ngữ (BDFL) cho đến khi từ chức vào năm 2018.
 
-Ông bắt đầu phát triển Python vào cuối năm 1989 tại Centrum Wiskunde
-\& Informatica (CWI) ở Hà Lan. Phiên bản đầu tiên của Python được công
-bố vào năm 1991.
-
-Guido van Rossum giữ vai trò chính trong việc định hướng sự phát triển
-của Python trong nhiều năm. Ông từng được cộng đồng Python gọi bằng
-danh hiệu ``Benevolent Dictator For Life'', thường được viết tắt là
-BDFL.
-
-Năm 2018, Guido van Rossum tuyên bố từ bỏ vai trò BDFL. Sau đó, quá
-trình định hướng phát triển Python được chuyển sang mô hình quản trị
-dựa trên Python Steering Council.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth]{images/Guido van Rossum.jpg}
+    \caption{Guido van Rossum - Tác giả sáng lập Python. (Nguồn: Sauria Associates, LLC / FlickrVision)}
+\end{figure}
 
 \section{Tên gọi Python}
 
-Tên ``Python'' không xuất phát từ loài rắn như nhiều người thường nghĩ.
-Guido van Rossum đặt tên ngôn ngữ theo chương trình hài kịch truyền hình
-của Anh có tên \textit{Monty Python's Flying Circus}.
+Tên gọi "Python" không xuất phát từ loài trăn, mà lấy cảm hứng từ chương trình hài kịch yêu thích của ông trên đài BBC: "Monty Python's Flying Circus".
 
-Tên gọi ngắn gọn ``Python'' được lựa chọn vì Guido van Rossum là người
-yêu thích chương trình này.
+\section{Hướng dẫn cài đặt Python và Anaconda}
 
-\section{Python ngày nay}
+\subsection{Cài đặt Python}
+\begin{enumerate}
+    \item Truy cập trang chủ Python: \url{https://www.python.org/downloads/}
+    \item Tải phiên bản cài đặt (Ví dụ: Python 3.14.7 cho Windows).
+    \item Mở file cài đặt. \textbf{Lưu ý quan trọng:} Nhớ tick vào ô "Add python.exe to PATH" trước khi bấm "Install Now".
+    \item Bấm "Close" khi cài đặt thành công. Có thể chọn "Disable path length limit" nếu cần.
+\end{enumerate}
 
-Python hiện được sử dụng trong rất nhiều lĩnh vực của công nghệ thông
-tin. Một số lĩnh vực tiêu biểu bao gồm:
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth]{images/B2.jpg}
+    \caption{Tick chọn Add python.exe to PATH trong quá trình cài đặt}
+\end{figure}
 
-\begin{itemize}
-    \item Phát triển phần mềm.
-    \item Phát triển Web.
-    \item Khoa học dữ liệu.
-    \item Trí tuệ nhân tạo.
-    \item Machine Learning.
-    \item Deep Learning.
-    \item Tự động hóa.
-    \item Tính toán khoa học.
-\end{itemize}
+\subsection{Cài đặt Anaconda/Miniconda}
+Anaconda là một nền tảng phân phối Python và R phục vụ cho khoa học dữ liệu.
 
-Đặc biệt, hệ sinh thái Python có nhiều thư viện mạnh như NumPy, Pandas,
-Matplotlib, Scikit-learn, TensorFlow và PyTorch. Đây là một trong những
-yếu tố quan trọng giúp Python trở thành ngôn ngữ phổ biến trong khoa học
-dữ liệu và Machine Learning.
+\begin{enumerate}
+    \item Truy cập trang tải Anaconda: \url{https://www.anaconda.com/download}
+    \item Tải bản cài đặt Anaconda Distribution hoặc Miniconda.
+    \item Mở file cài đặt, chọn "Just Me", chọn đường dẫn lưu (ví dụ: \texttt{C:\textbackslash miniconda3}).
+    \item Trong phần Advanced Installation Options, có thể tick chọn "Register Miniconda3 as my default Python".
+    \item Nhấn "Install" và đợi quá trình cài đặt hoàn tất.
+\end{enumerate}
+
+\subsection{Tạo môi trường Conda}
+Sau khi cài đặt Anaconda/Miniconda, mở Anaconda Prompt và sử dụng lệnh sau để tạo một môi trường ảo (ví dụ tên là \texttt{ai}) với phiên bản Python 3.14:
+\begin{lstlisting}[language=bash]
+conda create -n ai python=3.14 anaconda
+\end{lstlisting}
+Xác nhận tiến trình cài đặt các gói bằng cách gõ \texttt{y} (yes) khi được yêu cầu.
 
 \section{Tóm tắt chương}
 
 Trong chương này, chúng ta đã tìm hiểu:
-
 \begin{itemize}
-    \item Khái niệm cơ bản về Python.
-    \item Lịch sử hình thành và phát triển của Python.
-    \item Các giai đoạn Python 1.x, Python 2.x và Python 3.x.
-    \item Guido van Rossum -- người tạo ra Python.
-    \item Nguồn gốc tên gọi Python.
-    \item Một số lĩnh vực sử dụng Python hiện nay.
+    \item Khái niệm cơ bản về Python và ứng dụng của nó.
+    \item Lịch sử hình thành chi tiết qua từng giai đoạn (từ Python 0.9.0 đến Python 3.x).
+    \item Tiểu sử của tác giả Guido van Rossum và nguồn gốc tên gọi thú vị của Python.
+    \item Các bước cài đặt môi trường lập trình cơ bản với Python và Anaconda.
 \end{itemize}
