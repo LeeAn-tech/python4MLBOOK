@@ -1,0 +1,880 @@
+% =========================================================
+% CHUONG: TIEN XU LY DU LIEU (DATA PREPROCESSING)
+% Ghi chu cho tac gia:
+%   - Moi hinh dung lenh \hinhchuachen{ten-file}{chu thich}{nhan}.
+%   - Chi can chep anh vao thu muc images/ dung ten file la anh tu hien ra;
+%     neu chua co anh, LaTeX ve mot khung "Cho chen hinh" de giu cho.
+%   - Du lieu thuc hanh: chep file AmesHousing.txt vao thu muc data/.
+% =========================================================
+
+\providecommand{\hinhchuachen}[3]{%
+\begin{figure}[H]
+    \centering
+    \IfFileExists{images/#1}{%
+        \includegraphics[width=0.85\textwidth]{images/#1}%
+    }{%
+        \fbox{\parbox[c][5cm][c]{0.82\textwidth}{\centering
+            \textit{[Chỗ chèn hình]}\\[4pt]
+            \texttt{images/\detokenize{#1}}}}%
+    }
+    \caption{#2}
+    \label{#3}
+\end{figure}}
+
+\chapter{Tiền xử lý dữ liệu \\ (Data Preprocessing)}
+\label{chap:preprocessing}
+
+Các thuật toán học máy (Machine Learning -- ML) cổ điển như hồi quy tuyến tính, KNN, K-Means, SVM hay PCA đều được xây dựng trên nền tảng đại số tuyến tính và giải tích: chúng nhận đầu vào là \textbf{các vector số thực} và thực hiện phép cộng, phép nhân, phép tính khoảng cách giữa các vector đó. Trong khi đó, dữ liệu ngoài đời thực lại rất đa dạng: tên màu sắc, tên khu phố, đoạn văn bản bình luận, mức đánh giá ``tốt -- trung bình -- kém'', diện tích nhà tính bằng feet vuông bên cạnh số phòng tắm chỉ từ 0 đến 4\ldots{} Khoảng cách giữa ``dữ liệu thô'' và ``dữ liệu mà mô hình hiểu được'' chính là đối tượng nghiên cứu của chương này.
+
+\begin{quote}
+\textit{Nguyên tắc cốt lõi:} Mô hình ML không làm việc được trực tiếp trên văn bản hay nhãn chữ --- \textbf{mọi thứ đều phải được biến đổi thành số}, và phải biến đổi sao cho \textbf{không làm sai lệch ý nghĩa} của dữ liệu.
+\end{quote}
+
+\noindent Sau khi học xong chương này, người học có khả năng:
+\begin{itemize}
+    \item Trình bày được nguồn gốc lịch sử và vị trí của tiền xử lý dữ liệu trong quy trình khai phá tri thức (KDD) và CRISP-DM.
+    \item Phân biệt các kiểu dữ liệu (định danh, thứ bậc, số, văn bản) và chọn phép biến đổi phù hợp cho từng kiểu.
+    \item Mã hóa dữ liệu phân loại bằng \textbf{Label Encoder} và \textbf{One Hot Encoder}, hiểu rõ ưu nhược điểm của từng cách.
+    \item Vector hóa văn bản bằng \textbf{Count Vectorizer} và \textbf{TF-IDF Vectorizer}, tự tính tay được ma trận TF-IDF.
+    \item Chuẩn hóa thang đo đặc trưng bằng \textbf{Min Max Scaler}, \textbf{Max Abs Scaler}, \textbf{Standard Scaler} và \textbf{Robust Scaler}.
+    \item Xây dựng quy trình tiền xử lý hoàn chỉnh, tránh rò rỉ dữ liệu, trên bộ dữ liệu thực tế \textbf{Ames Housing}.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Khởi nguồn và vai trò của tiền xử lý dữ liệu}
+% ---------------------------------------------------------
+
+\subsection{``Rác vào, rác ra''}
+
+Ngay từ những ngày đầu của ngành máy tính, giới lập trình viên đã lưu truyền nguyên lý \textit{Garbage In, Garbage Out} (GIGO -- ``rác vào, rác ra''), thường được gán cho George Fuechsel, một kỹ sư IBM vào cuối thập niên 1950. Nguyên lý này nói rằng một chương trình dù đúng đến đâu cũng chỉ cho ra kết quả tốt khi dữ liệu đầu vào tốt. Đối với học máy, nguyên lý này còn nghiêm trọng hơn: mô hình \textit{học} trực tiếp từ dữ liệu, nên mọi sai lệch, nhiễu hay cách mã hóa không phù hợp đều được mô hình ``học thuộc'' và khuếch đại thành dự đoán sai.
+
+\subsection{Tiền xử lý trong quy trình khai phá tri thức (KDD)}
+
+Năm 1996, Fayyad, Piatetsky-Shapiro và Smyth công bố bài báo kinh điển \textit{From Data Mining to Knowledge Discovery in Databases} trên tạp chí \textit{AI Magazine}, chính thức hóa quy trình \textbf{khám phá tri thức từ cơ sở dữ liệu} (Knowledge Discovery in Databases -- KDD). Trong quy trình này, ``khai phá dữ liệu'' (tức bước chạy thuật toán) chỉ là \textbf{một} bước, đứng sau hàng loạt bước chuẩn bị:
+
+\begin{enumerate}
+    \item \textbf{Lựa chọn} (Selection): chọn tập dữ liệu, biến quan tâm.
+    \item \textbf{Tiền xử lý} (Preprocessing): làm sạch, xử lý nhiễu, xử lý giá trị thiếu.
+    \item \textbf{Biến đổi} (Transformation): mã hóa, chuẩn hóa, giảm chiều.
+    \item \textbf{Khai phá dữ liệu} (Data Mining): áp dụng thuật toán.
+    \item \textbf{Diễn giải / Đánh giá} (Interpretation/Evaluation).
+\end{enumerate}
+
+\hinhchuachen{ch-preprocessing-kdd.png}{Quy trình KDD theo Fayyad và cộng sự (1996). Tiền xử lý và biến đổi dữ liệu đứng trước bước khai phá dữ liệu.}{fig:kdd}
+
+Cùng thời điểm, một liên minh công nghiệp gồm DaimlerChrysler, SPSS và NCR phát triển chuẩn \textbf{CRISP-DM} (Cross-Industry Standard Process for Data Mining, công bố bản 1.0 năm 2000) gồm sáu pha: \textit{Hiểu nghiệp vụ -- Hiểu dữ liệu -- Chuẩn bị dữ liệu -- Mô hình hóa -- Đánh giá -- Triển khai}. Pha \textit{Chuẩn bị dữ liệu} được nhiều tài liệu thực hành ước tính chiếm phần lớn thời gian của một dự án (con số thường được trích dẫn là khoảng 60--80\%). Cuốn \textit{Data Preparation for Data Mining} của Dorian Pyle (1999) là một trong những chuyên khảo đầu tiên dành riêng cho chủ đề này.
+
+\hinhchuachen{ch-preprocessing-crispdm.png}{Sáu pha của CRISP-DM. Pha ``Chuẩn bị dữ liệu'' là nơi diễn ra phần lớn các kỹ thuật trong chương này.}{fig:crispdm}
+
+\subsection{Phân loại các tác vụ tiền xử lý}
+
+Theo Han, Kamber và Pei (\textit{Data Mining: Concepts and Techniques}), tiền xử lý dữ liệu gồm bốn nhóm tác vụ chính:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{3.2cm}|p{10cm}|}
+\hline
+\textbf{Nhóm tác vụ} & \textbf{Nội dung} \\
+\hline
+Làm sạch dữ liệu & Xử lý giá trị thiếu, dữ liệu nhiễu, ngoại lai, dữ liệu sai định dạng. \\
+\hline
+Tích hợp dữ liệu & Gộp dữ liệu từ nhiều nguồn, xử lý trùng lặp và mâu thuẫn. \\
+\hline
+Biến đổi dữ liệu & \textbf{Mã hóa} (Label/One Hot Encoder), \textbf{vector hóa văn bản} (Count/TF-IDF), \textbf{chuẩn hóa thang đo} (các Scaler). \\
+\hline
+Rút gọn dữ liệu & Giảm số chiều (PCA, SVD -- xem chương Giảm chiều dữ liệu), giảm số mẫu. \\
+\hline
+\end{tabular}
+\caption{Bốn nhóm tác vụ tiền xử lý dữ liệu}
+\label{tab:preproc-tasks}
+\end{table}
+
+Chương này tập trung vào nhóm \textbf{biến đổi dữ liệu} --- nhóm kỹ thuật mà gần như mọi bài toán ML đều phải dùng --- và minh họa phần làm sạch dữ liệu qua nghiên cứu tình huống ở cuối chương.
+
+\subsection{Thư viện scikit-learn và giao diện \texttt{fit} / \texttt{transform}}
+
+Toàn bộ kỹ thuật trong chương được cài đặt bằng thư viện \textbf{scikit-learn}. Dự án bắt đầu năm 2007 như một dự án Google Summer of Code của David Cournapeau, sau đó được nhóm nghiên cứu tại INRIA (Pháp) phát triển và phát hành công khai năm 2010; bài báo giới thiệu chính thức của Pedregosa và cộng sự đăng trên \textit{Journal of Machine Learning Research} năm 2011.
+
+Điểm mạnh của scikit-learn là \textbf{giao diện thống nhất} (Buitinck và cộng sự, 2013): mọi bộ biến đổi (transformer) đều có ba phương thức:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|p{10cm}|}
+\hline
+\textbf{Phương thức} & \textbf{Ý nghĩa} \\
+\hline
+\texttt{fit(X)} & \textbf{Học} các tham số từ dữ liệu (từ điển nhãn, min/max, trung bình, độ lệch chuẩn\ldots). \\
+\hline
+\texttt{transform(X)} & \textbf{Áp dụng} các tham số đã học để biến đổi dữ liệu. \\
+\hline
+\texttt{fit\_transform(X)} & Gộp hai bước trên (chỉ dùng trên tập huấn luyện). \\
+\hline
+\texttt{inverse\_transform(X)} & Biến đổi ngược về giá trị gốc (khi phép biến đổi khả nghịch). \\
+\hline
+\end{tabular}
+\caption{Giao diện chung của các bộ biến đổi trong scikit-learn}
+\end{table}
+
+\begin{definition}[Rò rỉ dữ liệu -- Data leakage]
+Rò rỉ dữ liệu xảy ra khi thông tin từ tập kiểm tra (test) được sử dụng, trực tiếp hay gián tiếp, trong quá trình huấn luyện. Với tiền xử lý, lỗi điển hình là gọi \texttt{fit} trên \textbf{toàn bộ} dữ liệu trước khi chia train/test. Quy tắc đúng: \textbf{chỉ \texttt{fit} trên tập huấn luyện}, sau đó dùng \texttt{transform} cho cả tập huấn luyện và tập kiểm tra.
+\end{definition}
+
+% ---------------------------------------------------------
+\section{Các kiểu dữ liệu và lựa chọn phép biến đổi}
+% ---------------------------------------------------------
+
+Trước khi chọn kỹ thuật, cần xác định \textbf{thang đo} của từng biến. Stevens (1946) phân biệt bốn thang đo: định danh (nominal), thứ bậc (ordinal), khoảng (interval) và tỉ lệ (ratio). Trong thực hành ML, ta gom thành các nhóm sau:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{2.8cm}|p{4.2cm}|p{3cm}|p{3.4cm}|}
+\hline
+\textbf{Kiểu dữ liệu} & \textbf{Đặc điểm} & \textbf{Ví dụ} & \textbf{Phép biến đổi} \\
+\hline
+Định danh (nominal) & Các giá trị chỉ khác nhau, \textbf{không có thứ tự} & màu sắc, khu phố & One Hot Encoder \\
+\hline
+Thứ bậc (ordinal) & Có \textbf{thứ tự} nhưng khoảng cách không rõ ràng & kém $<$ TB $<$ tốt & Ordinal Encoder \\
+\hline
+Nhãn đầu ra (target) & Biến cần dự đoán trong phân lớp & ``spam''/``ham'' & Label Encoder \\
+\hline
+Số (numeric) & Có giá trị và khoảng cách thực & diện tích, giá & Các Scaler \\
+\hline
+Văn bản (text) & Chuỗi từ có độ dài thay đổi & bình luận, tài liệu & Count / TF-IDF Vectorizer \\
+\hline
+\end{tabular}
+\caption{Kiểu dữ liệu và kỹ thuật tiền xử lý tương ứng}
+\label{tab:datatypes}
+\end{table}
+
+% ---------------------------------------------------------
+\section{Mã hóa dữ liệu phân loại}
+% ---------------------------------------------------------
+
+\subsection{Label Encoder}
+
+\begin{definition}[Label Encoding]
+Cho tập $K$ nhãn phân biệt $\mathcal{C} = \{c_0, c_1, \dots, c_{K-1}\}$. Label Encoding là một song ánh
+\begin{equation}
+    \phi : \mathcal{C} \rightarrow \{0, 1, \dots, K-1\}, \qquad \phi(c_k) = k,
+\end{equation}
+gán cho mỗi nhãn một số nguyên duy nhất. Kết quả là một \textbf{từ điển} (dictionary) ánh xạ nhãn $\rightarrow$ số.
+\end{definition}
+
+\begin{example}
+Cho dãy đầu vào gồm 7 phần tử: \texttt{red}, \texttt{green}, \texttt{blue}, \texttt{red}, \texttt{green}, \texttt{red}, \texttt{orange}. Duyệt dãy từ trái sang phải, mỗi khi gặp một nhãn \textbf{mới} ta cấp cho nó số tiếp theo:
+\end{example}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|c|c|c|c|c|}
+\hline
+\textbf{Input}  & red & green & blue & red & green & red & orange \\
+\hline
+\textbf{Output} & 0 & 1 & 2 & 0 & 1 & 0 & 3 \\
+\hline
+\end{tabular}
+\quad
+\begin{tabular}{|l|c|}
+\hline
+\multicolumn{2}{|c|}{\textbf{Dictionary}} \\
+\hline
+red & 0 \\ green & 1 \\ blue & 2 \\ orange & 3 \\
+\hline
+\end{tabular}
+\caption{Label Encoding theo thứ tự xuất hiện}
+\label{tab:labelenc}
+\end{table}
+
+\hinhchuachen{ch-preprocessing-label-encoder.png}{Minh họa Label Encoder trên bảng tính: dòng input, dòng output và từ điển ánh xạ.}{fig:labelenc}
+
+Để hiểu bản chất thuật toán, ta tự cài đặt Label Encoder chỉ bằng các cấu trúc đã học ở chương Python cơ bản: \textbf{list, vòng lặp \texttt{for} và dictionary}.
+
+\begin{lstlisting}[caption={Tự cài đặt Label Encoder bằng list, for và dictionary}]
+data = ["red", "green", "blue", "red", "green", "red", "orange"]
+
+# Buoc 1: xay dung tu dien nhan -> so (theo thu tu xuat hien)
+dictionary = {}
+for label in data:
+    if label not in dictionary:
+        dictionary[label] = len(dictionary)
+print(dictionary)
+# {'red': 0, 'green': 1, 'blue': 2, 'orange': 3}
+
+# Buoc 2: ma hoa du lieu
+encoded = [dictionary[label] for label in data]
+print(encoded)          # [0, 1, 2, 0, 1, 0, 3]
+
+# Buoc 3: giai ma (inverse) bang tu dien dao
+inverse = {v: k for k, v in dictionary.items()}
+print([inverse[v] for v in encoded])
+\end{lstlisting}
+
+Trong scikit-learn, lớp \texttt{LabelEncoder} làm việc tương tự nhưng có một điểm khác quan trọng: các nhãn được \textbf{sắp xếp theo thứ tự từ điển (alphabet)} trước khi đánh số, chứ không theo thứ tự xuất hiện.
+
+\begin{lstlisting}[caption={Label Encoder với scikit-learn}]
+from sklearn.preprocessing import LabelEncoder
+
+data = ["red", "green", "blue", "red", "green", "red", "orange"]
+le = LabelEncoder()
+encoded = le.fit_transform(data)
+
+print(le.classes_)    # ['blue' 'green' 'orange' 'red']
+print(encoded)        # [3 1 0 3 1 3 2]
+print(le.inverse_transform([0, 3]))   # ['blue' 'red']
+\end{lstlisting}
+
+\paragraph{Hạn chế của Label Encoder.} Label Encoder tạo ra một \textbf{thứ tự giả} giữa các nhãn. Với từ điển ở Bảng~\ref{tab:labelenc}, khoảng cách Euclid giữa các màu là:
+\begin{equation}
+    d(\text{red}, \text{green}) = |0 - 1| = 1, \qquad d(\text{red}, \text{orange}) = |0 - 3| = 3 .
+\end{equation}
+Nghĩa là mô hình sẽ ``hiểu'' rằng màu đỏ giống màu xanh lá hơn màu cam ba lần --- một kết luận hoàn toàn vô nghĩa, chỉ xuất phát từ việc ta đánh số tùy ý. Với các thuật toán dựa trên khoảng cách như \textbf{KNN, K-Means} hoặc các mô hình tuyến tính, đây là nguồn sai lệch nghiêm trọng.
+
+\begin{quote}
+\textbf{Lưu ý chuẩn mực:} Trong scikit-learn, \texttt{LabelEncoder} được thiết kế để mã hóa \textbf{biến mục tiêu $y$} (nhãn lớp trong bài toán phân lớp). Với các \textbf{đặc trưng đầu vào} có thứ bậc, dùng \texttt{OrdinalEncoder} (cho phép tự khai báo thứ tự); với đặc trưng định danh, dùng \texttt{OneHotEncoder}.
+\end{quote}
+
+\begin{lstlisting}[caption={Ordinal Encoder với thứ tự do người dùng khai báo}]
+from sklearn.preprocessing import OrdinalEncoder
+
+quality = [["Po"], ["TA"], ["Gd"], ["Ex"], ["TA"], ["Fa"]]
+oe = OrdinalEncoder(categories=[["Po", "Fa", "TA", "Gd", "Ex"]])
+print(oe.fit_transform(quality).ravel())
+# [0. 2. 3. 4. 2. 1.]   -> Po < Fa < TA < Gd < Ex
+\end{lstlisting}
+
+\subsection{One Hot Encoder}
+
+Ý tưởng mã hóa ``một bit bật'' (\textit{one-hot}) xuất phát từ thiết kế mạch số, nơi mỗi trạng thái của máy trạng thái được biểu diễn bằng đúng một flip-flop ở mức 1. Trong thống kê, kỹ thuật tương đương là \textbf{biến giả} (dummy variable), được Suits (1957) phổ biến cho hồi quy với biến phân loại.
+
+\begin{definition}[One Hot Encoding]
+Với tập $K$ nhãn $\mathcal{C} = \{c_0, \dots, c_{K-1}\}$, One Hot Encoding ánh xạ nhãn $c_k$ thành vector đơn vị thứ $k$ trong $\mathbb{R}^K$:
+\begin{equation}
+    \psi(c_k) = \mathbf{e}_k = (0, \dots, 0, \underbrace{1}_{\text{vị trí } k}, 0, \dots, 0) \in \{0,1\}^K .
+\end{equation}
+Một cột phân loại được thay bằng $K$ cột nhị phân; mỗi hàng có \textbf{đúng một} số 1.
+\end{definition}
+
+Ưu điểm then chốt: mọi cặp nhãn khác nhau đều \textbf{cách đều nhau}:
+\begin{equation}
+    \| \mathbf{e}_i - \mathbf{e}_j \|_2 = \sqrt{2}, \qquad \forall\, i \neq j ,
+\end{equation}
+nên không còn thứ tự giả. Đây là lý do One Hot Encoder là lựa chọn mặc định cho đặc trưng định danh khi dùng \textbf{K-Means, KNN}, SVM hay hồi quy tuyến tính.
+
+\begin{example}
+Cho dãy 9 phần tử (chỉ số 0--8): \texttt{red, blue, red, red, blue, white, red, white, orange}. Từ điển theo thứ tự xuất hiện là \{red: 0, blue: 1, white: 2, orange: 3\}, do đó mỗi phần tử trở thành một vector 4 chiều:
+\end{example}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|l|c|c|c|c|}
+\hline
+\textbf{Chỉ số} & \textbf{Input} & \textbf{red (0)} & \textbf{blue (1)} & \textbf{white (2)} & \textbf{orange (3)} \\
+\hline
+0 & red    & 1 & 0 & 0 & 0 \\ \hline
+1 & blue   & 0 & 1 & 0 & 0 \\ \hline
+2 & red    & 1 & 0 & 0 & 0 \\ \hline
+3 & red    & 1 & 0 & 0 & 0 \\ \hline
+4 & blue   & 0 & 1 & 0 & 0 \\ \hline
+5 & white  & 0 & 0 & 1 & 0 \\ \hline
+6 & red    & 1 & 0 & 0 & 0 \\ \hline
+7 & white  & 0 & 0 & 1 & 0 \\ \hline
+8 & orange & 0 & 0 & 0 & 1 \\ \hline
+\end{tabular}
+\caption{Ma trận One Hot ($9 \times 4$) cho dãy màu sắc}
+\label{tab:onehot}
+\end{table}
+
+\hinhchuachen{ch-preprocessing-one-hot-encoder.png}{Minh họa One Hot Encoder trên bảng tính: từ điển (Key -- Value) và ma trận đầu ra; ô được tô vàng là vị trí số 1 tương ứng với nhãn của từng hàng.}{fig:onehot}
+
+\begin{lstlisting}[caption={Tự cài đặt One Hot Encoder bằng list, for và dictionary}]
+data = ["red", "blue", "red", "red", "blue",
+        "white", "red", "white", "orange"]
+
+# Buoc 1: tu dien (Key -> Value)
+dictionary = {}
+for label in data:
+    if label not in dictionary:
+        dictionary[label] = len(dictionary)
+K = len(dictionary)          # so cot = so nhan phan biet = 4
+
+# Buoc 2: moi phan tu -> vector co dung mot so 1
+one_hot = []
+for label in data:
+    row = [0] * K
+    row[dictionary[label]] = 1
+    one_hot.append(row)
+
+for i, row in enumerate(one_hot):
+    print(i, data[i], row)
+# 0 red   [1, 0, 0, 0]
+# 1 blue  [0, 1, 0, 0]
+# ...
+# 8 orange [0, 0, 0, 1]
+\end{lstlisting}
+
+\begin{lstlisting}[caption={One Hot Encoder với scikit-learn và pandas}]
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import OneHotEncoder
+
+data = np.array(["red", "blue", "red", "red", "blue",
+                 "white", "red", "white", "orange"]).reshape(-1, 1)
+
+ohe = OneHotEncoder(handle_unknown="ignore")
+X = ohe.fit_transform(data)       # ket qua la ma tran thua (sparse)
+print(ohe.get_feature_names_out())
+# ['x0_blue' 'x0_orange' 'x0_red' 'x0_white']   (sap xep alphabet)
+print(X.toarray()[:3])
+# [[0. 0. 1. 0.]
+#  [1. 0. 0. 0.]
+#  [0. 0. 1. 0.]]
+
+# Nhan moi chua tung gap -> vector toan 0 thay vi bao loi
+print(ohe.transform([["green"]]).toarray())   # [[0. 0. 0. 0.]]
+
+# Cach nhanh voi pandas
+print(pd.get_dummies(pd.Series(data.ravel()), dtype=int).head(3))
+\end{lstlisting}
+
+\paragraph{Một số vấn đề cần lưu ý.}
+\begin{itemize}
+    \item \textbf{Bẫy biến giả} (dummy variable trap): $K$ cột one-hot luôn có tổng bằng 1, tức phụ thuộc tuyến tính hoàn toàn với cột hệ số chặn. Với hồi quy tuyến tính không chính quy hóa, nên bỏ một cột bằng \texttt{OneHotEncoder(drop="first")} hoặc \texttt{pd.get\_dummies(..., drop\_first=True)}.
+    \item \textbf{Bùng nổ số chiều}: biến có hàng nghìn giá trị (mã bưu chính, mã sản phẩm) sinh ra hàng nghìn cột. Khi đó cần gộp các nhãn hiếm, dùng ma trận thưa hoặc các kỹ thuật như target encoding, hashing.
+    \item \textbf{Nhãn chưa từng gặp} ở tập kiểm tra: dùng \texttt{handle\_unknown="ignore"} để tránh lỗi khi triển khai.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{3.6cm}|p{4.6cm}|p{4.6cm}|}
+\hline
+\textbf{Tiêu chí} & \textbf{Label / Ordinal Encoder} & \textbf{One Hot Encoder} \\
+\hline
+Số cột sinh ra & 1 & $K$ (số nhãn) \\
+\hline
+Tạo thứ tự giả & Có & Không \\
+\hline
+Phù hợp với & Biến mục tiêu; đặc trưng thứ bậc; mô hình cây & Đặc trưng định danh; KNN, K-Means, SVM, mô hình tuyến tính \\
+\hline
+Nhược điểm & Sai lệch khoảng cách & Tăng số chiều, ma trận thưa \\
+\hline
+\end{tabular}
+\caption{So sánh Label Encoder và One Hot Encoder}
+\end{table}
+
+% ---------------------------------------------------------
+\section{Vector hóa văn bản}
+% ---------------------------------------------------------
+
+\subsection{Mô hình túi từ và Count Vectorizer}
+
+Ý tưởng biểu diễn một văn bản bằng \textbf{tần suất các từ} có từ rất sớm: nhà ngôn ngữ học Zellig Harris (1954) trong \textit{Distributional Structure} đã nhắc đến ``túi từ'' (bag of words), và Hans Peter Luhn (1957) tại IBM đề xuất dùng tần suất từ để đánh chỉ mục tài liệu tự động. Năm 1975, Salton, Wong và Yang hệ thống hóa thành \textbf{mô hình không gian vector} (Vector Space Model): mỗi văn bản là một vector trong không gian có số chiều bằng kích thước từ vựng.
+
+\begin{definition}[Count Vectorizer]
+Cho kho văn bản (corpus) $D = \{d_1, \dots, d_N\}$ và từ vựng $V = \{t_1, \dots, t_M\}$ gồm mọi từ xuất hiện trong $D$. Count Vectorizer biểu diễn văn bản $d$ bằng vector
+\begin{equation}
+    \mathbf{x}_d = \big(\mathrm{tf}(t_1, d), \mathrm{tf}(t_2, d), \dots, \mathrm{tf}(t_M, d)\big),
+\end{equation}
+trong đó $\mathrm{tf}(t, d)$ (term frequency) là số lần từ $t$ xuất hiện trong $d$. Cả kho văn bản trở thành ma trận văn bản -- từ (document-term matrix) kích thước $N \times M$.
+\end{definition}
+
+\begin{example}
+Xét kho văn bản gồm 3 câu:
+\begin{itemize}
+    \item $d_1$: ``the cats are in the house''
+    \item $d_2$: ``the dogs are in the house and outside''
+    \item $d_3$: ``the cats and dogs are friends''
+\end{itemize}
+Từ vựng (sắp xếp alphabet) gồm $M = 9$ từ: \textit{and, are, cats, dogs, friends, house, in, outside, the}.
+\end{example}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|c|}
+\hline
+ & and & are & cats & dogs & friends & house & in & outside & the \\
+\hline
+$d_1$ & 0 & 1 & 1 & 0 & 0 & 1 & 1 & 0 & 2 \\ \hline
+$d_2$ & 1 & 1 & 0 & 1 & 0 & 1 & 1 & 1 & 2 \\ \hline
+$d_3$ & 1 & 1 & 1 & 1 & 1 & 0 & 0 & 0 & 1 \\ \hline
+$\mathrm{df}(t)$ & 2 & 3 & 2 & 2 & 1 & 2 & 2 & 1 & 3 \\ \hline
+\end{tabular}
+\caption{Ma trận đếm từ (Count Vectorizer) và tần suất văn bản $\mathrm{df}(t)$}
+\label{tab:count}
+\end{table}
+
+\begin{lstlisting}[caption={Count Vectorizer với scikit-learn}]
+from sklearn.feature_extraction.text import CountVectorizer
+
+corpus = [
+    "the cats are in the house",
+    "the dogs are in the house and outside",
+    "the cats and dogs are friends",
+]
+cv = CountVectorizer()
+X = cv.fit_transform(corpus)
+
+print(cv.vocabulary_)
+# {'the': 8, 'cats': 2, 'are': 1, 'in': 6, 'house': 5,
+#  'dogs': 3, 'and': 0, 'outside': 7, 'friends': 4}
+print(X.toarray())
+# [[0 1 1 0 0 1 1 0 2]
+#  [1 1 0 1 0 1 1 1 2]
+#  [1 1 1 1 1 0 0 0 1]]
+\end{lstlisting}
+
+Mặc định \texttt{CountVectorizer} chuyển chữ về chữ thường và tách từ bằng biểu thức chính quy \verb|(?u)\b\w\w+\b|, tức \textbf{bỏ qua các từ chỉ có 1 ký tự}. Các tham số hay dùng: \texttt{stop\_words} (loại từ dừng), \texttt{ngram\_range=(1,2)} (lấy thêm cặp từ), \texttt{min\_df}/\texttt{max\_df} (loại từ quá hiếm/quá phổ biến).
+
+\paragraph{Chuẩn hóa L2.} Văn bản dài có số đếm lớn hơn chỉ vì dài hơn. Để so sánh công bằng, mỗi vector được chia cho chuẩn Euclid của nó:
+\begin{equation}
+    \hat{\mathbf{x}}_d = \frac{\mathbf{x}_d}{\|\mathbf{x}_d\|_2}, \qquad \|\mathbf{x}_d\|_2 = \sqrt{\textstyle\sum_{j} x_{dj}^2}.
+\end{equation}
+Với $d_1$: $\|\mathbf{x}_{d_1}\|_2^2 = 1+1+1+1+2^2 = 8$, nên các số 1 trở thành $1/\sqrt{8} \approx 0{,}3536$ và số 2 trở thành $2/\sqrt{8} \approx 0{,}7071$. Tương tự $\|\mathbf{x}_{d_2}\|_2 = \sqrt{10}$ và $\|\mathbf{x}_{d_3}\|_2 = \sqrt{6}$:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|c|}
+\hline
+ & and & are & cats & dogs & friends & house & in & outside & the \\
+\hline
+$d_1$ & 0 & 0.3536 & 0.3536 & 0 & 0 & 0.3536 & 0.3536 & 0 & 0.7071 \\ \hline
+$d_2$ & 0.3162 & 0.3162 & 0 & 0.3162 & 0 & 0.3162 & 0.3162 & 0.3162 & 0.6325 \\ \hline
+$d_3$ & 0.4082 & 0.4082 & 0.4082 & 0.4082 & 0.4082 & 0 & 0 & 0 & 0.4082 \\ \hline
+\end{tabular}
+\caption{Ma trận đếm sau khi chuẩn hóa L2 theo từng hàng}
+\label{tab:count-l2}
+\end{table}
+
+\subsection{TF-IDF}
+
+Count Vectorizer có một nhược điểm: những từ xuất hiện ở \textbf{mọi} văn bản (như ``the'', ``are'') có số đếm cao nhưng gần như không giúp phân biệt văn bản. Năm 1972, Karen Spärck Jones đề xuất trong bài báo \textit{A statistical interpretation of term specificity and its application in retrieval} (\textit{Journal of Documentation}) rằng trọng số của một từ nên tỉ lệ nghịch với số văn bản chứa nó --- đó là \textbf{tần suất văn bản nghịch đảo} (Inverse Document Frequency -- IDF). Salton và Buckley (1988) sau đó tổng kết các biến thể trọng số TF-IDF, trở thành chuẩn mực của ngành truy hồi thông tin suốt nhiều thập kỷ.
+
+\begin{definition}[TF-IDF]
+Với $N$ là số văn bản và $\mathrm{df}(t)$ là số văn bản chứa từ $t$, trọng số TF-IDF của từ $t$ trong văn bản $d$ là
+\begin{equation}
+    \text{tf-idf}(t, d) = \mathrm{tf}(t, d) \times \mathrm{idf}(t).
+\end{equation}
+Dạng kinh điển của IDF là $\mathrm{idf}(t) = \ln \dfrac{N}{\mathrm{df}(t)}$. Thư viện scikit-learn dùng hai biến thể có cộng thêm 1 để từ xuất hiện ở mọi văn bản không bị triệt tiêu hoàn toàn:
+\begin{align}
+    \text{Không làm trơn (\texttt{smooth\_idf=False})}: \quad & \mathrm{idf}(t) = 1 + \ln \frac{N}{\mathrm{df}(t)}, \label{eq:idf-raw}\\
+    \text{Làm trơn (\texttt{smooth\_idf=True}, mặc định)}: \quad & \mathrm{idf}(t) = 1 + \ln \frac{N + 1}{\mathrm{df}(t) + 1}. \label{eq:idf-smooth}
+\end{align}
+Công thức làm trơn tương đương việc thêm một ``văn bản ảo'' chứa mọi từ đúng một lần, giúp tránh phép chia cho 0.
+\end{definition}
+
+\begin{example}[Tính tay IDF]
+Với $N = 3$ và $\mathrm{df}$ ở Bảng~\ref{tab:count}, chỉ có ba giá trị $\mathrm{df} \in \{1, 2, 3\}$:
+\end{example}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|l|c|c|}
+\hline
+$\mathrm{df}(t)$ & \textbf{Các từ} & \textbf{IDF không làm trơn (\ref{eq:idf-raw})} & \textbf{IDF làm trơn (\ref{eq:idf-smooth})} \\
+\hline
+1 & friends, outside & $1 + \ln 3 = 2{,}0986$ & $1 + \ln 2 = 1{,}6931$ \\
+\hline
+2 & and, cats, dogs, house, in & $1 + \ln 1{,}5 = 1{,}4055$ & $1 + \ln \tfrac{4}{3} = 1{,}2877$ \\
+\hline
+3 & are, the & $1 + \ln 1 = 1$ & $1 + \ln 1 = 1$ \\
+\hline
+\end{tabular}
+\caption{Giá trị IDF cho kho 3 văn bản}
+\label{tab:idf}
+\end{table}
+
+Nhân từng cột của ma trận đếm (Bảng~\ref{tab:count}) với IDF tương ứng, ta được ma trận TF-IDF (chưa chuẩn hóa). Chẳng hạn với từ ``cats'' trong $d_1$: $\mathrm{tf} = 1$, $\mathrm{df} = 2$ nên $\text{tf-idf} = 1 \times 1{,}2877 = 1{,}2877$ (làm trơn); với ``the'' trong $d_1$: $2 \times 1 = 2$.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|c|}
+\hline
+ & and & are & cats & dogs & friends & house & in & outside & the \\
+\hline
+\multicolumn{10}{|c|}{\textit{IDF làm trơn (\texttt{smooth\_idf=True})}} \\
+\hline
+$d_1$ & 0 & 1 & 1.2877 & 0 & 0 & 1.2877 & 1.2877 & 0 & 2 \\ \hline
+$d_2$ & 1.2877 & 1 & 0 & 1.2877 & 0 & 1.2877 & 1.2877 & 1.6931 & 2 \\ \hline
+$d_3$ & 1.2877 & 1 & 1.2877 & 1.2877 & 1.6931 & 0 & 0 & 0 & 1 \\ \hline
+\multicolumn{10}{|c|}{\textit{IDF không làm trơn (\texttt{smooth\_idf=False})}} \\
+\hline
+$d_1$ & 0 & 1 & 1.4055 & 0 & 0 & 1.4055 & 1.4055 & 0 & 2 \\ \hline
+$d_2$ & 1.4055 & 1 & 0 & 1.4055 & 0 & 1.4055 & 1.4055 & 2.0986 & 2 \\ \hline
+$d_3$ & 1.4055 & 1 & 1.4055 & 1.4055 & 2.0986 & 0 & 0 & 0 & 1 \\ \hline
+\end{tabular}
+\caption{Ma trận TF-IDF chưa chuẩn hóa (\texttt{norm=None})}
+\label{tab:tfidf}
+\end{table}
+
+\hinhchuachen{ch-preprocessing-tfidf-excel.png}{Tính TF-IDF trên bảng tính: ma trận đếm, $\mathrm{df}(t)$, $\mathrm{idf}(t,D)$ làm trơn, ma trận TF-IDF và ma trận chuẩn hóa L2.}{fig:tfidf-excel}
+
+\hinhchuachen{ch-preprocessing-tfidf-nosmooth.png}{Ma trận TF-IDF với IDF không làm trơn (giá trị 1,40547 và 2,09861) --- khớp với kết quả \texttt{smooth\_idf=False} của scikit-learn.}{fig:tfidf-nosmooth}
+
+\paragraph{Chuẩn hóa L2 và độ tương đồng cosine.} Mặc định \texttt{TfidfVectorizer} còn chuẩn hóa L2 từng hàng. Áp dụng cho ma trận làm trơn ở Bảng~\ref{tab:tfidf}:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|c|}
+\hline
+ & and & are & cats & dogs & friends & house & in & outside & the \\
+\hline
+$d_1$ & 0 & 0.3166 & 0.4077 & 0 & 0 & 0.4077 & 0.4077 & 0 & 0.6333 \\ \hline
+$d_2$ & 0.3382 & 0.2626 & 0 & 0.3382 & 0 & 0.3382 & 0.3382 & 0.4447 & 0.5252 \\ \hline
+$d_3$ & 0.4105 & 0.3188 & 0.4105 & 0.4105 & 0.5397 & 0 & 0 & 0 & 0.3188 \\ \hline
+\end{tabular}
+\caption{Ma trận TF-IDF mặc định của scikit-learn (\texttt{smooth\_idf=True}, \texttt{norm="l2"})}
+\label{tab:tfidf-l2}
+\end{table}
+
+Vì mỗi hàng có độ dài 1, tích vô hướng giữa hai hàng chính là \textbf{độ tương đồng cosine}:
+\begin{equation}
+    \cos(d_i, d_j) = \hat{\mathbf{x}}_{d_i} \cdot \hat{\mathbf{x}}_{d_j}.
+\end{equation}
+Ta có $\cos(d_1, d_2) \approx 0{,}6915$, $\cos(d_1, d_3) \approx 0{,}4702$, $\cos(d_2, d_3) \approx 0{,}5288$: hai câu cùng nói về ``in the house'' ($d_1$, $d_2$) giống nhau nhất --- phù hợp với trực giác.
+
+\begin{lstlisting}[caption={TF-IDF Vectorizer với các cấu hình khác nhau}]
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+corpus = [
+    "the cats are in the house",
+    "the dogs are in the house and outside",
+    "the cats and dogs are friends",
+]
+
+# 1) Chi dem tu (tuong duong CountVectorizer)
+v = TfidfVectorizer(use_idf=False, smooth_idf=False, norm=None)
+print(v.fit_transform(corpus).toarray())
+
+# 2) TF-IDF khong lam tron, chua chuan hoa -> 1.4055, 2.0986
+v = TfidfVectorizer(use_idf=True, smooth_idf=False, norm=None)
+print(v.fit_transform(corpus).toarray().round(4))
+
+# 3) TF-IDF lam tron, chua chuan hoa -> 1.2877, 1.6931
+v = TfidfVectorizer(use_idf=True, smooth_idf=True, norm=None)
+print(v.fit_transform(corpus).toarray().round(4))
+print(v.idf_.round(4))
+# [1.2877 1.     1.2877 1.2877 1.6931 1.2877 1.2877 1.6931 1.    ]
+
+# 4) Cau hinh mac dinh: lam tron + chuan hoa L2
+v = TfidfVectorizer()
+X = v.fit_transform(corpus)
+print(X.toarray().round(4))
+print(cosine_similarity(X).round(4))
+# [[1.     0.6915 0.4702]
+#  [0.6915 1.     0.5288]
+#  [0.4702 0.5288 1.    ]]
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Cấu hình} & \texttt{use\_idf} & \texttt{smooth\_idf} & \texttt{norm} \\
+\hline
+Đếm từ thuần túy & False & -- & None \\ \hline
+Đếm từ chuẩn hóa L2 & False & -- & \texttt{"l2"} \\ \hline
+TF-IDF thô & True & False & None \\ \hline
+TF-IDF mặc định & True & True & \texttt{"l2"} \\ \hline
+\end{tabular}
+\caption{Các cấu hình của \texttt{TfidfVectorizer} dùng trong chương}
+\end{table}
+
+% ---------------------------------------------------------
+\section{Chuẩn hóa thang đo đặc trưng (Feature Scaling)}
+% ---------------------------------------------------------
+
+\subsection{Vì sao cần chuẩn hóa thang đo?}
+
+Xét hai đặc trưng của một căn nhà: diện tích lô đất (hàng nghìn đến hàng trăm nghìn feet vuông) và số phòng tắm (0 đến 4). Trong khoảng cách Euclid
+\begin{equation}
+    d(\mathbf{x}, \mathbf{z}) = \sqrt{(x_1 - z_1)^2 + (x_2 - z_2)^2},
+\end{equation}
+chênh lệch diện tích sẽ áp đảo hoàn toàn chênh lệch số phòng tắm, dù trên thực tế số phòng tắm có thể quan trọng không kém. Chuẩn hóa thang đo đưa mọi đặc trưng về cùng một ``đơn vị'' để:
+\begin{itemize}
+    \item Các thuật toán dựa trên \textbf{khoảng cách} (KNN, K-Means, SVM với nhân RBF) đối xử công bằng giữa các đặc trưng.
+    \item \textbf{Gradient Descent} hội tụ nhanh hơn, vì mặt hàm mất mát bớt bị kéo dài theo một chiều.
+    \item \textbf{PCA} không bị chi phối bởi đặc trưng có phương sai lớn chỉ do đơn vị đo.
+    \item Các mô hình có \textbf{chính quy hóa} (Ridge, Lasso) phạt các hệ số một cách công bằng.
+\end{itemize}
+Ngược lại, các mô hình dựa trên \textbf{cây quyết định} (Decision Tree, Random Forest, XGBoost) chỉ so sánh ngưỡng trên từng đặc trưng nên \textbf{không} cần chuẩn hóa.
+
+Ký hiệu một cột đặc trưng là $x = (x_1, \dots, x_n)$. Bốn bộ chuẩn hóa phổ biến trong scikit-learn được định nghĩa như sau.
+
+\subsection{Min Max Scaler}
+\begin{equation}
+    x'_i = \frac{x_i - \min(x)}{\max(x) - \min(x)} \in [0, 1].
+\end{equation}
+Tổng quát hơn, với \texttt{feature\_range=(a, b)}: $x''_i = a + x'_i (b - a)$. Phép biến đổi giữ nguyên hình dạng phân phối, nhưng \textbf{rất nhạy với ngoại lai} vì $\min$ và $\max$ chính là các giá trị cực trị.
+
+\subsection{Max Abs Scaler}
+\begin{equation}
+    x'_i = \frac{x_i}{\max_j |x_j|} \in [-1, 1].
+\end{equation}
+Max Abs Scaler không dịch chuyển dữ liệu (không trừ đi giá trị nào), nên \textbf{giữ nguyên các số 0}. Đây là lựa chọn phù hợp cho \textbf{ma trận thưa} như ma trận TF-IDF ở mục trước: trừ đi trung bình sẽ biến mọi số 0 thành khác 0 và phá vỡ tính thưa.
+
+\subsection{Standard Scaler (chuẩn hóa z-score)}
+\begin{equation}
+    z_i = \frac{x_i - \mu}{\sigma}, \qquad \mu = \frac{1}{n}\sum_{i=1}^{n} x_i, \qquad \sigma = \sqrt{\frac{1}{n}\sum_{i=1}^{n} (x_i - \mu)^2}.
+\end{equation}
+Sau biến đổi, cột có trung bình 0 và độ lệch chuẩn 1. Lưu ý scikit-learn dùng độ lệch chuẩn \textbf{tổng thể} (chia cho $n$, tức \texttt{ddof=0}), khác với \texttt{pandas.Series.std()} mặc định chia cho $n-1$. Standard Scaler là lựa chọn mặc định cho hồi quy tuyến tính, hồi quy logistic, SVM, PCA và mạng nơ-ron.
+
+\subsection{Robust Scaler}
+\begin{equation}
+    x'_i = \frac{x_i - \mathrm{median}(x)}{\mathrm{IQR}(x)}, \qquad \mathrm{IQR} = Q_3 - Q_1,
+\end{equation}
+trong đó $Q_1$, $Q_3$ là các phân vị 25\% và 75\%. Trung vị và khoảng tứ phân vị \textbf{gần như không bị ảnh hưởng bởi ngoại lai}, nên Robust Scaler phù hợp với dữ liệu lệch hoặc có giá trị bất thường.
+
+\subsection{Ví dụ so sánh bốn bộ chuẩn hóa}
+
+\begin{example}
+Cho cột $x = (2, 4, 6, 8, 30)$, trong đó $30$ là một ngoại lai. Các đại lượng cần thiết:
+$\min = 2$, $\max = 30$, $\max|x| = 30$, $\mu = 10$, $\sigma = \sqrt{104} \approx 10{,}198$, $\mathrm{median} = 6$, $Q_1 = 4$, $Q_3 = 8$, $\mathrm{IQR} = 4$.
+\end{example}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+$x$ & \textbf{MinMax} & \textbf{MaxAbs} & \textbf{Standard} & \textbf{Robust} \\
+\hline
+2  & 0.0000 & 0.0667 & $-0.7845$ & $-1.0$ \\ \hline
+4  & 0.0714 & 0.1333 & $-0.5883$ & $-0.5$ \\ \hline
+6  & 0.1429 & 0.2000 & $-0.3922$ & $0.0$ \\ \hline
+8  & 0.2143 & 0.2667 & $-0.1961$ & $0.5$ \\ \hline
+30 & 1.0000 & 1.0000 & $1.9612$ & $6.0$ \\ \hline
+\end{tabular}
+\caption{Kết quả của bốn bộ chuẩn hóa trên cột có ngoại lai}
+\label{tab:scalers}
+\end{table}
+
+Quan sát Bảng~\ref{tab:scalers}: với Min Max Scaler, bốn giá trị ``bình thường'' bị ép vào đoạn $[0;\,0{,}21]$ --- gần như mất khả năng phân biệt --- chỉ vì một ngoại lai. Robust Scaler giữ các giá trị bình thường trải đều trong $[-1;\,0{,}5]$ và đẩy ngoại lai ra xa (6,0), giúp ngoại lai \textbf{dễ nhận diện} thay vì làm méo phần còn lại.
+
+\begin{lstlisting}[caption={So sánh bốn bộ chuẩn hóa trong scikit-learn}]
+import numpy as np
+from sklearn.preprocessing import (MinMaxScaler, MaxAbsScaler,
+                                   StandardScaler, RobustScaler)
+
+x = np.array([2, 4, 6, 8, 30], dtype=float).reshape(-1, 1)
+
+for scaler in [MinMaxScaler(), MaxAbsScaler(),
+               StandardScaler(), RobustScaler()]:
+    print(type(scaler).__name__, scaler.fit_transform(x).ravel().round(4))
+# MinMaxScaler   [0.     0.0714 0.1429 0.2143 1.    ]
+# MaxAbsScaler   [0.0667 0.1333 0.2    0.2667 1.    ]
+# StandardScaler [-0.7845 -0.5883 -0.3922 -0.1961  1.9612]
+# RobustScaler   [-1.  -0.5  0.   0.5  6. ]
+\end{lstlisting}
+
+\hinhchuachen{ch-preprocessing-scalers.png}{Phân phối của một đặc trưng trước và sau khi áp dụng bốn bộ chuẩn hóa (gợi ý: vẽ histogram hoặc boxplot bằng matplotlib).}{fig:scalers}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|p{5.2cm}|}
+\hline
+\textbf{Bộ chuẩn hóa} & \textbf{Miền giá trị} & \textbf{Bền với ngoại lai} & \textbf{Khi nào dùng} \\
+\hline
+MinMaxScaler & $[0, 1]$ & Không & Cần miền cố định (ảnh, mạng nơ-ron), dữ liệu ít ngoại lai \\ \hline
+MaxAbsScaler & $[-1, 1]$ & Không & Ma trận thưa (TF-IDF), dữ liệu đã tâm ở 0 \\ \hline
+StandardScaler & Không giới hạn & Trung bình & Mặc định cho mô hình tuyến tính, SVM, PCA \\ \hline
+RobustScaler & Không giới hạn & Có & Dữ liệu lệch, nhiều ngoại lai \\ \hline
+\end{tabular}
+\caption{Tóm tắt lựa chọn bộ chuẩn hóa}
+\end{table}
+
+% ---------------------------------------------------------
+\section{Kết hợp các bước: Pipeline và ColumnTransformer}
+% ---------------------------------------------------------
+
+Dữ liệu thực tế thường có \textbf{nhiều kiểu cột cùng lúc}. scikit-learn cung cấp:
+\begin{itemize}
+    \item \texttt{ColumnTransformer}: áp dụng các bộ biến đổi khác nhau cho các nhóm cột khác nhau rồi ghép kết quả.
+    \item \texttt{Pipeline}: xâu chuỗi các bước tiền xử lý và mô hình thành một đối tượng duy nhất. Khi gọi \texttt{pipeline.fit(X\_train, y\_train)}, mọi bước \texttt{fit} chỉ nhìn thấy tập huấn luyện --- đây là cách tự động \textbf{tránh rò rỉ dữ liệu}.
+\end{itemize}
+
+\hinhchuachen{ch-preprocessing-pipeline.png}{Sơ đồ ColumnTransformer: cột số đi qua SimpleImputer + Scaler, cột định danh qua One Hot Encoder, cột thứ bậc qua Ordinal Encoder, sau đó ghép lại thành ma trận đặc trưng.}{fig:pipeline}
+
+% ---------------------------------------------------------
+\section{Nghiên cứu tình huống: bộ dữ liệu Ames Housing}
+% ---------------------------------------------------------
+
+\subsection{Giới thiệu bộ dữ liệu}
+
+Bộ dữ liệu \textbf{Ames Housing} do Dean De Cock (Đại học Truman State) công bố năm 2011 trên \textit{Journal of Statistics Education}, như một lựa chọn thay thế hiện đại cho bộ dữ liệu giá nhà Boston kinh điển. Dữ liệu ghi nhận các giao dịch bán nhà ở thành phố Ames, bang Iowa (Hoa Kỳ) trong giai đoạn 2006--2010, lấy từ Văn phòng Định giá Tài sản của thành phố.
+
+File \texttt{data/AmesHousing.txt} (phân tách bằng ký tự tab) gồm \textbf{2930 dòng} và \textbf{82 cột}: hai cột định danh bản ghi (\texttt{Order}, \texttt{PID}), biến mục tiêu \texttt{SalePrice} (giá bán, USD) và 79 biến mô tả căn nhà. Đây là bộ dữ liệu lý tưởng cho chương này vì nó chứa \textbf{đủ mọi kiểu dữ liệu} đã học:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{2.8cm}|p{5.4cm}|p{4.8cm}|}
+\hline
+\textbf{Kiểu} & \textbf{Ví dụ cột} & \textbf{Giá trị mẫu} \\
+\hline
+Định danh & \texttt{MS Zoning}, \texttt{Neighborhood}, \texttt{Street}, \texttt{Bldg Type} & RL, RM, FV; NAmes, Gilbert; Pave, Grvl \\ \hline
+Định danh mã hóa bằng số & \texttt{MS SubClass} & 020, 060, 120 (mã loại nhà, \textbf{không phải} đại lượng) \\ \hline
+Thứ bậc & \texttt{Exter Qual}, \texttt{Kitchen Qual}, \texttt{Bsmt Qual} & Po $<$ Fa $<$ TA $<$ Gd $<$ Ex \\ \hline
+Số rời rạc & \texttt{Full Bath}, \texttt{Garage Cars}, \texttt{Yr Sold} & 0--4; 0--5; 2006--2010 \\ \hline
+Số liên tục & \texttt{Lot Area}, \texttt{Gr Liv Area}, \texttt{SalePrice} & \texttt{Lot Area} tối đa 215245 ft$^2$ \\ \hline
+\end{tabular}
+\caption{Các kiểu dữ liệu trong Ames Housing}
+\end{table}
+
+\subsection{Những ``cái bẫy'' khi đọc dữ liệu}
+
+Quan sát kỹ file dữ liệu cho thấy nhiều vấn đề rất điển hình mà người làm ML phải xử lý:
+
+\begin{enumerate}
+    \item \textbf{``NA'' không phải lúc nào cũng là thiếu dữ liệu.} Ở các cột \texttt{Alley}, \texttt{Fence}, \texttt{Pool QC}, \texttt{Fireplace Qu}, \texttt{Garage Type}, \texttt{Bsmt Qual}\ldots, chuỗi \texttt{NA} mang nghĩa \textit{``không có''} (không có hẻm, không có hàng rào, không có garage). Nếu đọc bằng \texttt{pd.read\_csv} mặc định, pandas sẽ biến tất cả \texttt{NA} thành \texttt{NaN} và ta \textbf{đánh mất thông tin}. Trong khi đó, ô \textbf{rỗng} (ví dụ \texttt{Lot Frontage} ở nhiều dòng, \texttt{Mas Vnr Type} ở một số dòng) mới thực sự là dữ liệu thiếu.
+    \item \textbf{Khoảng trắng thừa:} cột \texttt{Sale Type} có giá trị \texttt{"WD "} (có dấu cách cuối). Không làm sạch thì \texttt{"WD"} và \texttt{"WD "} bị coi là hai nhãn khác nhau khi One Hot.
+    \item \textbf{Số nhưng là phân loại:} \texttt{MS SubClass} (020, 060\ldots) là mã loại nhà; dùng trực tiếp như số sẽ gây thứ tự giả giống hệt vấn đề của Label Encoder.
+    \item \textbf{Lỗi nhập liệu:} có bản ghi với \texttt{Garage Yr Blt} = 2207 --- một năm không thể xảy ra (nhiều khả năng là 2007).
+    \item \textbf{Ngoại lai:} một vài căn có \texttt{Gr Liv Area} trên 4000 ft$^2$ nhưng giá bán thấp bất thường (giao dịch bán từng phần). Chính De Cock khuyến nghị loại các căn nhà trên 4000 ft$^2$ khi dùng dữ liệu cho giảng dạy. Cột \texttt{Lot Area} cũng lệch phải rất mạnh (tối đa 215245 ft$^2$).
+\end{enumerate}
+
+\subsection{Đọc và khảo sát dữ liệu}
+
+\begin{lstlisting}[caption={Đọc Ames Housing và giữ nguyên ý nghĩa của ``NA''}]
+import pandas as pd
+
+# keep_default_na=False: KHONG bien "NA" thanh NaN
+# na_values=[""]       : chi o rong moi la du lieu thieu
+df = pd.read_csv("data/AmesHousing.txt", sep="\t",
+                 keep_default_na=False, na_values=[""])
+print(df.shape)                       # (2930, 82)
+
+# Lam sach khoang trang thua o cac cot chu
+obj_cols = df.select_dtypes("object").columns
+df[obj_cols] = df[obj_cols].apply(lambda s: s.str.strip())
+
+# MS SubClass la ma phan loai -> doi sang kieu chuoi
+df["MS SubClass"] = df["MS SubClass"].astype(str)
+
+# Thong ke du lieu thieu that su
+missing = df.isna().sum()
+print(missing[missing > 0].sort_values(ascending=False))
+
+# Sua loi nhap lieu va loai ngoai lai theo khuyen nghi cua De Cock
+df.loc[df["Garage Yr Blt"] > 2010, "Garage Yr Blt"] = None
+df = df[df["Gr Liv Area"] <= 4000]
+print(df.shape)
+
+print(df["Exter Qual"].value_counts())
+print(df[["Lot Area", "Gr Liv Area", "SalePrice"]].describe())
+\end{lstlisting}
+
+\hinhchuachen{ch-preprocessing-ames-outliers.png}{Biểu đồ phân tán \texttt{Gr Liv Area} -- \texttt{SalePrice} của Ames Housing; các điểm bên phải ngưỡng 4000 ft$^2$ là ngoại lai.}{fig:ames-outliers}
+
+\subsection{Xây dựng quy trình tiền xử lý hoàn chỉnh}
+
+Ta chọn một tập con đặc trưng đại diện cho từng kiểu dữ liệu và áp dụng đúng kỹ thuật đã học cho từng nhóm:
+
+\begin{lstlisting}[caption={Pipeline tiền xử lý cho Ames Housing}]
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import (OneHotEncoder, OrdinalEncoder,
+                                   StandardScaler, RobustScaler)
+
+nominal = ["MS Zoning", "Neighborhood", "Bldg Type", "MS SubClass",
+           "Alley", "Garage Type"]
+quality = ["Exter Qual", "Kitchen Qual", "Bsmt Qual", "Fireplace Qu"]
+numeric = ["Gr Liv Area", "Total Bsmt SF", "Garage Cars",
+           "Full Bath", "Year Built", "Overall Qual"]
+skewed  = ["Lot Area", "Lot Frontage"]
+
+# "NA" o cac cot chat luong = khong co -> muc thap nhat
+levels = ["NA", "Po", "Fa", "TA", "Gd", "Ex"]
+
+X = df[nominal + quality + numeric + skewed]
+y = np.log(df["SalePrice"])      # log giup giam do lech cua gia
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42)
+
+preprocess = ColumnTransformer([
+    ("nom", Pipeline([
+        ("impute", SimpleImputer(strategy="most_frequent")),
+        ("onehot", OneHotEncoder(handle_unknown="ignore")),
+    ]), nominal),
+    ("ord", Pipeline([
+        ("impute", SimpleImputer(strategy="constant", fill_value="NA")),
+        ("ordinal", OrdinalEncoder(categories=[levels] * len(quality))),
+    ]), quality),
+    ("num", Pipeline([
+        ("impute", SimpleImputer(strategy="median")),
+        ("scale", StandardScaler()),
+    ]), numeric),
+    ("skew", Pipeline([
+        ("impute", SimpleImputer(strategy="median")),
+        ("scale", RobustScaler()),
+    ]), skewed),
+])
+
+# CHI fit tren tap huan luyen, transform cho ca hai tap
+X_train_t = preprocess.fit_transform(X_train)
+X_test_t  = preprocess.transform(X_test)
+print(X_train_t.shape, X_test_t.shape)
+print(preprocess.get_feature_names_out()[:10])
+\end{lstlisting}
+
+Ma trận \texttt{X\_train\_t} thu được chỉ gồm các số thực, đã đồng nhất thang đo và không còn giá trị thiếu --- sẵn sàng cho các mô hình hồi quy ở chương tiếp theo. Khi ghép \texttt{preprocess} với một mô hình trong cùng một \texttt{Pipeline}, toàn bộ quy trình có thể được đánh giá bằng kiểm định chéo mà không lo rò rỉ dữ liệu:
+
+\begin{lstlisting}[caption={Ghép tiền xử lý với mô hình trong một Pipeline}]
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import cross_val_score
+
+model = Pipeline([("prep", preprocess), ("reg", LinearRegression())])
+scores = cross_val_score(model, X_train, y_train, cv=5, scoring="r2")
+print(scores.mean().round(3))
+\end{lstlisting}
+
+% ---------------------------------------------------------
+\section{Tóm tắt chương}
+% ---------------------------------------------------------
+\begin{itemize}
+    \item Tiền xử lý dữ liệu là bước nền tảng trong quy trình KDD (Fayyad và cộng sự, 1996) và pha Chuẩn bị dữ liệu của CRISP-DM; nguyên lý ``rác vào, rác ra'' nhắc rằng chất lượng mô hình bị giới hạn bởi chất lượng dữ liệu.
+    \item Mô hình ML chỉ làm việc với số: dữ liệu chữ phải được mã hóa sao cho \textbf{không tạo ra quan hệ giả}.
+    \item \textbf{Label Encoder} ánh xạ nhãn $\rightarrow$ số nguyên, gọn nhẹ nhưng tạo thứ tự giả; dùng cho biến mục tiêu. \textbf{Ordinal Encoder} dùng cho đặc trưng thứ bậc.
+    \item \textbf{One Hot Encoder} biến mỗi nhãn thành một vector đơn vị, mọi nhãn cách đều $\sqrt{2}$; phù hợp với KNN, K-Means, mô hình tuyến tính.
+    \item \textbf{Count Vectorizer} biểu diễn văn bản bằng số lần xuất hiện của từ; \textbf{TF-IDF} (Spärck Jones, 1972) giảm trọng số của các từ phổ biến; chuẩn hóa L2 cho phép đo độ tương đồng cosine bằng tích vô hướng.
+    \item Bốn bộ chuẩn hóa \textbf{MinMax, MaxAbs, Standard, Robust} khác nhau về miền giá trị, khả năng giữ tính thưa và độ bền với ngoại lai.
+    \item Luôn \texttt{fit} trên tập huấn luyện; dùng \texttt{Pipeline} và \texttt{ColumnTransformer} để quy trình gọn gàng và tránh rò rỉ dữ liệu.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Bài tập}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Cho dãy gồm các phần tử \texttt{cat}, \texttt{dog}, \texttt{fish}, \texttt{dog}, \texttt{cat}, \texttt{bird}. Hãy (a) tự cài đặt Label Encoder theo thứ tự xuất hiện; (b) so sánh với kết quả của \texttt{LabelEncoder} trong scikit-learn và giải thích vì sao khác nhau.
+    \item Với dãy ở bài 1, tự cài đặt One Hot Encoder bằng list, for và dictionary. Chứng minh rằng khoảng cách Euclid giữa hai vector one-hot khác nhau bất kỳ luôn bằng $\sqrt{2}$.
+    \item Thêm câu $d_4$ = ``the birds are outside'' vào kho văn bản ở mục TF-IDF. Tính tay $\mathrm{df}(t)$ và $\mathrm{idf}(t)$ (làm trơn) cho các từ \textit{are, outside, the, birds}, sau đó kiểm tra bằng \texttt{TfidfVectorizer}.
+    \item Dùng bảng tính (Excel/Google Sheets) dựng lại toàn bộ Bảng~\ref{tab:count}--\ref{tab:tfidf-l2}. Gợi ý: hàm \texttt{LN}, \texttt{SQRT}, \texttt{SUMSQ}.
+    \item Cho cột $x = (10, 12, 11, 13, 12, 100)$. Tính tay kết quả của bốn bộ chuẩn hóa và nhận xét bộ nào phù hợp nhất. Vì sao?
+    \item Giải thích vì sao gọi \texttt{StandardScaler().fit(X)} trên toàn bộ dữ liệu trước khi chia train/test là rò rỉ dữ liệu. Thiết kế thí nghiệm trên Ames Housing để minh họa.
+    \item Với Ames Housing: đếm số lượng giá trị \texttt{NA} (``không có'') và ô rỗng (thiếu thật sự) trong từng cột; bổ sung các cột \texttt{Heating QC}, \texttt{Garage Finish}, \texttt{Foundation} vào pipeline với kỹ thuật mã hóa phù hợp.
+\end{enumerate}
+
+% ---------------------------------------------------------
+\section*{Tài liệu tham khảo của chương}
+\addcontentsline{toc}{section}{Tài liệu tham khảo của chương}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Buitinck, L. et al. (2013). API design for machine learning software: experiences from the scikit-learn project. \textit{ECML PKDD Workshop: Languages for Data Mining and Machine Learning}.
+    \item De Cock, D. (2011). Ames, Iowa: Alternative to the Boston Housing Data as an End of Semester Regression Project. \textit{Journal of Statistics Education}, 19(3).
+    \item Fayyad, U., Piatetsky-Shapiro, G., \& Smyth, P. (1996). From Data Mining to Knowledge Discovery in Databases. \textit{AI Magazine}, 17(3), 37--54.
+    \item Han, J., Kamber, M., \& Pei, J. (2011). \textit{Data Mining: Concepts and Techniques} (3rd ed.), Chương 3: Data Preprocessing. Morgan Kaufmann.
+    \item Harris, Z. S. (1954). Distributional Structure. \textit{Word}, 10(2--3), 146--162.
+    \item Luhn, H. P. (1957). A Statistical Approach to Mechanized Encoding and Searching of Literary Information. \textit{IBM Journal of Research and Development}, 1(4), 309--317.
+    \item Pedregosa, F. et al. (2011). Scikit-learn: Machine Learning in Python. \textit{Journal of Machine Learning Research}, 12, 2825--2830.
+    \item Pyle, D. (1999). \textit{Data Preparation for Data Mining}. Morgan Kaufmann.
+    \item Salton, G., Wong, A., \& Yang, C. S. (1975). A Vector Space Model for Automatic Indexing. \textit{Communications of the ACM}, 18(11), 613--620.
+    \item Salton, G., \& Buckley, C. (1988). Term-weighting approaches in automatic text retrieval. \textit{Information Processing \& Management}, 24(5), 513--523.
+    \item Spärck Jones, K. (1972). A statistical interpretation of term specificity and its application in retrieval. \textit{Journal of Documentation}, 28(1), 11--21.
+    \item Stevens, S. S. (1946). On the Theory of Scales of Measurement. \textit{Science}, 103(2684), 677--680.
+    \item Suits, D. B. (1957). Use of Dummy Variables in Regression Equations. \textit{Journal of the American Statistical Association}, 52(280), 548--551.
+    \item Wirth, R., \& Hipp, J. (2000). CRISP-DM: Towards a Standard Process Model for Data Mining. \textit{Proceedings of the 4th International Conference on the Practical Applications of Knowledge Discovery and Data Mining}.
+\end{enumerate}

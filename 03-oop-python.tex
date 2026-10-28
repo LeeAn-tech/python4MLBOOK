@@ -1,0 +1,169 @@
+\chapter{Lập trình hướng đối tượng trong Python}
+
+Lập trình hướng đối tượng (Object-Oriented Programming - OOP) là phương pháp luận lập trình đóng vai trò then chốt trong việc thiết kế các thư viện Machine Learning hiện đại như Scikit-Learn, PyTorch và TensorFlow. Chương này trình bày các khái niệm OOP cốt lõi và hướng dẫn cách ứng dụng OOP để tự đóng gói một mô hình Machine Learning.
+
+\section{Lớp và Đối tượng (Class and Object)}
+
+\begin{definition}[Lớp và Đối tượng]
+\textbf{Lớp (Class)} là khuôn mẫu định nghĩa các thuộc tính (dữ liệu) và phương thức (hành vi). \textbf{Đối tượng (Object)} là một thể hiện cụ thể được khởi tạo từ lớp đó.
+\end{definition}
+
+\begin{example}
+Khai báo một lớp cơ bản lưu trữ mẫu dữ liệu:
+\end{example}
+
+\begin{lstlisting}[caption={Khai báo Class và tạo Object trong Python}]
+class DataSample:
+    def __init__(self, feature_name, value):
+        self.feature_name = feature_name  # Thuoc tinh
+        self.value = value
+
+    def display_info(self):              # Phuong thuc
+        print(f"Feature: {self.feature_name}, Value: {self.value}")
+
+# Khoi tao doi tuong
+sample = DataSample(feature_name="Age", value=25)
+sample.display_info()
+\end{lstlisting}
+
+\section{Các phương thức đặc biệt (Magic Methods)}
+
+Các phương thức có cú pháp hai dấu gạch dưới (\texttt{\_\_method\_\_}) giúp tùy biến hành vi của đối tượng trong Python.
+
+\subsection{Phương thức \texttt{\_\_init\_\_} và \texttt{\_\_call\_\_}}
+\begin{itemize}
+    \item \texttt{\_\_init\_\_}: Hàm khởi tạo (constructor), tự động thực thi khi tạo mới một đối tượng.
+    \item \texttt{\_\_call\_\_}: Cho phép gọi trực tiếp một đối tượng giống như một hàm, thường dùng khi thiết kế các Layer trong Neural Network.
+\end{itemize}
+
+\begin{lstlisting}[caption={Sử dụng phương thức \_\_call\_\_}]
+class Multiplier:
+    def __init__(self, factor):
+        self.factor = factor
+
+    def __call__(self, x):
+        return x * self.factor
+
+# Su dung nhu mot ham
+double = Multiplier(factor=2)
+print(double(5))  # Output: 10
+\end{lstlisting}
+
+\section{Tính Kế thừa (Inheritance)}
+
+Tính kế thừa cho phép tạo một lớp mới dựa trên lớp đã có, giúp tái sử dụng mã nguồn và chuẩn hóa giao diện của các bộ biến đổi dữ liệu (Transformers).
+
+\begin{lstlisting}[caption={Kế thừa lớp BaseTransformer trong tiền xử lý dữ liệu}, language=Python]
+class BaseTransformer:
+    def fit(self, arr):
+        raise NotImplementedError("Phuong thuc fit() bat buoc phai duoc trien khai o lop con.")
+        
+    def transform(self, arr):
+        raise NotImplementedError("Phuong thuc transform() bat buoc phai trien khai o lop con.")
+        
+    def fit_transform(self, arr):
+        self.fit(arr)
+        return self.transform(arr)
+
+class MinMaxScaler(BaseTransformer):
+    def fit(self, arr):
+        self.min_ = min(arr)
+        self.max_ = max(arr)
+        return self
+        
+    def transform(self, arr):
+        return [(x - self.min_) / (self.max_ - self.min_) for x in arr]
+        
+    def inverse_transform(self, arr):
+        return [x * (self.max_ - self.min_) + self.min_ for x in arr]
+\end{lstlisting}
+
+\section{Quản lý thuộc tính: Siêu tham số (Hyperparameters) và Tham số học được (Learned Parameters)}
+
+Trong thiết kế Machine Learning, ta cần phân biệt rõ giữa siêu tham số (cấu hình trước khi huấn luyện) và tham số học được (được sinh ra sau khi gọi hàm \texttt{fit}).
+
+\begin{lstlisting}[caption={Bắt lỗi an toàn khi quản lý tham số học được}, language=Python]
+class MinMaxScaler(BaseTransformer):
+    def __init__(self, feature_range=(0, 1)):
+        self.feature_range = feature_range  # Hyperparameter
+
+    def fit(self, arr):
+        self.min = float(min(arr))          # Learned Parameter
+        self.max = float(max(arr))          # Learned Parameter
+        return self
+
+    def transform(self, arr):
+        # Kiem tra an toan: Đam bao mo hinh da duoc fit()
+        if not hasattr(self, 'min') or not hasattr(self, 'max'):
+            raise RuntimeError("Loi: Ban phai goi ham fit() truoc khi goi transform()!")
+            
+        low, high = self.feature_range
+        std = [(x - self.min) / (self.max - self.min) for x in arr]
+        return [x * (high - low) + low for x in std]
+\end{lstlisting}
+
+\section{Thiết kế Custom Estimator chuẩn Scikit-Learn}
+
+Trọng tâm ứng dụng OOP trong Machine Learning là đóng gói thuật toán thành một Class có các giao diện chuẩn (\texttt{fit}, \texttt{predict}, \texttt{evaluate}). Dưới đây là triển khai mô hình Hồi quy tuyến tính đơn biến (Simple Linear Regression) bằng công thức đại số.
+
+\begin{lstlisting}[caption={Đóng gói thuật toán Simple Linear Regression}, language=Python]
+class SimpleLinearRegression:
+    def __init__(self):
+        self.w0 = 0  
+        self.w1 = 0
+
+    def fit(self, X, y):
+        n = len(X)
+        mean_x = sum(X) / n
+        mean_y = sum(y) / n
+        
+        numerator = sum((X[i] - mean_x) * (y[i] - mean_y) for i in range(n))
+        denominator = sum((X[i] - mean_x) ** 2 for i in range(n))
+        
+        if denominator == 0:
+            raise ValueError("Bao loi: Phuong sai cua X bang 0, khong the tinh toan.")
+
+        self.w1 = numerator / denominator
+        self.w0 = mean_y - (self.w1 * mean_x)
+        return self
+
+    def predict(self, X):
+        return [(self.w1 * x_i + self.w0) for x_i in X]
+
+    def evaluate(self, X, y):
+        predictions = self.predict(X)
+        mse = sum((predictions[i] - y[i]) ** 2 for i in range(len(y))) / len(y)
+        return mse
+\end{lstlisting}
+
+\section{Mẫu thiết kế Pipeline}
+
+Pipeline là lớp quản lý chuỗi các bước biến đổi dữ liệu nối tiếp nhau, cho phép tự động hóa toàn bộ quy trình tiền xử lý trước khi đưa vào mô hình dự đoán.
+
+\begin{lstlisting}[caption={Triển khai cấu trúc Pipeline cơ bản}, language=Python]
+class Pipeline:
+    def __init__(self, steps):
+        self.steps = steps
+
+    def fit_transform(self, arr):
+        data = arr
+        for transformer in self.steps:
+            data = transformer.fit_transform(data)
+        return data
+
+    def transform(self, arr):
+        data = arr
+        for transformer in self.steps:
+            data = transformer.transform(data)
+        return data
+\end{lstlisting}
+
+\section{Tóm tắt chương}
+
+\begin{itemize}
+    \item Khái niệm Lớp, Đối tượng và tư duy lập trình hướng đối tượng.
+    \item Ứng dụng các Magic Methods (\texttt{\_\_init\_\_}, \texttt{\_\_call\_\_}) trong xây dựng Framework.
+    \item Nguyên lý Kế thừa giúp tái sử dụng và quản lý mã nguồn linh hoạt.
+    \item Đóng gói thuật toán Machine Learning thành Class theo giao diện tiêu chuẩn.
+    \item Phân biệt rõ ràng siêu tham số và tham số học được thông qua các thuộc tính của đối tượng
+\end{itemize}
