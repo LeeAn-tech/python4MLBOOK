@@ -1,54 +1,394 @@
-\chapter{Hồi quy tuyến tính \\ (Linear Regression)}
-Hồi quy tuyến tính là một trong những thuật toán học có giám sát (Supervised Learning) cơ bản và phổ biến nhất trong Machine Learning, dùng để dự đoán giá trị đầu ra liên tục.
+% =========================================================
+% CHUONG: HOI QUY (REGRESSION)
+% Hinh: chep anh vao images/ dung ten trong \hinhchuachen la tu hien.
+% =========================================================
 
-\section{Mô hình Hồi quy tuyến tính đơn biến}
+\chapter{Hồi quy \\ (Regression)}
+\label{chap:regression}
+
+Hồi quy (regression) là bài toán \textbf{học có giám sát} (supervised learning) trong đó biến cần dự đoán là một \textbf{giá trị số liên tục}: giá nhà, nhiệt độ ngày mai, doanh thu tháng tới, lượng điện tiêu thụ\ldots{} Trong bảng phân công kế hoạch, nhóm thuật toán này gồm \textbf{Linear Regression} và mở rộng sang \textbf{chuỗi thời gian} (time series). Đây cũng là chương đầu tiên ta sử dụng dữ liệu đã được tiền xử lý ở Chương~\ref{chap:preprocessing} để huấn luyện một mô hình thực sự.
+
+\noindent Sau khi học xong chương này, người học có khả năng:
+\begin{itemize}
+    \item Trình bày nguồn gốc lịch sử của phương pháp bình phương tối thiểu và khái niệm ``hồi quy''.
+    \item Xây dựng mô hình hồi quy tuyến tính đơn biến, đa biến; tự tính tay nghiệm bình phương tối thiểu.
+    \item Hiểu và cài đặt thuật toán Gradient Descent.
+    \item Nhận biết quá khớp và áp dụng hồi quy đa thức, Ridge, Lasso.
+    \item Xây dựng mô hình dự báo chuỗi thời gian bằng đặc trưng trễ (lag features).
+    \item Hoàn thiện mô hình dự đoán giá nhà trên bộ dữ liệu Ames Housing.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Khởi nguồn của hồi quy}
+% ---------------------------------------------------------
+
+\subsection{Phương pháp bình phương tối thiểu}
+
+Năm 1805, nhà toán học Pháp Adrien-Marie Legendre công bố \textit{phương pháp bình phương tối thiểu} (méthode des moindres carrés) trong phụ lục của một công trình xác định quỹ đạo sao chổi. Năm 1809, Carl Friedrich Gauss trình bày cùng phương pháp trong \textit{Theoria Motus} và khẳng định đã dùng nó từ năm 1795 để dự đoán vị trí tiểu hành tinh Ceres; cuộc tranh chấp quyền ưu tiên giữa hai ông là một trong những tranh chấp nổi tiếng nhất lịch sử toán học. Gauss còn chỉ ra rằng nếu sai số tuân theo phân phối chuẩn thì nghiệm bình phương tối thiểu chính là ước lượng hợp lý nhất --- nền tảng thống kê của hồi quy hiện đại.
+
+\subsection{Vì sao gọi là ``hồi quy''?}
+
+Thuật ngữ \textit{regression} đến từ nhà khoa học Anh Francis Galton. Năm 1886, khi nghiên cứu chiều cao của cha mẹ và con cái, Galton nhận thấy con của những cha mẹ rất cao thường thấp hơn cha mẹ, còn con của những cha mẹ rất thấp thường cao hơn --- chiều cao có xu hướng ``quay về mức trung bình'' (\textit{regression towards mediocrity}). Học trò của ông là Karl Pearson sau đó hình thức hóa hệ số tương quan và hồi quy tuyến tính. Ngày nay, ``hồi quy'' chỉ chung mọi bài toán dự đoán giá trị liên tục, bất kể có hiện tượng ``quay về trung bình'' hay không.
+
+\hinhchuachen{ch-regression-galton.png}{Dữ liệu chiều cao cha mẹ -- con cái của Galton (1886) và đường hồi quy.}{fig:galton}
+
+% ---------------------------------------------------------
+\section{Hồi quy tuyến tính đơn biến}
+% ---------------------------------------------------------
 
 \begin{definition}[Hồi quy tuyến tính đơn biến]
-Cho tập dữ liệu $(x_1, y_1), (x_2, y_2), \dots, (x_n, y_n)$. Mô hình biểu diễn mối quan hệ giữa biến độc lập $x$ và biến phụ thuộc $y$ theo dạng tuyến tính:
+Cho tập dữ liệu $\{(x_i, y_i)\}_{i=1}^{n}$. Mô hình hồi quy tuyến tính đơn biến giả định
 \begin{equation}
-    y = w_0 + w_1 x + \epsilon
+    y = w_0 + w_1 x + \varepsilon,
 \end{equation}
-trong đó $w_0$ là hệ số chặn (intercept), $w_1$ là hệ số góc (slope), và $\epsilon$ là sai số ngẫu nhiên.
+trong đó $w_0$ là hệ số chặn (intercept), $w_1$ là hệ số góc (slope) và $\varepsilon$ là sai số ngẫu nhiên. Giá trị dự đoán là $\hat{y} = w_0 + w_1 x$.
 \end{definition}
 
-\section{Hàm mất mát (Loss Function)}
+\subsection{Hàm mất mát và nghiệm bình phương tối thiểu}
 
-Để tìm các hệ số $w_0, w_1$ tối ưu, người ta sử dụng sai số bình phương trung bình (Mean Squared Error - MSE):
-
+Để chọn $(w_0, w_1)$, ta cực tiểu tổng bình phương sai số (Sum of Squared Errors -- SSE):
 \begin{equation}
-    J(w_0, w_1) = \frac{1}{2n} \sum_{i=1}^{n} \left( y_i - (w_0 + w_1 x_i) \right)^2
+    \mathrm{SSE}(w_0, w_1) = \sum_{i=1}^{n} \big(y_i - (w_0 + w_1 x_i)\big)^2 .
+\end{equation}
+Lấy đạo hàm riêng theo $w_0$, $w_1$ và cho bằng 0, ta được nghiệm dạng đóng:
+\begin{equation}
+    w_1 = \frac{\sum_{i}(x_i - \bar{x})(y_i - \bar{y})}{\sum_{i}(x_i - \bar{x})^2} = \frac{S_{xy}}{S_{xx}}, \qquad
+    w_0 = \bar{y} - w_1 \bar{x}.
+    \label{eq:ols-simple}
 \end{equation}
 
-Mục tiêu của bài toán là tìm $(w_0, w_1)$ sao cho $J(w_0, w_1)$ đạt giá trị nhỏ nhất.
+\begin{example}[Tính tay hồi quy tuyến tính]
+Cho 5 điểm dữ liệu:
+\end{example}
 
-\section{Cài đặt Hồi quy tuyến tính với Scikit-Learn}
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|c|c|}
+\hline
+$i$ & $x_i$ & $y_i$ & $x_i - \bar{x}$ & $y_i - \bar{y}$ & $(x_i - \bar{x})(y_i - \bar{y})$ & $(x_i - \bar{x})^2$ \\
+\hline
+1 & 1 & 2.1 & $-2$ & $-3.94$ & 7.88 & 4 \\ \hline
+2 & 2 & 3.9 & $-1$ & $-2.14$ & 2.14 & 1 \\ \hline
+3 & 3 & 6.1 & 0 & 0.06 & 0 & 0 \\ \hline
+4 & 4 & 8.2 & 1 & 2.16 & 2.16 & 1 \\ \hline
+5 & 5 & 9.9 & 2 & 3.86 & 7.72 & 4 \\ \hline
+\multicolumn{5}{|r|}{\textbf{Tổng}} & $S_{xy} = 19.9$ & $S_{xx} = 10$ \\
+\hline
+\end{tabular}
+\caption{Bảng tính hồi quy tuyến tính đơn biến ($\bar{x} = 3$, $\bar{y} = 6{,}04$)}
+\label{tab:ols}
+\end{table}
 
-Dưới đây là đoạn code Python minh họa việc xây dựng mô hình Linear Regression trên tập dữ liệu thực tế:
+Theo (\ref{eq:ols-simple}): $w_1 = 19{,}9/10 = 1{,}99$ và $w_0 = 6{,}04 - 1{,}99 \times 3 = 0{,}07$. Mô hình thu được là $\hat{y} = 0{,}07 + 1{,}99x$, và dự đoán cho $x = 6$ là $\hat{y} = 12{,}01$. Tổng bình phương sai số còn lại $\mathrm{SSE} = 0{,}071$, tức $\mathrm{MSE} = 0{,}0142$; hệ số xác định $R^2 \approx 0{,}9982$ cho thấy đường thẳng giải thích gần như toàn bộ biến thiên của $y$.
 
-\begin{lstlisting}[caption={Thực thi Linear Regression bằng Scikit-Learn}]
+\begin{lstlisting}[caption={Hồi quy tuyến tính: tự tính và dùng scikit-learn}]
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
-# 1. Tao du lieu gia dinh
-X = np.array([[1], [2], [3], [4], [5]])
+x = np.array([1, 2, 3, 4, 5], dtype=float)
 y = np.array([2.1, 3.9, 6.1, 8.2, 9.9])
 
-# 2. Khoi tao va huan luyen mo hinh
+# 1) Tu tinh theo cong thuc binh phuong toi thieu
+w1 = ((x - x.mean()) * (y - y.mean())).sum() / ((x - x.mean())**2).sum()
+w0 = y.mean() - w1 * x.mean()
+print(w0, w1)                    # 0.07  1.99
+
+# 2) scikit-learn (X phai la ma tran 2 chieu)
 model = LinearRegression()
-model.fit(X, y)
-
-# 3. In ket qua trong so w0 va w1
-print("He so w1 (slope):", model.coef_[0])
-print("He so w0 (intercept):", model.intercept_)
-
-# 4. Du doan gia tri moi
-y_pred = model.predict([[6]])
-print("Du doan cho X=6:", y_pred[0])
+model.fit(x.reshape(-1, 1), y)
+print(model.intercept_, model.coef_)   # 0.07  [1.99]
+print(model.predict([[6]]))            # [12.01]
+print(model.score(x.reshape(-1, 1), y))  # R^2 = 0.9982
 \end{lstlisting}
 
+\hinhchuachen{ch-regression-line.png}{Năm điểm dữ liệu và đường hồi quy $\hat{y} = 0{,}07 + 1{,}99x$; các đoạn thẳng đứng là phần dư $y_i - \hat{y}_i$.}{fig:reg-line}
+
+% ---------------------------------------------------------
+\section{Hồi quy tuyến tính đa biến}
+% ---------------------------------------------------------
+
+Khi có $d$ đặc trưng, mô hình trở thành
+\begin{equation}
+    \hat{y} = w_0 + w_1 x_1 + \dots + w_d x_d = \mathbf{w}^\top \tilde{\mathbf{x}},
+\end{equation}
+với $\tilde{\mathbf{x}} = (1, x_1, \dots, x_d)$. Gom $n$ mẫu thành ma trận thiết kế $\mathbf{X} \in \mathbb{R}^{n \times (d+1)}$ (cột đầu toàn số 1), hàm mất mát $\|\mathbf{y} - \mathbf{X}\mathbf{w}\|^2$ có nghiệm theo \textbf{phương trình chuẩn} (normal equation):
+\begin{equation}
+    \mathbf{w}^{*} = (\mathbf{X}^\top \mathbf{X})^{-1} \mathbf{X}^\top \mathbf{y}.
+    \label{eq:normal}
+\end{equation}
+Trong thực tế, thư viện không nghịch đảo ma trận trực tiếp mà dùng phân rã QR hoặc SVD (xem chương Giảm chiều dữ liệu) để ổn định số học. Khi các đặc trưng tương quan mạnh với nhau (đa cộng tuyến), $\mathbf{X}^\top\mathbf{X}$ gần suy biến và hệ số trở nên rất bất ổn --- đó là động lực của Ridge ở mục sau. Đây cũng là lý do bẫy biến giả (Chương~\ref{chap:preprocessing}) gây lỗi: các cột one-hot cộng lại bằng cột hệ số chặn.
+
+\begin{example}[Tính tay phương trình chuẩn với hai đặc trưng]
+Cho 4 mẫu trong Bảng~\ref{tab:normal-eq}. Tìm mô hình $\hat{y} = \beta_0 + \beta_1 x_1 + \beta_2 x_2$ và dự đoán $y$ tại $x_1 = 3$, $x_2 = 7$.
+\end{example}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{bias} & $x_1$ & $x_2$ & $y$ \\
+\hline
+1 & 7 & 3 & 9 \\ \hline
+1 & 4 & 1 & 15 \\ \hline
+1 & 5 & 6 & 21 \\ \hline
+1 & 9 & 8 & 37 \\ \hline
+\end{tabular}
+\caption{Dữ liệu ví dụ phương trình chuẩn; cột bias toàn số 1 ứng với hệ số chặn $\beta_0$}
+\label{tab:normal-eq}
+\end{table}
+
+\noindent\textbf{Bước 1 -- lập các ma trận.} Các phần tử của $\mathbf{X}^\top\mathbf{X}$ và $\mathbf{X}^\top\mathbf{y}$ chính là các tổng quen thuộc: $n = 4$, $\sum x_1 = 25$, $\sum x_2 = 18$, $\sum x_1^2 = 171$, $\sum x_1 x_2 = 127$, $\sum x_2^2 = 110$, $\sum y = 82$, $\sum x_1 y = 561$, $\sum x_2 y = 464$:
+\[
+    \mathbf{X}^\top\mathbf{X} =
+    \begin{pmatrix} 1 & 1 & 1 & 1 \\ 7 & 4 & 5 & 9 \\ 3 & 1 & 6 & 8 \end{pmatrix}
+    \begin{pmatrix} 1 & 7 & 3 \\ 1 & 4 & 1 \\ 1 & 5 & 6 \\ 1 & 9 & 8 \end{pmatrix}
+    = \begin{pmatrix} 4 & 25 & 18 \\ 25 & 171 & 127 \\ 18 & 127 & 110 \end{pmatrix}, \qquad
+    \mathbf{X}^\top\mathbf{y} = \begin{pmatrix} 82 \\ 561 \\ 464 \end{pmatrix}.
+\]
+
+\noindent\textbf{Bước 2 -- nghịch đảo.} Với $\det(\mathbf{X}^\top\mathbf{X}) = 870$, nghịch đảo bằng ma trận phụ hợp chia cho định thức:
+\[
+    (\mathbf{X}^\top\mathbf{X})^{-1} = \frac{1}{870}\begin{pmatrix} 2681 & -464 & 97 \\ -464 & 116 & -58 \\ 97 & -58 & 59 \end{pmatrix}
+    \approx \begin{pmatrix} 3{,}0816 & -0{,}5333 & 0{,}1115 \\ -0{,}5333 & 0{,}1333 & -0{,}0667 \\ 0{,}1115 & -0{,}0667 & 0{,}0678 \end{pmatrix}.
+\]
+\textit{Kiểm tra nhanh:} $\mathbf{X}^\top\mathbf{X}$ đối xứng và xác định dương, nên nghịch đảo của nó cũng \textbf{đối xứng} và có mọi phần tử trên \textbf{đường chéo dương}. Nếu tính ra một phần tử chéo âm (chẳng hạn $-0{,}0678$ thay vì $0{,}0678$) thì chắc chắn đã có sai sót.
+
+\noindent\textbf{Bước 3 -- hệ số:}
+\[
+    \boldsymbol{\beta} = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}
+    = \frac{1}{870}\begin{pmatrix} 4546 \\ 116 \\ 2792 \end{pmatrix}
+    \approx \begin{pmatrix} 5{,}2253 \\ 0{,}1333 \\ 3{,}2092 \end{pmatrix}.
+\]
+
+\noindent\textbf{Bước 4 -- dự đoán:} $\hat{y} = 5{,}2253 + 0{,}1333 \times 3 + 3{,}2092 \times 7 \approx 28{,}09$.
+
+Với chỉ 4 mẫu và 3 tham số, mô hình giải thích được $R^2 \approx 0{,}716$ phương sai của $y$ trên chính tập huấn luyện --- ví dụ chỉ nhằm minh họa quy trình tính, không nhằm đánh giá chất lượng mô hình.
+
+\begin{lstlisting}[caption={Kiểm tra ví dụ phương trình chuẩn}]
+import numpy as np
+from sklearn.linear_model import LinearRegression
+
+X = np.array([[7, 3], [4, 1], [5, 6], [9, 8]])
+y = np.array([9, 15, 21, 37])
+Xb = np.c_[np.ones(len(X)), X]               # them cot 1 cho he so chan
+print(Xb.T @ Xb)                             # [[4 25 18] [25 171 127] [18 127 110]]
+beta = np.linalg.solve(Xb.T @ Xb, Xb.T @ y)  # on dinh hon np.linalg.inv
+print(beta.round(4))                         # [5.2253 0.1333 3.2092]
+print(beta @ [1, 3, 7])                      # 28.0897
+
+model = LinearRegression().fit(X, y)
+print(model.intercept_, model.coef_, model.predict([[3, 7]]))
+print(model.score(X, y))                     # R^2 = 0.7157
+\end{lstlisting}
+
+\paragraph{Diễn giải hệ số.} $w_j$ là mức thay đổi trung bình của $\hat{y}$ khi $x_j$ tăng 1 đơn vị và các đặc trưng khác giữ nguyên. Nếu các đặc trưng đã được chuẩn hóa bằng \texttt{StandardScaler}, độ lớn $|w_j|$ có thể dùng để so sánh mức ảnh hưởng tương đối giữa các đặc trưng.
+
+\paragraph{Các giả định kinh điển.} (1) Quan hệ tuyến tính; (2) sai số độc lập; (3) phương sai sai số không đổi (homoscedasticity); (4) sai số có phân phối chuẩn (cần cho kiểm định thống kê); (5) không có đa cộng tuyến hoàn hảo. Biểu đồ phần dư -- giá trị dự đoán là công cụ trực quan để kiểm tra các giả định này.
+
+% ---------------------------------------------------------
+\section{Gradient Descent}
+% ---------------------------------------------------------
+
+Với dữ liệu lớn hoặc mô hình không có nghiệm đóng (hồi quy logistic, mạng nơ-ron), ta dùng \textbf{Gradient Descent} --- phương pháp do Augustin-Louis Cauchy đề xuất từ năm 1847. Ý tưởng: đứng tại một điểm trên mặt hàm mất mát, đi một bước nhỏ theo hướng \textbf{ngược gradient} (hướng giảm nhanh nhất).
+
+Với hàm mất mát $J(w_0, w_1) = \frac{1}{2n}\sum_i (\hat{y}_i - y_i)^2$ và tốc độ học $\eta$:
+\begin{align}
+    \frac{\partial J}{\partial w_0} &= \frac{1}{n}\sum_i (\hat{y}_i - y_i), &
+    \frac{\partial J}{\partial w_1} &= \frac{1}{n}\sum_i (\hat{y}_i - y_i)\, x_i, \\
+    w_0 &\leftarrow w_0 - \eta \frac{\partial J}{\partial w_0}, &
+    w_1 &\leftarrow w_1 - \eta \frac{\partial J}{\partial w_1}.
+\end{align}
+
+\begin{example}[Ba bước Gradient Descent]
+Với dữ liệu ở Bảng~\ref{tab:ols}, khởi tạo $w_0 = w_1 = 0$ và $\eta = 0{,}05$:
+\end{example}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{Bước} & $\partial J / \partial w_0$ & $\partial J / \partial w_1$ & $w_0$ mới & $w_1$ mới \\
+\hline
+1 & $-6.0400$ & $-22.1000$ & 0.3020 & 1.1050 \\ \hline
+2 & $-2.4230$ & $-9.0390$ & 0.4232 & 1.5570 \\ \hline
+3 & $-0.9460$ & $-3.7041$ & 0.4704 & 1.7422 \\ \hline
+$\vdots$ & & & $\to 0.07$ & $\to 1.99$ \\ \hline
+\end{tabular}
+\caption{Gradient Descent hội tụ dần về nghiệm bình phương tối thiểu}
+\end{table}
+
+\begin{lstlisting}[caption={Cài đặt Gradient Descent cho hồi quy tuyến tính}]
+import numpy as np
+
+x = np.array([1, 2, 3, 4, 5], dtype=float)
+y = np.array([2.1, 3.9, 6.1, 8.2, 9.9])
+w0, w1, lr = 0.0, 0.0, 0.05
+
+for step in range(2000):
+    error = (w0 + w1 * x) - y
+    w0 -= lr * error.mean()
+    w1 -= lr * (error * x).mean()
+    if step < 3:
+        print(step + 1, round(w0, 4), round(w1, 4))
+print(round(w0, 4), round(w1, 4))     # ~0.07  ~1.99
+\end{lstlisting}
+
+\paragraph{Chọn tốc độ học.} $\eta$ quá nhỏ: hội tụ rất chậm; $\eta$ quá lớn: dao động hoặc phân kỳ. Các đặc trưng có thang đo chênh lệch làm mặt hàm mất mát bị ``kéo dài'', buộc phải chọn $\eta$ nhỏ --- đây là lý do thực tiễn quan trọng nhất của việc chuẩn hóa dữ liệu ở Chương~\ref{chap:preprocessing}. Các biến thể phổ biến: \textit{Stochastic GD} (mỗi bước dùng 1 mẫu, \texttt{SGDRegressor}) và \textit{Mini-batch GD} (mỗi bước dùng một nhóm nhỏ mẫu, dùng nhiều trong học sâu).
+
+\hinhchuachen{ch-regression-gd.png}{Đường đồng mức của hàm mất mát $J(w_0, w_1)$ và quỹ đạo của Gradient Descent với các tốc độ học khác nhau.}{fig:gd}
+
+% ---------------------------------------------------------
+\section{Hồi quy đa thức, quá khớp và chính quy hóa}
+% ---------------------------------------------------------
+
+\subsection{Hồi quy đa thức}
+
+Khi quan hệ không tuyến tính, ta tạo thêm đặc trưng $x^2, x^3, \dots$ rồi vẫn dùng hồi quy tuyến tính (tuyến tính theo \textit{tham số}):
+\begin{equation}
+    \hat{y} = w_0 + w_1 x + w_2 x^2 + \dots + w_p x^p .
+\end{equation}
+
+\begin{lstlisting}[caption={Hồi quy đa thức với PolynomialFeatures}]
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+from sklearn.linear_model import LinearRegression
+
+poly_model = make_pipeline(PolynomialFeatures(degree=3),
+                           StandardScaler(),
+                           LinearRegression())
+poly_model.fit(X_train, y_train)
+\end{lstlisting}
+
+\subsection{Quá khớp và thiếu khớp}
+
+Bậc $p$ quá thấp, mô hình không nắm bắt được xu hướng (\textbf{thiếu khớp} -- underfitting); bậc quá cao, mô hình ``học thuộc'' cả nhiễu, sai số huấn luyện rất nhỏ nhưng dự đoán dữ liệu mới rất kém (\textbf{quá khớp} -- overfitting). Cách phát hiện và lựa chọn độ phức tạp phù hợp được trình bày chi tiết ở chương Đánh giá mô hình.
+
+\hinhchuachen{ch-regression-poly.png}{Hồi quy đa thức bậc 1, 3 và 15 trên cùng một tập dữ liệu: thiếu khớp, vừa khớp và quá khớp.}{fig:poly}
+
+\subsection{Ridge và Lasso}
+
+\textbf{Chính quy hóa} (regularization) thêm vào hàm mất mát một khoản phạt độ lớn của hệ số:
+\begin{align}
+    \text{Ridge (Hoerl \& Kennard, 1970)}: \quad & \min_{\mathbf{w}} \|\mathbf{y} - \mathbf{X}\mathbf{w}\|^2 + \alpha \|\mathbf{w}\|_2^2, \\
+    \text{Lasso (Tibshirani, 1996)}: \quad & \min_{\mathbf{w}} \tfrac{1}{2n}\|\mathbf{y} - \mathbf{X}\mathbf{w}\|^2 + \alpha \|\mathbf{w}\|_1 .
+\end{align}
+Ridge co các hệ số về gần 0 và có nghiệm đóng $\mathbf{w}^* = (\mathbf{X}^\top\mathbf{X} + \alpha\mathbf{I})^{-1}\mathbf{X}^\top\mathbf{y}$, luôn khả nghịch khi $\alpha > 0$ --- khắc phục đa cộng tuyến. Lasso có thể đưa nhiều hệ số về \textbf{đúng bằng 0}, tức tự động \textbf{chọn đặc trưng}. ElasticNet (Zou \& Hastie, 2005) kết hợp cả hai khoản phạt. Tham số $\alpha$ được chọn bằng kiểm định chéo (\texttt{RidgeCV}, \texttt{LassoCV}). Vì khoản phạt phụ thuộc độ lớn hệ số, \textbf{bắt buộc phải chuẩn hóa dữ liệu} trước khi dùng Ridge/Lasso.
+
+% ---------------------------------------------------------
+\section{Hồi quy cho chuỗi thời gian}
+% ---------------------------------------------------------
+
+\begin{definition}[Chuỗi thời gian]
+Chuỗi thời gian là dãy quan sát $y_1, y_2, \dots, y_T$ được ghi nhận theo thứ tự thời gian, thường cách đều (ngày, tháng, quý). Bài toán dự báo là ước lượng $y_{T+1}, y_{T+2}, \dots$ từ các giá trị quá khứ.
+\end{definition}
+
+Các mô hình thống kê kinh điển như ARIMA được Box và Jenkins hệ thống hóa năm 1970. Tuy nhiên, có thể giải bài toán dự báo bằng chính hồi quy tuyến tính thông qua \textbf{đặc trưng trễ} (lag features): dùng $y_{t-1}, y_{t-2}, \dots, y_{t-p}$ làm đầu vào để dự đoán $y_t$ --- tương đương mô hình tự hồi quy AR($p$). Có thể bổ sung đặc trưng lịch (tháng, thứ trong tuần), trung bình trượt và xu hướng theo thời gian.
+
+\paragraph{Ba nguyên tắc riêng của chuỗi thời gian.}
+\begin{enumerate}
+    \item \textbf{Không xáo trộn dữ liệu} khi chia train/test: tập kiểm tra phải nằm \textit{sau} tập huấn luyện về thời gian.
+    \item Đặc trưng chỉ được tính từ \textbf{quá khứ}; dùng giá trị tương lai là rò rỉ dữ liệu.
+    \item Kiểm định chéo dùng \texttt{TimeSeriesSplit}: các fold huấn luyện luôn đứng trước fold kiểm tra.
+\end{enumerate}
+
+\begin{lstlisting}[caption={Dự báo chuỗi thời gian bằng đặc trưng trễ}]
+import numpy as np
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error
+
+# Du lieu mo phong: doanh so thang co xu huong + mua vu + nhieu
+rng = np.random.default_rng(0)
+t = np.arange(60)
+sales = 100 + 2 * t + 15 * np.sin(2 * np.pi * t / 12) + rng.normal(0, 5, 60)
+df = pd.DataFrame({"sales": sales})
+
+# Tao dac trung tre va dac trung lich
+for lag in [1, 2, 12]:
+    df[f"lag_{lag}"] = df["sales"].shift(lag)
+df["month"] = t % 12
+df["trend"] = t
+df = df.dropna()
+
+# Chia theo thoi gian: 12 thang cuoi lam tap kiem tra
+train, test = df.iloc[:-12], df.iloc[-12:]
+features = ["lag_1", "lag_2", "lag_12", "trend"]
+model = LinearRegression().fit(train[features], train["sales"])
+pred = model.predict(test[features])
+print("MAE:", mean_absolute_error(test["sales"], pred))
+\end{lstlisting}
+
+\hinhchuachen{ch-regression-timeseries.png}{Chuỗi doanh số theo tháng, phần huấn luyện, phần kiểm tra và đường dự báo bằng đặc trưng trễ.}{fig:timeseries}
+
+% ---------------------------------------------------------
+\section{Nghiên cứu tình huống: dự đoán giá nhà Ames}
+% ---------------------------------------------------------
+
+Tiếp nối Chương~\ref{chap:preprocessing}, ta dùng bộ tiền xử lý \texttt{preprocess} (ColumnTransformer) đã xây dựng và gắn thêm mô hình hồi quy. Biến mục tiêu được lấy logarit, $y = \ln(\text{SalePrice})$, vì giá nhà lệch phải: sai số trên thang log tương ứng với sai số \textit{tương đối} (phần trăm), công bằng giữa nhà rẻ và nhà đắt.
+
+\begin{lstlisting}[caption={So sánh Linear Regression, Ridge và Lasso trên Ames Housing}]
+import numpy as np
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LinearRegression, RidgeCV, LassoCV
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import mean_squared_error
+
+# X_train, X_test, y_train, y_test, preprocess: tu Chuong Tien xu ly
+models = {
+    "Linear": LinearRegression(),
+    "Ridge":  RidgeCV(alphas=np.logspace(-3, 3, 20)),
+    "Lasso":  LassoCV(alphas=np.logspace(-4, 0, 20), max_iter=10000),
+}
+for name, reg in models.items():
+    pipe = Pipeline([("prep", preprocess), ("reg", reg)])
+    cv = cross_val_score(pipe, X_train, y_train, cv=5,
+                         scoring="neg_root_mean_squared_error")
+    pipe.fit(X_train, y_train)
+    rmse = mean_squared_error(y_test, pipe.predict(X_test)) ** 0.5
+    print(f"{name:7s} CV-RMSE={-cv.mean():.4f}  Test-RMSE={rmse:.4f}")
+
+# RMSE tren thang log ~ sai so tuong doi, vd 0.12 ~ khoang 12%
+# Doi du doan ve don vi USD:
+price_pred = np.exp(pipe.predict(X_test[:5]))
+\end{lstlisting}
+
+\hinhchuachen{ch-regression-ames-residual.png}{Biểu đồ giá trị thực -- giá trị dự đoán (thang log) của mô hình Ridge trên tập kiểm tra Ames Housing.}{fig:ames-pred}
+
+% ---------------------------------------------------------
 \section{Tóm tắt chương}
+% ---------------------------------------------------------
 \begin{itemize}
-    \item Bản chất mô hình Hồi quy tuyến tính và bài toán tối ưu hàm MSE.
-    \item Phương pháp hạ độ dốc (Gradient Descent) để cập nhật trọng số.
-    \item Thao tác huấn luyện mô hình bằng thư viện \texttt{scikit-learn}.
+    \item Phương pháp bình phương tối thiểu (Legendre 1805, Gauss 1809) là nền tảng của hồi quy; thuật ngữ ``hồi quy'' bắt nguồn từ nghiên cứu của Galton (1886).
+    \item Hồi quy tuyến tính có nghiệm đóng $w_1 = S_{xy}/S_{xx}$, $w_0 = \bar{y} - w_1\bar{x}$; dạng đa biến $\mathbf{w}^* = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}$.
+    \item Gradient Descent cập nhật tham số ngược hướng gradient; tốc độ học và chuẩn hóa dữ liệu quyết định tốc độ hội tụ.
+    \item Hồi quy đa thức tăng độ linh hoạt nhưng dễ quá khớp; Ridge và Lasso kiểm soát độ phức tạp, Lasso còn chọn đặc trưng.
+    \item Với chuỗi thời gian: dùng đặc trưng trễ, chia dữ liệu theo thời gian, không xáo trộn.
 \end{itemize}
+
+% ---------------------------------------------------------
+\section{Bài tập}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Cho $x = (1, 2, 3, 4)$, $y = (3, 5, 7, 10)$. Tính tay $w_0$, $w_1$, SSE và $R^2$; kiểm tra bằng \texttt{LinearRegression}.
+    \item Chứng minh công thức (\ref{eq:ols-simple}) bằng cách lấy đạo hàm SSE theo $w_0$ và $w_1$.
+    \item Chạy Gradient Descent cho bài 1 với $\eta \in \{0{,}01;\ 0{,}05;\ 0{,}2\}$. Vẽ giá trị hàm mất mát theo số bước và nhận xét.
+    \item Sinh dữ liệu $y = \sin(x) + \text{nhiễu}$ với 20 điểm. Khớp đa thức bậc 1, 3, 9, 15 và so sánh sai số trên tập huấn luyện và tập kiểm tra.
+    \item Trên Ames Housing, dùng \texttt{LassoCV} và liệt kê 10 đặc trưng có hệ số lớn nhất (theo trị tuyệt đối). Bao nhiêu hệ số bị đưa về 0?
+    \item Vì sao không được dùng \texttt{train\_test\_split(shuffle=True)} cho chuỗi thời gian? Viết lại ví dụ dự báo doanh số với \texttt{TimeSeriesSplit}.
+\end{enumerate}
+
+% ---------------------------------------------------------
+\section*{Tài liệu tham khảo của chương}
+\addcontentsline{toc}{section}{Tài liệu tham khảo của chương}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Box, G. E. P., \& Jenkins, G. M. (1970). \textit{Time Series Analysis: Forecasting and Control}. Holden-Day.
+    \item Cauchy, A.-L. (1847). Méthode générale pour la résolution des systèmes d'équations simultanées. \textit{Comptes Rendus de l'Académie des Sciences}, 25, 536--538.
+    \item Galton, F. (1886). Regression towards mediocrity in hereditary stature. \textit{Journal of the Anthropological Institute}, 15, 246--263.
+    \item Gauss, C. F. (1809). \textit{Theoria Motus Corporum Coelestium}. Hamburg: Perthes \& Besser.
+    \item Hastie, T., Tibshirani, R., \& Friedman, J. (2009). \textit{The Elements of Statistical Learning} (2nd ed.), Chương 3. Springer.
+    \item Hoerl, A. E., \& Kennard, R. W. (1970). Ridge Regression: Biased Estimation for Nonorthogonal Problems. \textit{Technometrics}, 12(1), 55--67.
+    \item Legendre, A.-M. (1805). \textit{Nouvelles méthodes pour la détermination des orbites des comètes}. Paris: Firmin Didot.
+    \item Tibshirani, R. (1996). Regression Shrinkage and Selection via the Lasso. \textit{Journal of the Royal Statistical Society, Series B}, 58(1), 267--288.
+    \item Zou, H., \& Hastie, T. (2005). Regularization and variable selection via the elastic net. \textit{Journal of the Royal Statistical Society, Series B}, 67(2), 301--320.
+\end{enumerate}

@@ -1,0 +1,496 @@
+% =========================================================
+% CHUONG: GIAM CHIEU DU LIEU (DIMENSIONALITY REDUCTION)
+% =========================================================
+
+\chapter{Giảm chiều dữ liệu \\ (Dimensionality Reduction)}
+\label{chap:reduce-dimension}
+
+Dữ liệu thực tế thường có rất nhiều đặc trưng: một ảnh $28 \times 28$ có 784 chiều, một văn bản sau khi qua TF-IDF (Chương~\ref{chap:preprocessing}) có hàng chục nghìn chiều, dữ liệu gen có hàng triệu chiều. Số chiều lớn gây ra nhiều khó khăn mà Richard Bellman (1957) gọi chung là \textbf{lời nguyền số chiều} (curse of dimensionality). \textbf{Giảm chiều dữ liệu} là quá trình biểu diễn dữ liệu bằng ít chiều hơn nhưng giữ lại phần lớn thông tin.
+
+Theo kế hoạch giảng dạy, chương này tập trung vào hai kỹ thuật nền tảng: \textbf{SVD} (phân tích giá trị suy biến) và \textbf{PCA} (phân tích thành phần chính).
+
+\noindent Sau khi học xong chương này, người học có khả năng:
+\begin{itemize}
+    \item Giải thích lời nguyền số chiều và phân biệt lựa chọn đặc trưng với trích xuất đặc trưng.
+    \item Tính tay phương sai, hiệp phương sai, hệ số tương quan và cặp trị riêng -- vector riêng của ma trận $2 \times 2$.
+    \item Tính tay SVD của ma trận nhỏ và xấp xỉ hạng thấp.
+    \item Tính tay PCA (chuẩn hóa tâm, ma trận hiệp phương sai, trị riêng, chiếu dữ liệu).
+    \item Dùng \texttt{PCA}, \texttt{TruncatedSVD} của scikit-learn và chọn số thành phần theo phương sai giải thích.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Lời nguyền số chiều}
+% ---------------------------------------------------------
+
+Khi số chiều $d$ tăng:
+\begin{itemize}
+    \item \textbf{Dữ liệu trở nên thưa}: để phủ đều khối lập phương đơn vị với mật độ 10 điểm mỗi trục cần $10^d$ điểm --- 100 điểm cho $d = 2$, nhưng $10^{10}$ điểm cho $d = 10$.
+    \item \textbf{Khoảng cách mất ý nghĩa}: trong không gian nhiều chiều, khoảng cách từ một điểm đến láng giềng gần nhất và xa nhất gần bằng nhau (Beyer và cộng sự, 1999), khiến KNN và K-Means kém hiệu quả.
+    \item \textbf{Quá khớp}: số tham số tăng theo $d$, mô hình dễ học thuộc nhiễu khi số mẫu không đủ.
+    \item \textbf{Chi phí} lưu trữ và tính toán tăng; không thể trực quan hóa trên 3 chiều.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{3.6cm}|p{5.2cm}|p{4.2cm}|}
+\hline
+\textbf{Hướng tiếp cận} & \textbf{Ý tưởng} & \textbf{Ví dụ} \\
+\hline
+Lựa chọn đặc trưng (feature selection) & Giữ lại một tập con các cột gốc & Lọc theo phương sai, tương quan, Lasso, \texttt{SelectKBest} \\ \hline
+Trích xuất đặc trưng tuyến tính & Tạo cột mới là tổ hợp tuyến tính các cột gốc & \textbf{PCA}, \textbf{SVD}, LDA \\ \hline
+Trích xuất phi tuyến (manifold learning) & Bảo toàn cấu trúc lân cận cục bộ & Kernel PCA, t-SNE, UMAP, Autoencoder \\ \hline
+\end{tabular}
+\caption{Các hướng giảm chiều dữ liệu}
+\end{table}
+
+% ---------------------------------------------------------
+\section{Kiến thức nền: phương sai, hiệp phương sai và trị riêng}
+\label{sec:linalg-review}
+% ---------------------------------------------------------
+
+Cả SVD và PCA đều được xây dựng trên ba khái niệm: phương sai, hiệp phương sai và cặp trị riêng -- vector riêng. Mục này ôn lại chúng qua các ví dụ tính tay.
+
+\subsection{Phương sai}
+
+\begin{definition}[Phương sai]
+Phương sai (variance) đo mức độ phân tán của dữ liệu quanh giá trị trung bình:
+\begin{equation}
+    \mathrm{Var}(A) = \frac{1}{n}\sum_{i=1}^{n}(a_i - \bar{a})^2 .
+\end{equation}
+Khi ước lượng phương sai của tổng thể từ một mẫu, người ta thường chia cho $n - 1$ thay vì $n$ (hiệu chỉnh Bessel) để được ước lượng không chệch. Độ lệch chuẩn $\sigma$ là căn bậc hai của phương sai.
+\end{definition}
+
+\begin{example}[Tính phương sai]
+$A = (3, 7, 5)$ có $\bar{a} = \frac{3 + 7 + 5}{3} = 5$ và
+\[
+    \mathrm{Var}(A) = \frac{(3 - 5)^2 + (7 - 5)^2 + (5 - 5)^2}{3} = \frac{8}{3} \approx 2{,}67 .
+\]
+Nếu chia cho $n - 1$ thì được $\frac{8}{2} = 4$.
+\end{example}
+
+\noindent\textit{Lưu ý khi lập trình:} \texttt{np.var} mặc định chia cho $n$ (\texttt{ddof=0}), còn \texttt{pandas.Series.var} và \texttt{np.cov} mặc định chia cho $n - 1$ (\texttt{ddof=1}). Với mẫu nhỏ, hai quy ước cho kết quả khác nhau đáng kể, nên cần ghi rõ quy ước đang dùng.
+
+\subsection{Hiệp phương sai và hệ số tương quan}
+
+\begin{definition}[Hiệp phương sai và hệ số tương quan]
+Hiệp phương sai (covariance) đo mức độ \textbf{cùng biến thiên} của hai biến:
+\begin{equation}
+    \mathrm{Cov}(A, B) = \frac{1}{n}\sum_{i=1}^{n}(a_i - \bar{a})(b_i - \bar{b}).
+\end{equation}
+$\mathrm{Cov} > 0$: hai biến có xu hướng cùng tăng; $\mathrm{Cov} < 0$: biến này tăng thì biến kia giảm; $\mathrm{Cov} \approx 0$: không có quan hệ tuyến tính. Vì độ lớn của hiệp phương sai phụ thuộc đơn vị đo, Karl Pearson (1896) chuẩn hóa nó thành \textbf{hệ số tương quan}
+\begin{equation}
+    r = \frac{\mathrm{Cov}(A, B)}{\sigma_A\,\sigma_B} \in [-1, 1].
+\end{equation}
+\end{definition}
+
+\begin{example}[Tính hiệp phương sai và hệ số tương quan]
+$A = (2, 8, 4)$ và $B = (6, 1, 5)$ có $\bar{a} = \frac{14}{3} \approx 4{,}67$, $\bar{b} = \frac{12}{3} = 4$:
+\begin{align*}
+    \mathrm{Cov}(A, B) &= \tfrac{1}{3}\big[(2 - 4{,}67)(6 - 4) + (8 - 4{,}67)(1 - 4) + (4 - 4{,}67)(5 - 4)\big] \\
+    &= \tfrac{1}{3}\,(-5{,}33 - 10 - 0{,}67) = -\tfrac{16}{3} \approx -5{,}33.
+\end{align*}
+Dấu \textbf{âm} cho biết khi $A$ tăng thì $B$ giảm: quan sát thứ hai có $A$ lớn nhất nhưng $B$ nhỏ nhất. Với $\sigma_A^2 = \frac{56}{9} \approx 6{,}22$ và $\sigma_B^2 = \frac{14}{3} \approx 4{,}67$:
+\[
+    r = \frac{-5{,}33}{\sqrt{6{,}22 \times 4{,}67}} \approx -0{,}99,
+\]
+tức hai biến có quan hệ tuyến tính nghịch rất mạnh. Khi tính tay cần giữ đúng \textbf{dấu} của từng tích $(a_i - \bar{a})(b_i - \bar{b})$: bỏ sót dấu âm sẽ đảo ngược hoàn toàn ý nghĩa của kết quả.
+\end{example}
+
+\paragraph{Ma trận hiệp phương sai.} Với dữ liệu $d$ chiều, các phương sai và hiệp phương sai được gom thành ma trận đối xứng $\mathbf{C} \in \mathbb{R}^{d \times d}$ với $C_{jk} = \mathrm{Cov}(x_j, x_k)$; đường chéo chính là phương sai của từng biến. Nếu $\mathbf{X}_c$ là dữ liệu đã trừ trung bình từng cột thì $\mathbf{C} = \frac{1}{n - 1}\mathbf{X}_c^\top\mathbf{X}_c$ --- quy ước chia $n - 1$ mà PCA của scikit-learn sử dụng.
+
+\subsection{Trị riêng và vector riêng}
+
+\begin{definition}[Trị riêng, vector riêng]
+Cho ma trận vuông $\mathbf{A}$. Số $\lambda$ và vector $\mathbf{v} \neq \mathbf{0}$ thỏa $\mathbf{A}\mathbf{v} = \lambda\mathbf{v}$ được gọi là \textbf{trị riêng} và \textbf{vector riêng} tương ứng: nhân với $\mathbf{A}$ chỉ co giãn $\mathbf{v}$ theo hệ số $\lambda$ mà không làm đổi phương của nó. Các trị riêng là nghiệm của \textbf{phương trình đặc trưng} $\det(\mathbf{A} - \lambda\mathbf{I}) = 0$.
+\end{definition}
+
+\begin{example}[Tính tay trị riêng và vector riêng]
+Cho $\mathbf{A} = \begin{pmatrix} 2 & 3 \\ 4 & 1 \end{pmatrix}$.
+\end{example}
+
+\noindent\textbf{Bước 1 -- phương trình đặc trưng:}
+\[
+    \det\begin{pmatrix} 2 - \lambda & 3 \\ 4 & 1 - \lambda \end{pmatrix} = (2 - \lambda)(1 - \lambda) - 3 \cdot 4 = \lambda^2 - 3\lambda - 10 = 0
+    \ \Leftrightarrow\ \lambda_1 = 5,\ \lambda_2 = -2.
+\]
+
+\noindent\textbf{Bước 2 -- vector riêng ứng với $\lambda_1 = 5$:} giải $(\mathbf{A} - 5\mathbf{I})\mathbf{v} = \mathbf{0}$,
+\[
+    \begin{pmatrix} -3 & 3 \\ 4 & -4 \end{pmatrix}\begin{pmatrix} v_1 \\ v_2 \end{pmatrix} = \mathbf{0}
+    \ \Leftrightarrow\ -v_1 + v_2 = 0 \ \Leftrightarrow\ v_1 = v_2 .
+\]
+Chọn $v_2 = 1$ thì $v_1 = 1$; chuẩn hóa về độ dài 1: $\mathbf{v}_1 = \frac{1}{\sqrt{1^2 + 1^2}}(1, 1) \approx (0{,}7071;\ 0{,}7071)$.
+
+\noindent\textbf{Bước 3 -- vector riêng ứng với $\lambda_2 = -2$:}
+\[
+    \begin{pmatrix} 4 & 3 \\ 4 & 3 \end{pmatrix}\begin{pmatrix} v_1 \\ v_2 \end{pmatrix} = \mathbf{0}
+    \ \Leftrightarrow\ 4v_1 + 3v_2 = 0 \ \Leftrightarrow\ v_1 = -\tfrac{3}{4}v_2 .
+\]
+Chọn $v_2 = 4$ thì $v_1 = -3$; chuẩn hóa: $\mathbf{v}_2 = \frac{1}{\sqrt{(-3)^2 + 4^2}}(-3, 4) = (-0{,}6;\ 0{,}8)$.
+
+\noindent\textbf{Kiểm tra nhanh:} tổng các trị riêng bằng \textbf{vết} (tổng đường chéo) của ma trận, $5 + (-2) = 2 + 1$; tích các trị riêng bằng \textbf{định thức}, $5 \times (-2) = 2 \cdot 1 - 3 \cdot 4 = -10$.
+
+Ma trận $\mathbf{A}$ ở ví dụ này \textbf{không đối xứng} nên hai vector riêng không vuông góc ($\mathbf{v}_1 \cdot \mathbf{v}_2 \approx 0{,}14 \neq 0$). Ngược lại, với ma trận \textbf{đối xứng} như $\mathbf{X}^\top\mathbf{X}$ hay ma trận hiệp phương sai, \textbf{định lý phổ} bảo đảm mọi trị riêng là số thực và có thể chọn các vector riêng đôi một vuông góc --- đây chính là tính chất mà SVD và PCA khai thác.
+
+\begin{lstlisting}[caption={Phương sai, hiệp phương sai và trị riêng với NumPy}]
+import numpy as np
+
+A = np.array([3, 7, 5])
+print(np.var(A), np.var(A, ddof=1))        # 2.6667 4.0
+a, b = np.array([2, 8, 4]), np.array([6, 1, 5])
+print(np.cov(a, b, ddof=0)[0, 1])          # -5.3333
+print(np.corrcoef(a, b)[0, 1])             # -0.9897
+
+M = np.array([[2, 3], [4, 1]])
+eigval, eigvec = np.linalg.eig(M)   # NumPy moi co the tra ve kieu so phuc (5.+0.j)
+print(eigval.real)     # [ 5. -2.]
+print(eigvec.real)     # moi cot la mot vector rieng: (0.7071, 0.7071) va (-0.6, 0.8)
+\end{lstlisting}
+
+% ---------------------------------------------------------
+\section{Phân tích giá trị suy biến (SVD)}
+% ---------------------------------------------------------
+
+\subsection{Lịch sử}
+SVD được Eugenio Beltrami (1873) và Camille Jordan (1874) phát hiện độc lập; Eckart và Young (1936) chứng minh tính chất xấp xỉ hạng thấp tối ưu --- nền tảng của mọi ứng dụng nén dữ liệu. Thuật toán tính SVD ổn định số do Golub và Kahan (1965) đề xuất là cái mà NumPy dùng ngày nay. SVD còn nổi tiếng nhờ cuộc thi Netflix Prize (2006--2009), nơi các biến thể phân rã ma trận chiếm ưu thế trong hệ gợi ý.
+
+\begin{theorem}[Phân tích giá trị suy biến]
+Mọi ma trận thực $\mathbf{A} \in \mathbb{R}^{m \times n}$ đều phân tích được thành
+\begin{equation}
+    \mathbf{A} = \mathbf{U} \boldsymbol{\Sigma} \mathbf{V}^{\top},
+\end{equation}
+trong đó $\mathbf{U} \in \mathbb{R}^{m \times m}$ và $\mathbf{V} \in \mathbb{R}^{n \times n}$ là các ma trận trực giao (cột là vector suy biến trái/phải), $\boldsymbol{\Sigma} \in \mathbb{R}^{m \times n}$ là ma trận đường chéo với các \textbf{giá trị suy biến} $\sigma_1 \geq \sigma_2 \geq \dots \geq 0$. Ngoài ra $\sigma_i^2$ là trị riêng của $\mathbf{A}\mathbf{A}^{\top}$ (và của $\mathbf{A}^{\top}\mathbf{A}$), cột của $\mathbf{U}$ là vector riêng của $\mathbf{A}\mathbf{A}^{\top}$, cột của $\mathbf{V}$ là vector riêng của $\mathbf{A}^{\top}\mathbf{A}$.
+\end{theorem}
+
+\begin{theorem}[Eckart--Young]
+Giữ lại $k$ giá trị suy biến lớn nhất, $\mathbf{A}_k = \sum_{i=1}^{k} \sigma_i \mathbf{u}_i \mathbf{v}_i^{\top}$ là ma trận hạng $k$ \textbf{gần $\mathbf{A}$ nhất} theo chuẩn Frobenius, với sai số $\|\mathbf{A} - \mathbf{A}_k\|_F = \sqrt{\sigma_{k+1}^2 + \dots + \sigma_r^2}$.
+\end{theorem}
+
+\begin{example}[Tính tay SVD]
+Cho $\mathbf{M} = \begin{pmatrix} 3 & 2 & 2 \\ 2 & 3 & -2 \end{pmatrix}$.
+\end{example}
+
+\noindent\textbf{Bước 1.} $\mathbf{M}\mathbf{M}^{\top} = \begin{pmatrix} 17 & 8 \\ 8 & 17 \end{pmatrix}$, phương trình đặc trưng $(17 - \lambda)^2 - 64 = 0$ cho $\lambda_1 = 25$, $\lambda_2 = 9$. Vậy $\sigma_1 = 5$, $\sigma_2 = 3$.
+
+\noindent\textbf{Bước 2.} Vector riêng của $\mathbf{M}\mathbf{M}^{\top}$: $\mathbf{u}_1 = \tfrac{1}{\sqrt{2}}(1, 1)^{\top}$, $\mathbf{u}_2 = \tfrac{1}{\sqrt{2}}(1, -1)^{\top}$.
+
+\noindent\textbf{Bước 3.} $\mathbf{v}_i = \mathbf{M}^{\top}\mathbf{u}_i / \sigma_i$:
+\[
+    \mathbf{v}_1 = \tfrac{1}{5\sqrt{2}}(5, 5, 0)^{\top} = \tfrac{1}{\sqrt{2}}(1, 1, 0)^{\top}, \qquad
+    \mathbf{v}_2 = \tfrac{1}{3\sqrt{2}}(1, -1, 4)^{\top} = \tfrac{1}{\sqrt{18}}(1, -1, 4)^{\top}.
+\]
+Vector thứ ba $\mathbf{v}_3 = \tfrac{1}{3}(2, -2, -1)^{\top}$ vuông góc với hai vector trên (ứng với giá trị suy biến 0).
+
+\noindent\textbf{Bước 4 -- xấp xỉ hạng 1.} $\mathbf{M}_1 = \sigma_1 \mathbf{u}_1 \mathbf{v}_1^{\top} = 5 \cdot \tfrac{1}{2}\begin{pmatrix} 1 & 1 & 0 \\ 1 & 1 & 0 \end{pmatrix} = \begin{pmatrix} 2{,}5 & 2{,}5 & 0 \\ 2{,}5 & 2{,}5 & 0 \end{pmatrix}$, sai số $\|\mathbf{M} - \mathbf{M}_1\|_F = \sigma_2 = 3$. Thành phần thứ nhất giữ $\sigma_1^2 / (\sigma_1^2 + \sigma_2^2) = 25/34 \approx 73{,}5\%$ ``năng lượng'' của ma trận.
+
+\begin{lstlisting}[caption={SVD với NumPy (ví dụ trên lớp)}]
+import numpy as np
+
+M = np.array([[3, 2, 2], [2, 3, -2]])
+U, s, Vt = np.linalg.svd(M)
+print(s)          # [5. 3.]
+print(U)          # cot = vector suy bien trai (co the doi dau)
+print(Vt)         # dong = vector suy bien phai
+
+# Tai tao lai M tu 3 thanh phan
+Sigma = np.zeros(M.shape); Sigma[:2, :2] = np.diag(s)
+print(np.allclose(U @ Sigma @ Vt, M))   # True
+
+# Xap xi hang 1
+M1 = s[0] * np.outer(U[:, 0], Vt[0])
+print(M1.round(2))                       # [[2.5 2.5 0.] [2.5 2.5 0.]]
+print(np.linalg.norm(M - M1))            # 3.0 = sigma_2
+\end{lstlisting}
+
+\noindent\textit{Lưu ý:} vector suy biến chỉ xác định duy nhất đến \textbf{dấu}: NumPy có thể trả về $-\mathbf{u}_1, -\mathbf{v}_1$, kết quả vẫn đúng.
+
+\subsection{Tính SVD thông qua $\mathbf{X}^\top\mathbf{X}$}
+
+Định lý trên gợi ý cách tính SVD bằng tay cho ma trận có nhiều dòng: (1) lập $\mathbf{X}^\top\mathbf{X}$ --- ma trận vuông, đối xứng, kích thước bằng số cột; (2) tìm các trị riêng $\lambda_i$ và vector riêng đơn vị $\mathbf{v}_i$ của nó; (3) giá trị suy biến $\sigma_i = \sqrt{\lambda_i}$; (4) vector suy biến trái $\mathbf{u}_i = \mathbf{X}\mathbf{v}_i / \sigma_i$.
+
+\begin{example}[SVD của ma trận $5 \times 2$]
+Cho $\mathbf{X} = \begin{pmatrix} 3 & 7 \\ 1 & 5 \\ 6 & 4 \\ 8 & 1 \\ 2 & 3 \end{pmatrix}$.
+\end{example}
+
+\noindent\textbf{Bước 1 -- lập $\mathbf{X}^\top\mathbf{X}$:}
+\[
+    \mathbf{X}^\top\mathbf{X} = \begin{pmatrix} 3 & 1 & 6 & 8 & 2 \\ 7 & 5 & 4 & 1 & 3 \end{pmatrix}
+    \begin{pmatrix} 3 & 7 \\ 1 & 5 \\ 6 & 4 \\ 8 & 1 \\ 2 & 3 \end{pmatrix}
+    = \begin{pmatrix} 114 & 64 \\ 64 & 100 \end{pmatrix},
+\]
+trong đó $114 = 3^2 + 1^2 + 6^2 + 8^2 + 2^2$ và $64 = 3 \cdot 7 + 1 \cdot 5 + 6 \cdot 4 + 8 \cdot 1 + 2 \cdot 3$.
+
+\noindent\textbf{Bước 2 -- trị riêng:}
+\[
+    (114 - \lambda)(100 - \lambda) - 64^2 = \lambda^2 - 214\lambda + 7304 = 0
+    \ \Leftrightarrow\ \lambda_1 \approx 171{,}38,\ \lambda_2 \approx 42{,}62 .
+\]
+
+\noindent\textbf{Bước 3 -- vector riêng.} Với $\lambda_1$: $(114 - 171{,}38)\,v_1 + 64\,v_2 = 0 \Leftrightarrow v_1 = 1{,}1153\,v_2$. Chọn $v_2 = 1$ được $(1{,}1153;\ 1)$, chuẩn hóa cho $\mathbf{v}_1 = (1{,}1153;\ 1)/1{,}4980 \approx (0{,}7446;\ 0{,}6676)$. Với $\lambda_2$: $(114 - 42{,}62)\,v_1 + 64\,v_2 = 0 \Leftrightarrow v_1 = -0{,}8966\,v_2$. Chọn $v_2 = 1$ được $(-0{,}8966;\ 1)$, chuẩn hóa cho $\mathbf{v}_2 \approx (-0{,}6676;\ 0{,}7446)$. Hai vector vuông góc: $0{,}7446 \times (-0{,}6676) + 0{,}6676 \times 0{,}7446 = 0$.
+
+\noindent\textbf{Bước 4 -- giá trị và vector suy biến:} $\sigma_1 = \sqrt{171{,}38} \approx 13{,}09$, $\sigma_2 = \sqrt{42{,}62} \approx 6{,}53$, và $\mathbf{u}_1 = \mathbf{X}\mathbf{v}_1/\sigma_1 \approx (0{,}528;\ 0{,}312;\ 0{,}545;\ 0{,}506;\ 0{,}267)$.
+
+\paragraph{Sai lầm thường gặp khi chuẩn hóa vector riêng.} Từ $v_1 = -0{,}8966\,v_2$, nếu chọn $v_2 = 1$ thì vector là $(v_1, v_2) = (-0{,}8966;\ 1)$ --- \textbf{không phải} $(1;\ -0{,}8966)$. Đảo chỗ hai thành phần cho ra một vector khác hẳn, không còn là vector riêng. Cách tự kiểm tra đơn giản nhất là nhân lại: $\mathbf{X}^\top\mathbf{X}\,\mathbf{v}$ phải bằng $\lambda\mathbf{v}$, và vector sau khi chuẩn hóa phải có độ dài đúng bằng 1.
+
+\begin{lstlisting}[caption={Kiểm tra cách tính SVD qua trị riêng}]
+X = np.array([[3, 7], [1, 5], [6, 4], [8, 1], [2, 3]])
+lam, V = np.linalg.eigh(X.T @ X)     # tri rieng tang dan: [ 42.6183 171.3817]
+print(np.sqrt(lam[::-1]))            # [13.0913  6.5283]
+U, s, Vt = np.linalg.svd(X, full_matrices=False)
+print(s)                             # [13.0913  6.5283] -- trung khop
+print(Vt)                            # moi dong la mot v_i (co the doi dau)
+\end{lstlisting}
+
+\subsection{Ứng dụng: nén ảnh và TruncatedSVD}
+
+Một ảnh xám là ma trận $m \times n$. Lưu $\mathbf{A}_k$ chỉ cần $k(m + n + 1)$ số thay vì $mn$. Với ảnh $512 \times 512$ và $k = 50$: $50 \times 1025 = 51\,250$ số so với $262\,144$ --- tiết kiệm khoảng 80\%.
+
+\begin{lstlisting}[caption={Nén ảnh bằng SVD}]
+import matplotlib.pyplot as plt
+from skimage import data, color
+
+img = color.rgb2gray(data.astronaut())       # anh xam 512 x 512
+U, s, Vt = np.linalg.svd(img, full_matrices=False)
+fig, axes = plt.subplots(1, 4, figsize=(14, 4))
+for ax, k in zip(axes, [5, 20, 50, 512]):
+    ax.imshow(U[:, :k] @ np.diag(s[:k]) @ Vt[:k], cmap="gray")
+    ax.set_title(f"k = {k}"); ax.axis("off")
+plt.show()
+\end{lstlisting}
+
+\hinhchuachen{ch-reduce-svd-image.png}{Ảnh tái tạo từ $k = 5, 20, 50$ giá trị suy biến lớn nhất so với ảnh gốc.}{fig:svd-image}
+
+Với ma trận thưa như kết quả TF-IDF, scikit-learn cung cấp \texttt{TruncatedSVD}: tính trực tiếp $k$ thành phần đầu mà không cần trừ trung bình (trừ trung bình sẽ phá vỡ tính thưa). Áp dụng lên ma trận văn bản -- từ, kỹ thuật này được gọi là \textbf{Phân tích ngữ nghĩa tiềm ẩn} (Latent Semantic Analysis -- LSA, Deerwester và cộng sự, 1990): mỗi thành phần tương ứng một ``chủ đề''.
+
+\begin{lstlisting}[caption={LSA: TF-IDF + TruncatedSVD}]
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import TruncatedSVD
+
+docs = ["python machine learning", "python data analysis",
+        "deep learning neural network", "neural network training",
+        "data analysis with pandas"]
+X = TfidfVectorizer().fit_transform(docs)          # ma tran thua 5 x V
+lsa = TruncatedSVD(n_components=2, random_state=0)
+Z = lsa.fit_transform(X)                           # 5 x 2
+print(lsa.explained_variance_ratio_)
+print(Z.round(3))   # van ban cung chu de nam gan nhau
+\end{lstlisting}
+
+% ---------------------------------------------------------
+\section{Phân tích thành phần chính (PCA)}
+% ---------------------------------------------------------
+
+\subsection{Lịch sử và ý tưởng}
+PCA do Karl Pearson phát minh năm 1901 dưới dạng bài toán ``tìm đường thẳng và mặt phẳng khớp nhất với hệ điểm'', và được Harold Hotelling (1933) phát triển độc lập, đặt tên ``thành phần chính''. Trong xử lý tín hiệu, PCA còn được gọi là biến đổi Karhunen--Loève.
+
+\begin{definition}[Thành phần chính]
+Cho dữ liệu đã chuẩn hóa tâm $\mathbf{X}_c$ ($n \times d$). \textbf{Thành phần chính thứ nhất} là vector đơn vị $\mathbf{w}_1$ sao cho phương sai của dữ liệu chiếu lên $\mathbf{w}_1$ là \textbf{lớn nhất}:
+\begin{equation}
+    \mathbf{w}_1 = \arg\max_{\|\mathbf{w}\| = 1} \mathbf{w}^{\top} \mathbf{C} \mathbf{w}, \qquad \mathbf{C} = \tfrac{1}{n - 1}\mathbf{X}_c^{\top}\mathbf{X}_c .
+\end{equation}
+Các thành phần tiếp theo cũng cực đại phương sai nhưng phải \textbf{vuông góc} với các thành phần trước.
+\end{definition}
+
+Giải bài toán tối ưu bằng nhân tử Lagrange cho $\mathbf{C}\mathbf{w} = \lambda\mathbf{w}$: các thành phần chính là \textbf{vector riêng} của ma trận hiệp phương sai, và phương sai theo thành phần thứ $j$ chính là \textbf{trị riêng} $\lambda_j$. Tương đương, cực đại phương sai cũng là cực tiểu sai số tái tạo (khoảng cách bình phương từ điểm đến không gian con) --- đúng cách nhìn ban đầu của Pearson.
+
+\paragraph{Quan hệ PCA -- SVD.} Nếu $\mathbf{X}_c = \mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^{\top}$ thì $\mathbf{C} = \mathbf{V}\frac{\boldsymbol{\Sigma}^2}{n - 1}\mathbf{V}^{\top}$: thành phần chính là cột của $\mathbf{V}$, trị riêng $\lambda_j = \sigma_j^2 / (n - 1)$. scikit-learn tính PCA bằng SVD vì ổn định số hơn việc lập ma trận hiệp phương sai.
+
+\noindent\textbf{Các bước PCA:}
+\begin{enumerate}
+    \item Chuẩn hóa tâm (trừ trung bình mỗi cột); nếu các cột khác đơn vị đo thì chuẩn hóa thêm bằng \texttt{StandardScaler}.
+    \item Tính ma trận hiệp phương sai $\mathbf{C}$.
+    \item Tìm trị riêng, vector riêng; sắp xếp trị riêng giảm dần.
+    \item Chọn $k$ vector riêng đầu làm ma trận $\mathbf{W}_k$ ($d \times k$).
+    \item Chiếu dữ liệu: $\mathbf{Z} = \mathbf{X}_c\mathbf{W}_k$ ($n \times k$).
+\end{enumerate}
+
+\begin{example}[Tính tay PCA]
+Giảm 5 điểm hai chiều trong Bảng~\ref{tab:pca-data} xuống còn một chiều.
+\end{example}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|ccccc|}
+\hline
+$x_1$ & 3 & 5 & 0 & 1 & 2 \\ \hline
+$x_2$ & 6 & 4 & 2 & 0 & 3 \\ \hline
+\end{tabular}
+\caption{Dữ liệu ví dụ PCA}
+\label{tab:pca-data}
+\end{table}
+
+\noindent\textbf{Bước 1 -- chuẩn hóa tâm.} $\bar{x}_1 = \frac{3 + 5 + 0 + 1 + 2}{5} = 2{,}2$ và $\bar{x}_2 = \frac{6 + 4 + 2 + 0 + 3}{5} = 3$. Trừ trung bình từng cột, $x'_{ij} = x_{ij} - \bar{x}_j$:
+\[
+    \mathbf{X}_c = \begin{pmatrix} 0{,}8 & 3 \\ 2{,}8 & 1 \\ -2{,}2 & -1 \\ -1{,}2 & -3 \\ -0{,}2 & 0 \end{pmatrix}.
+\]
+
+\noindent\textbf{Bước 2 -- ma trận hiệp phương sai:}
+\[
+    \mathbf{X}_c^\top\mathbf{X}_c = \begin{pmatrix} 14{,}8 & 11 \\ 11 & 20 \end{pmatrix}, \qquad
+    \mathbf{C} = \frac{1}{n - 1}\,\mathbf{X}_c^\top\mathbf{X}_c = \frac{1}{4}\begin{pmatrix} 14{,}8 & 11 \\ 11 & 20 \end{pmatrix} = \begin{pmatrix} 3{,}7 & 2{,}75 \\ 2{,}75 & 5 \end{pmatrix}.
+\]
+Hiệp phương sai dương ($2{,}75$) cho thấy hai biến có xu hướng tăng cùng nhau.
+
+\noindent\textbf{Bước 3 -- trị riêng:}
+\[
+    (3{,}7 - \lambda)(5 - \lambda) - 2{,}75^2 = \lambda^2 - 8{,}7\lambda + 10{,}9375 = 0
+    \ \Leftrightarrow\ \lambda_1 \approx 7{,}1758,\ \lambda_2 \approx 1{,}5242 .
+\]
+
+\noindent\textbf{Bước 4 -- vector riêng.} Với $\lambda_1 = 7{,}1758$:
+\[
+    \begin{pmatrix} -3{,}4758 & 2{,}75 \\ 2{,}75 & -2{,}1758 \end{pmatrix}\begin{pmatrix} v_1 \\ v_2 \end{pmatrix} = \mathbf{0}
+    \ \Leftrightarrow\ v_1 = 0{,}7912\,v_2 .
+\]
+Chọn $v_2 = 1$ được $(v_1, v_2) = (0{,}7912;\ 1)$; chuẩn hóa:
+$\mathbf{w}_1 = \dfrac{(0{,}7912;\ 1)}{\sqrt{0{,}7912^2 + 1^2}} = \dfrac{(0{,}7912;\ 1)}{1{,}2751} \approx (0{,}6205;\ 0{,}7842)$.
+
+Với $\lambda_2 = 1{,}5242$: $2{,}1758\,v_1 + 2{,}75\,v_2 = 0 \Leftrightarrow v_1 = -1{,}2639\,v_2$; chọn $v_2 = 1$ được $(-1{,}2639;\ 1)$, chuẩn hóa cho $\mathbf{w}_2 \approx (-0{,}7842;\ 0{,}6205)$.
+
+Kiểm tra: $\mathbf{C}\mathbf{w}_1 = (3{,}7 \times 0{,}6205 + 2{,}75 \times 0{,}7842;\ \ 2{,}75 \times 0{,}6205 + 5 \times 0{,}7842) \approx (4{,}452;\ 5{,}627) \approx 7{,}1758 \times (0{,}6205;\ 0{,}7842)$.
+
+\noindent\textbf{Bước 5 -- tỉ lệ phương sai giải thích:} $\frac{7{,}1758}{7{,}1758 + 1{,}5242} = \frac{7{,}1758}{8{,}7} \approx 82{,}5\%$; thành phần thứ nhất giữ khoảng 82,5\% thông tin.
+
+\noindent\textbf{Bước 6 -- chiếu dữ liệu} $\mathbf{z} = \mathbf{X}_c\,\mathbf{w}_1$. Chẳng hạn với điểm đầu tiên: $z_1 = 0{,}8 \times 0{,}6205 + 3 \times 0{,}7842 \approx 2{,}849$. Toàn bộ:
+\[
+    \mathbf{z} \approx (2{,}849;\ 2{,}522;\ -2{,}149;\ -3{,}097;\ -0{,}124).
+\]
+Mỗi điểm hai chiều giờ chỉ còn một con số; có thể tái tạo gần đúng điểm gốc bằng $\hat{\mathbf{x}} = \bar{\mathbf{x}} + z\,\mathbf{w}_1$.
+
+\paragraph{Sai lầm thường gặp.} (1) Từ $v_1 = 0{,}7912\,v_2$ mà viết vector thành $(1;\ 0{,}7912)$ là \textbf{đảo nhầm thành phần}: vector chuẩn hóa thu được, $(0{,}7842;\ 0{,}6205)$, không còn là vector riêng của $\mathbf{C}$. Hãy luôn kiểm tra lại $\mathbf{C}\mathbf{w} = \lambda\mathbf{w}$ như ở bước 4. (2) Quên chuẩn hóa tâm trước khi lập ma trận hiệp phương sai: khi đó ta đang tính SVD của dữ liệu gốc (như ví dụ $5 \times 2$ ở mục SVD) chứ không phải PCA, và thành phần chính đầu tiên bị kéo lệch về phía vector trung bình của dữ liệu.
+
+\begin{lstlisting}[caption={Kiểm tra ví dụ bằng NumPy và scikit-learn}]
+import numpy as np
+from sklearn.decomposition import PCA
+
+X = np.array([[3, 6], [5, 4], [0, 2], [1, 0], [2, 3]])
+
+# Cach 1: tu cai dat
+Xc = X - X.mean(axis=0)
+C = np.cov(Xc, rowvar=False)                # chia n - 1: [[3.7 2.75] [2.75 5.]]
+eigval, eigvec = np.linalg.eigh(C)          # tri rieng tang dan
+order = np.argsort(eigval)[::-1]
+eigval, eigvec = eigval[order], eigvec[:, order]
+print(eigval)                               # [7.1758 1.5242]
+print(Xc @ eigvec[:, 0])                    # toa do tren PC1 (co the doi dau)
+
+# Cach 2: scikit-learn
+pca = PCA(n_components=1).fit(X)
+print(pca.components_)                      # [[0.6205 0.7842]]
+print(pca.explained_variance_ratio_)        # [0.8248]
+Z = pca.transform(X)                        # [2.8491 2.5216 -2.1493 -3.0973 -0.1241]
+X_rec = pca.inverse_transform(Z)            # tai tao (nam tren duong PC1)
+\end{lstlisting}
+
+\hinhchuachen{ch-reduce-pca-2d.png}{Dữ liệu ví dụ với hai trục thành phần chính $\mathbf{w}_1$, $\mathbf{w}_2$ và hình chiếu của các điểm lên $\mathbf{w}_1$.}{fig:pca-2d}
+
+\subsection{Chọn số thành phần}
+
+\begin{itemize}
+    \item \textbf{Ngưỡng phương sai tích lũy}: chọn $k$ nhỏ nhất để $\sum_{j \leq k}\lambda_j / \sum_j \lambda_j \geq 90\%$ (hoặc 95\%). Trong scikit-learn chỉ cần \texttt{PCA(n\_components=0.95)}.
+    \item \textbf{Biểu đồ scree} (Cattell, 1966): vẽ trị riêng theo thứ tự, chọn tại điểm ``gãy''.
+    \item \textbf{Tiêu chí Kaiser}: với dữ liệu đã chuẩn hóa, giữ các thành phần có $\lambda_j > 1$.
+    \item \textbf{Theo mục tiêu}: $k = 2$ hoặc 3 để trực quan hóa; với bài toán dự đoán, coi $k$ là siêu tham số và chọn bằng kiểm định chéo (Chương~\ref{chap:validation}).
+\end{itemize}
+
+\begin{lstlisting}[caption={PCA trên tập chữ số viết tay}]
+from sklearn.datasets import load_digits
+import matplotlib.pyplot as plt
+
+digits = load_digits()                 # 1797 anh 8x8 = 64 chieu
+pca = PCA().fit(digits.data)
+cum = np.cumsum(pca.explained_variance_ratio_)
+print("So thanh phan giu 95% phuong sai:", np.argmax(cum >= 0.95) + 1)   # 29
+
+plt.plot(range(1, 65), cum, marker=".")
+plt.axhline(0.95, linestyle="--"); plt.xlabel("So thanh phan")
+plt.ylabel("Phuong sai tich luy"); plt.show()
+
+Z = PCA(n_components=2).fit_transform(digits.data)
+plt.scatter(Z[:, 0], Z[:, 1], c=digits.target, cmap="tab10", s=8)
+plt.colorbar(); plt.show()
+\end{lstlisting}
+
+\hinhchuachen{ch-reduce-pca-variance.png}{Phương sai tích lũy theo số thành phần chính trên tập \texttt{digits}: khoảng 29 thành phần giữ 95\% phương sai.}{fig:pca-variance}
+
+\hinhchuachen{ch-reduce-pca-digits.png}{Tập \texttt{digits} chiếu xuống 2 thành phần chính đầu tiên, tô màu theo chữ số.}{fig:pca-digits}
+
+\subsection{PCA trong pipeline học máy}
+
+PCA là một bộ biến đổi (transformer) như mọi bộ tiền xử lý khác: phải \texttt{fit} trên tập huấn luyện rồi mới \texttt{transform} tập kiểm tra, để tránh rò rỉ dữ liệu.
+
+\begin{lstlisting}[caption={StandardScaler + PCA + Logistic Regression}]
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+
+X_tr, X_te, y_tr, y_te = train_test_split(digits.data, digits.target,
+                                          test_size=0.25, random_state=0)
+for k in [5, 10, 20, 40]:
+    model = make_pipeline(StandardScaler(), PCA(n_components=k),
+                          LogisticRegression(max_iter=2000))
+    model.fit(X_tr, y_tr)
+    print(k, round(model.score(X_te, y_te), 4))
+\end{lstlisting}
+
+\paragraph{Hạn chế của PCA.}
+\begin{itemize}
+    \item Chỉ bắt được quan hệ \textbf{tuyến tính}; với dữ liệu nằm trên đa tạp cong (ví dụ ``cuộn Thụy Sĩ'') cần Kernel PCA, t-SNE (van der Maaten \& Hinton, 2008) hoặc UMAP.
+    \item \textbf{Nhạy với thang đo} và ngoại lai (phương sai bị chi phối bởi cột có giá trị lớn).
+    \item Thành phần mới là tổ hợp của mọi cột gốc nên \textbf{khó diễn giải}.
+    \item PCA \textbf{không dùng nhãn}: hướng có phương sai lớn chưa chắc là hướng phân biệt lớp tốt nhất --- khi có nhãn, có thể dùng LDA (Fisher, 1936).
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Tóm tắt chương}
+% ---------------------------------------------------------
+\begin{itemize}
+    \item Số chiều lớn làm dữ liệu thưa, khoảng cách mất ý nghĩa và tăng nguy cơ quá khớp.
+    \item Phương sai, hiệp phương sai (chú ý dấu và quy ước chia $n$ hay $n - 1$) và cặp trị riêng -- vector riêng (kiểm tra bằng vết, định thức và phép nhân $\mathbf{A}\mathbf{v} = \lambda\mathbf{v}$) là nền tảng toán học của SVD và PCA.
+    \item SVD: $\mathbf{A} = \mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^{\top}$; giữ $k$ giá trị suy biến lớn nhất cho xấp xỉ hạng $k$ tối ưu (Eckart--Young). Dùng cho nén ảnh, LSA, hệ gợi ý.
+    \item PCA tìm các hướng trực giao có phương sai lớn nhất: vector riêng của ma trận hiệp phương sai, tính thực tế bằng SVD của dữ liệu đã chuẩn hóa tâm.
+    \item Chọn số thành phần theo phương sai tích lũy, biểu đồ scree hoặc kiểm định chéo; luôn đặt PCA trong pipeline.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Bài tập}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Tính phương sai (chia $n$ và chia $n - 1$) của $(4, 8, 6, 2)$. Tính hiệp phương sai và hệ số tương quan của $A = (1, 2, 3, 4)$ và $B = (8, 6, 5, 1)$; giải thích ý nghĩa của dấu. Kiểm tra bằng \texttt{np.var}, \texttt{np.cov}, \texttt{np.corrcoef}.
+    \item Tìm trị riêng và vector riêng đơn vị của $\begin{pmatrix} 4 & 1 \\ 2 & 3 \end{pmatrix}$ (đáp số: $\lambda = 5$ và $\lambda = 2$). Kiểm tra kết quả bằng vết, định thức và \texttt{np.linalg.eig}.
+    \item Tiếp ví dụ SVD của ma trận $5 \times 2$: tính $\mathbf{u}_2 = \mathbf{X}\mathbf{v}_2/\sigma_2$, kiểm tra $\mathbf{u}_1 \perp \mathbf{u}_2$ và tái tạo $\mathbf{X} = \sigma_1\mathbf{u}_1\mathbf{v}_1^\top + \sigma_2\mathbf{u}_2\mathbf{v}_2^\top$.
+    \item Làm lại toàn bộ các bước PCA cho 10 điểm của Smith (2002):
+    \[
+    \begin{aligned}
+        x_1 &= (2{,}5;\ 0{,}5;\ 2{,}2;\ 1{,}9;\ 3{,}1;\ 2{,}3;\ 2{,}0;\ 1{,}0;\ 1{,}5;\ 1{,}1),\\
+        x_2 &= (2{,}4;\ 0{,}7;\ 2{,}9;\ 2{,}2;\ 3{,}0;\ 2{,}7;\ 1{,}6;\ 1{,}1;\ 1{,}6;\ 0{,}9).
+    \end{aligned}
+    \]
+    (Đáp số: $\lambda_1 \approx 1{,}2840$, $\mathbf{w}_1 \approx (0{,}6779;\ 0{,}7352)$, thành phần thứ nhất giữ khoảng 96,3\% phương sai.)
+    \item Tính tay SVD của $\mathbf{A} = \begin{pmatrix} 2 & 0 \\ 0 & 1 \\ 0 & 0 \end{pmatrix}$ và $\mathbf{B} = \begin{pmatrix} 1 & 1 \\ 1 & 1 \end{pmatrix}$. Ma trận nào có hạng 1?
+    \item Với dữ liệu ở Bảng~\ref{tab:pca-data}, tái tạo các điểm từ 1 thành phần chính và tính tổng bình phương sai số tái tạo. So sánh với $(n - 1)\lambda_2$.
+    \item Chứng minh rằng các tọa độ chiếu $\mathbf{z}$ trên thành phần chính thứ nhất có trung bình 0 và phương sai $\lambda_1$.
+    \item Trên tập \texttt{load\_breast\_cancer}, so sánh tỉ lệ phương sai giải thích của PCA khi có và không có \texttt{StandardScaler}. Giải thích.
+    \item Nén một bức ảnh bằng SVD với $k = 10, 30, 100$; tính tỉ lệ nén và sai số Frobenius tương đối.
+    \item Với tập Ames Housing đã tiền xử lý ở Chương~\ref{chap:preprocessing}, đặt PCA vào pipeline Ridge. Dùng \texttt{GridSearchCV} để chọn \texttt{n\_components}.
+\end{enumerate}
+
+% ---------------------------------------------------------
+\section*{Tài liệu tham khảo của chương}
+\addcontentsline{toc}{section}{Tài liệu tham khảo của chương}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Bellman, R. (1957). \textit{Dynamic Programming}. Princeton University Press.
+    \item Beyer, K., Goldstein, J., Ramakrishnan, R., \& Shaft, U. (1999). When Is ``Nearest Neighbor'' Meaningful? \textit{Proceedings of ICDT '99}, 217--235.
+    \item Deerwester, S., Dumais, S. T., Furnas, G. W., Landauer, T. K., \& Harshman, R. (1990). Indexing by Latent Semantic Analysis. \textit{Journal of the American Society for Information Science}, 41(6), 391--407.
+    \item Eckart, C., \& Young, G. (1936). The approximation of one matrix by another of lower rank. \textit{Psychometrika}, 1(3), 211--218.
+    \item Golub, G., \& Kahan, W. (1965). Calculating the Singular Values and Pseudo-Inverse of a Matrix. \textit{SIAM Journal on Numerical Analysis}, 2(2), 205--224.
+    \item Hotelling, H. (1933). Analysis of a complex of statistical variables into principal components. \textit{Journal of Educational Psychology}, 24(6), 417--441.
+    \item Jolliffe, I. T. (2002). \textit{Principal Component Analysis} (2nd ed.). Springer.
+    \item Pearson, K. (1896). Mathematical Contributions to the Theory of Evolution. III. Regression, Heredity, and Panmixia. \textit{Philosophical Transactions of the Royal Society of London, Series A}, 187, 253--318.
+    \item Pearson, K. (1901). On Lines and Planes of Closest Fit to Systems of Points in Space. \textit{Philosophical Magazine}, 2(11), 559--572.
+    \item Smith, L. I. (2002). \textit{A tutorial on Principal Components Analysis}. University of Otago.
+    \item Strang, G. (2016). \textit{Introduction to Linear Algebra} (5th ed.). Wellesley-Cambridge Press.
+    \item van der Maaten, L., \& Hinton, G. (2008). Visualizing Data using t-SNE. \textit{Journal of Machine Learning Research}, 9, 2579--2605.
+\end{enumerate}

@@ -1,17 +1,58 @@
 \relax 
 \providecommand\hyper@newdestlabel[2]{}
-\@writefile{toc}{\contentsline {chapter}{\numberline {5}Hồi quy tuyến tính \\ (Linear Regression)}{34}{chapter.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{\numberline {5}Hồi quy \\ (Regression)}{47}{chapter.5}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
-\@writefile{toc}{\contentsline {section}{\numberline {5.1}Mô hình Hồi quy tuyến tính đơn biến}{34}{section.5.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {5.2}Hàm mất mát (Loss Function)}{34}{section.5.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {5.3}Cài đặt Hồi quy tuyến tính với Scikit-Learn}{34}{section.5.3}\protected@file@percent }
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {5.1}Thực thi Linear Regression bằng Scikit-Learn}{34}{lstlisting.5.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {5.4}Tóm tắt chương}{35}{section.5.4}\protected@file@percent }
+\newlabel{chap:regression}{{5}{47}{Hồi quy \\ (Regression)}{chapter.5}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.1}Khởi nguồn của hồi quy}{47}{section.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1.1}Phương pháp bình phương tối thiểu}{47}{subsection.5.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1.2}Vì sao gọi là ``hồi quy''?}{47}{subsection.5.1.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Dữ liệu chiều cao cha mẹ -- con cái của Galton (1886) và đường hồi quy.}}{48}{figure.5.1}\protected@file@percent }
+\newlabel{fig:galton}{{5.1}{48}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Dữ liệu chiều cao cha mẹ -- con cái của Galton (1886) và đường hồi quy}{figure.5.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.2}Hồi quy tuyến tính đơn biến}{48}{section.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2.1}Hàm mất mát và nghiệm bình phương tối thiểu}{48}{subsection.5.2.1}\protected@file@percent }
+\newlabel{eq:ols-simple}{{5.3}{48}{Hàm mất mát và nghiệm bình phương tối thiểu}{equation.5.3}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Bảng tính hồi quy tuyến tính đơn biến ($\bar  {x} = 3$, $\bar  {y} = 6{,}04$)}}{48}{table.5.1}\protected@file@percent }
+\newlabel{tab:ols}{{5.1}{48}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Bảng tính hồi quy tuyến tính đơn biến ($\bar {x} = 3$, $\bar {y} = 6{,}04$)}{table.5.1}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {5.1}Hồi quy tuyến tính: tự tính và dùng scikit-learn}{49}{lstlisting.5.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Năm điểm dữ liệu và đường hồi quy $\hat  {y} = 0{,}07 + 1{,}99x$; các đoạn thẳng đứng là phần dư $y_i - \hat  {y}_i$.}}{49}{figure.5.2}\protected@file@percent }
+\newlabel{fig:reg-line}{{5.2}{49}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Năm điểm dữ liệu và đường hồi quy $\hat {y} = 0{,}07 + 1{,}99x$; các đoạn thẳng đứng là phần dư $y_i - \hat {y}_i$}{figure.5.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.3}Hồi quy tuyến tính đa biến}{49}{section.5.3}\protected@file@percent }
+\newlabel{eq:normal}{{5.5}{49}{Hồi quy tuyến tính đa biến}{equation.5.5}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Dữ liệu ví dụ phương trình chuẩn; cột bias toàn số 1 ứng với hệ số chặn $\beta _0$}}{50}{table.5.2}\protected@file@percent }
+\newlabel{tab:normal-eq}{{5.2}{50}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Dữ liệu ví dụ phương trình chuẩn; cột bias toàn số 1 ứng với hệ số chặn $\beta _0$}{table.5.2}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {5.2}Kiểm tra ví dụ phương trình chuẩn}{50}{lstlisting.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Diễn giải hệ số.}{51}{paragraph*.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Các giả định kinh điển.}{51}{paragraph*.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5.4}Gradient Descent}{51}{section.5.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Gradient Descent hội tụ dần về nghiệm bình phương tối thiểu}}{51}{table.5.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {5.3}Cài đặt Gradient Descent cho hồi quy tuyến tính}{52}{lstlisting.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Chọn tốc độ học.}{52}{paragraph*.13}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Đường đồng mức của hàm mất mát $J(w_0, w_1)$ và quỹ đạo của Gradient Descent với các tốc độ học khác nhau.}}{52}{figure.5.3}\protected@file@percent }
+\newlabel{fig:gd}{{5.3}{52}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Đường đồng mức của hàm mất mát $J(w_0, w_1)$ và quỹ đạo của Gradient Descent với các tốc độ học khác nhau}{figure.5.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.5}Hồi quy đa thức, quá khớp và chính quy hóa}{52}{section.5.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5.1}Hồi quy đa thức}{52}{subsection.5.5.1}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {5.4}Hồi quy đa thức với PolynomialFeatures}{52}{lstlisting.5.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5.2}Quá khớp và thiếu khớp}{53}{subsection.5.5.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5.4}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Hồi quy đa thức bậc 1, 3 và 15 trên cùng một tập dữ liệu: thiếu khớp, vừa khớp và quá khớp.}}{53}{figure.5.4}\protected@file@percent }
+\newlabel{fig:poly}{{5.4}{53}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Hồi quy đa thức bậc 1, 3 và 15 trên cùng một tập dữ liệu: thiếu khớp, vừa khớp và quá khớp}{figure.5.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5.3}Ridge và Lasso}{53}{subsection.5.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5.6}Hồi quy cho chuỗi thời gian}{53}{section.5.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Ba nguyên tắc riêng của chuỗi thời gian.}{54}{paragraph*.14}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {5.5}Dự báo chuỗi thời gian bằng đặc trưng trễ}{54}{lstlisting.5.5}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5.5}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Chuỗi doanh số theo tháng, phần huấn luyện, phần kiểm tra và đường dự báo bằng đặc trưng trễ.}}{55}{figure.5.5}\protected@file@percent }
+\newlabel{fig:timeseries}{{5.5}{55}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Chuỗi doanh số theo tháng, phần huấn luyện, phần kiểm tra và đường dự báo bằng đặc trưng trễ}{figure.5.5}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.7}Nghiên cứu tình huống: dự đoán giá nhà Ames}{55}{section.5.7}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {5.6}So sánh Linear Regression, Ridge và Lasso trên Ames Housing}{55}{lstlisting.5.6}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5.6}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Biểu đồ giá trị thực -- giá trị dự đoán (thang log) của mô hình Ridge trên tập kiểm tra Ames Housing.}}{56}{figure.5.6}\protected@file@percent }
+\newlabel{fig:ames-pred}{{5.6}{56}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Biểu đồ giá trị thực -- giá trị dự đoán (thang log) của mô hình Ridge trên tập kiểm tra Ames Housing}{figure.5.6}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.8}Tóm tắt chương}{56}{section.5.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5.9}Bài tập}{56}{section.5.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{Tài liệu tham khảo của chương}{57}{Item.75}\protected@file@percent }
 \@setckpt{chapters/06-regression}{
-\setcounter{page}{36}
-\setcounter{equation}{2}
-\setcounter{enumi}{14}
+\setcounter{page}{58}
+\setcounter{equation}{10}
+\setcounter{enumi}{9}
 \setcounter{enumii}{0}
 \setcounter{enumiii}{0}
 \setcounter{enumiv}{0}
@@ -19,25 +60,25 @@
 \setcounter{mpfootnote}{0}
 \setcounter{part}{0}
 \setcounter{chapter}{5}
-\setcounter{section}{4}
+\setcounter{section}{9}
 \setcounter{subsection}{0}
 \setcounter{subsubsection}{0}
 \setcounter{paragraph}{0}
 \setcounter{subparagraph}{0}
-\setcounter{figure}{0}
-\setcounter{table}{0}
+\setcounter{figure}{6}
+\setcounter{table}{3}
 \setcounter{parentequation}{0}
 \setcounter{float@type}{8}
 \setcounter{LT@tables}{0}
 \setcounter{LT@chunks}{0}
-\setcounter{lstnumber}{19}
+\setcounter{lstnumber}{24}
 \setcounter{section@level}{0}
-\setcounter{Item}{40}
+\setcounter{Item}{84}
 \setcounter{Hfootnote}{0}
 \setcounter{Hy@AnnotLevel}{0}
-\setcounter{bookmark@seq@number}{72}
-\setcounter{definition}{1}
+\setcounter{bookmark@seq@number}{93}
+\setcounter{definition}{2}
 \setcounter{theorem}{0}
-\setcounter{example}{0}
-\setcounter{lstlisting}{1}
+\setcounter{example}{3}
+\setcounter{lstlisting}{6}
 }

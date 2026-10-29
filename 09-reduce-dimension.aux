@@ -1,35 +1,80 @@
 \relax 
 \providecommand\hyper@newdestlabel[2]{}
+\@writefile{toc}{\contentsline {chapter}{\numberline {9}Giảm chiều dữ liệu \\ (Dimensionality Reduction)}{89}{chapter.9}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\newlabel{chap:reduce-dimension}{{9}{89}{Giảm chiều dữ liệu \\ (Dimensionality Reduction)}{chapter.9}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {9.1}Lời nguyền số chiều}{89}{section.9.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {9.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Các hướng giảm chiều dữ liệu}}{90}{table.9.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9.2}Kiến thức nền: phương sai, hiệp phương sai và trị riêng}{90}{section.9.2}\protected@file@percent }
+\newlabel{sec:linalg-review}{{9.2}{90}{Kiến thức nền: phương sai, hiệp phương sai và trị riêng}{section.9.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.2.1}Phương sai}{90}{subsection.9.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.2.2}Hiệp phương sai và hệ số tương quan}{90}{subsection.9.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Ma trận hiệp phương sai.}{91}{paragraph*.27}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.2.3}Trị riêng và vector riêng}{91}{subsection.9.2.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {9.1}Phương sai, hiệp phương sai và trị riêng với NumPy}{92}{lstlisting.9.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9.3}Phân tích giá trị suy biến (SVD)}{92}{section.9.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.3.1}Lịch sử}{92}{subsection.9.3.1}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {9.2}SVD với NumPy (ví dụ trên lớp)}{93}{lstlisting.9.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.3.2}Tính SVD thông qua $\mathbf  {X}^\top \mathbf  {X}$}{93}{subsection.9.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Sai lầm thường gặp khi chuẩn hóa vector riêng.}{94}{paragraph*.28}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {9.3}Kiểm tra cách tính SVD qua trị riêng}{94}{lstlisting.9.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.3.3}Ứng dụng: nén ảnh và TruncatedSVD}{94}{subsection.9.3.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {9.4}Nén ảnh bằng SVD}{94}{lstlisting.9.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {9.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Ảnh tái tạo từ $k = 5, 20, 50$ giá trị suy biến lớn nhất so với ảnh gốc.}}{95}{figure.9.1}\protected@file@percent }
+\newlabel{fig:svd-image}{{9.1}{95}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Ảnh tái tạo từ $k = 5, 20, 50$ giá trị suy biến lớn nhất so với ảnh gốc}{figure.9.1}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {9.5}LSA: TF-IDF + TruncatedSVD}{95}{lstlisting.9.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9.4}Phân tích thành phần chính (PCA)}{95}{section.9.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.4.1}Lịch sử và ý tưởng}{95}{subsection.9.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Quan hệ PCA -- SVD.}{96}{paragraph*.29}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {9.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Dữ liệu ví dụ PCA}}{96}{table.9.2}\protected@file@percent }
+\newlabel{tab:pca-data}{{9.2}{96}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Dữ liệu ví dụ PCA}{table.9.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{Sai lầm thường gặp.}{97}{paragraph*.30}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {9.6}Kiểm tra ví dụ bằng NumPy và scikit-learn}{97}{lstlisting.9.6}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {9.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Dữ liệu ví dụ với hai trục thành phần chính $\mathbf  {w}_1$, $\mathbf  {w}_2$ và hình chiếu của các điểm lên $\mathbf  {w}_1$.}}{98}{figure.9.2}\protected@file@percent }
+\newlabel{fig:pca-2d}{{9.2}{98}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Dữ liệu ví dụ với hai trục thành phần chính $\mathbf {w}_1$, $\mathbf {w}_2$ và hình chiếu của các điểm lên $\mathbf {w}_1$}{figure.9.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.4.2}Chọn số thành phần}{98}{subsection.9.4.2}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {9.7}PCA trên tập chữ số viết tay}{98}{lstlisting.9.7}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {9.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Phương sai tích lũy theo số thành phần chính trên tập \texttt  {digits}: khoảng 29 thành phần giữ 95\% phương sai.}}{99}{figure.9.3}\protected@file@percent }
+\newlabel{fig:pca-variance}{{9.3}{99}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Phương sai tích lũy theo số thành phần chính trên tập \texttt {digits}: khoảng 29 thành phần giữ 95\% phương sai}{figure.9.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9.4}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Tập \texttt  {digits} chiếu xuống 2 thành phần chính đầu tiên, tô màu theo chữ số.}}{99}{figure.9.4}\protected@file@percent }
+\newlabel{fig:pca-digits}{{9.4}{99}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Tập \texttt {digits} chiếu xuống 2 thành phần chính đầu tiên, tô màu theo chữ số}{figure.9.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.4.3}PCA trong pipeline học máy}{99}{subsection.9.4.3}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {9.8}StandardScaler + PCA + Logistic Regression}{99}{lstlisting.9.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Hạn chế của PCA.}{100}{paragraph*.31}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9.5}Tóm tắt chương}{100}{section.9.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9.6}Bài tập}{100}{section.9.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{Tài liệu tham khảo của chương}{101}{Item.173}\protected@file@percent }
 \@setckpt{chapters/09-reduce-dimension}{
-\setcounter{page}{36}
-\setcounter{equation}{2}
-\setcounter{enumi}{14}
-\setcounter{enumii}{0}
+\setcounter{page}{102}
+\setcounter{equation}{5}
+\setcounter{enumi}{12}
+\setcounter{enumii}{4}
 \setcounter{enumiii}{0}
 \setcounter{enumiv}{0}
 \setcounter{footnote}{0}
 \setcounter{mpfootnote}{0}
 \setcounter{part}{0}
-\setcounter{chapter}{5}
-\setcounter{section}{4}
+\setcounter{chapter}{9}
+\setcounter{section}{6}
 \setcounter{subsection}{0}
 \setcounter{subsubsection}{0}
 \setcounter{paragraph}{0}
 \setcounter{subparagraph}{0}
-\setcounter{figure}{0}
-\setcounter{table}{0}
+\setcounter{figure}{4}
+\setcounter{table}{2}
 \setcounter{parentequation}{0}
 \setcounter{float@type}{8}
 \setcounter{LT@tables}{0}
 \setcounter{LT@chunks}{0}
-\setcounter{lstnumber}{19}
+\setcounter{lstnumber}{13}
 \setcounter{section@level}{0}
-\setcounter{Item}{40}
+\setcounter{Item}{185}
 \setcounter{Hfootnote}{0}
 \setcounter{Hy@AnnotLevel}{0}
-\setcounter{bookmark@seq@number}{72}
-\setcounter{definition}{1}
-\setcounter{theorem}{0}
-\setcounter{example}{0}
-\setcounter{lstlisting}{1}
+\setcounter{bookmark@seq@number}{153}
+\setcounter{definition}{4}
+\setcounter{theorem}{2}
+\setcounter{example}{6}
+\setcounter{lstlisting}{8}
 }

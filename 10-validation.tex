@@ -1,0 +1,357 @@
+% =========================================================
+% CHUONG: DANH GIA VA LUA CHON MO HINH (VALIDATION)
+% =========================================================
+
+\chapter{Đánh giá và lựa chọn mô hình \\ (Validation)}
+\label{chap:validation}
+
+Các chương trước đã giới thiệu hàng chục mô hình, mỗi mô hình lại có nhiều siêu tham số. Câu hỏi trung tâm của chương này là: \textbf{làm sao biết một mô hình tốt đến đâu trên dữ liệu nó chưa từng thấy}, và \textbf{làm sao chọn được mô hình và siêu tham số tốt nhất} mà không tự lừa mình. Đánh giá sai là nguyên nhân phổ biến nhất khiến mô hình đạt kết quả rất cao trong phòng thí nghiệm nhưng thất bại khi triển khai.
+
+\noindent Sau khi học xong chương này, người học có khả năng:
+\begin{itemize}
+    \item Giải thích lỗi tổng quát hóa, quá khớp, dưới khớp và đánh đổi bias -- variance.
+    \item Thiết kế đúng việc chia dữ liệu: train / validation / test, k-fold, stratified, time series split.
+    \item Tính tay và diễn giải các độ đo phân lớp (ma trận nhầm lẫn, precision, recall, F1, ROC -- AUC) và hồi quy (MAE, MSE, RMSE, $R^2$).
+    \item Tìm siêu tham số bằng \texttt{GridSearchCV}, \texttt{RandomizedSearchCV} và tránh rò rỉ dữ liệu.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Lỗi tổng quát hóa}
+% ---------------------------------------------------------
+
+Mục tiêu của học máy không phải là khớp dữ liệu huấn luyện mà là \textbf{tổng quát hóa} (generalization): dự đoán tốt trên dữ liệu mới lấy từ cùng phân phối. Gọi $\mathcal{D}$ là phân phối dữ liệu và $L$ là hàm mất mát; \textbf{lỗi tổng quát hóa} (rủi ro thực) của mô hình $f$ là
+\begin{equation}
+    R(f) = \mathbb{E}_{(\mathbf{x}, y) \sim \mathcal{D}}\big[L(y, f(\mathbf{x}))\big].
+\end{equation}
+Ta không biết $\mathcal{D}$, nên chỉ có thể \textbf{ước lượng} $R(f)$ bằng trung bình mất mát trên một tập dữ liệu \textbf{độc lập} với quá trình huấn luyện. Lỗi trên tập huấn luyện luôn là ước lượng \textbf{quá lạc quan}.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|p{5.5cm}|}
+\hline
+\textbf{Tình trạng} & \textbf{Lỗi train} & \textbf{Lỗi test} & \textbf{Cách khắc phục} \\
+\hline
+Dưới khớp (underfitting) & Cao & Cao & Mô hình phức tạp hơn, thêm đặc trưng, giảm điều chuẩn \\ \hline
+Vừa khớp & Thấp & Thấp & --- \\ \hline
+Quá khớp (overfitting) & Rất thấp & Cao & Thêm dữ liệu, điều chuẩn, giảm độ phức tạp, ensemble \\ \hline
+\end{tabular}
+\caption{Chẩn đoán qua lỗi huấn luyện và lỗi kiểm tra}
+\end{table}
+
+Đối với mất mát bình phương, sai số kỳ vọng tại một điểm phân tích được thành (Geman và cộng sự, 1992):
+\begin{equation}
+    \mathbb{E}\big[(y - \hat{f}(\mathbf{x}))^2\big] = \underbrace{\big(\mathbb{E}[\hat{f}(\mathbf{x})] - f(\mathbf{x})\big)^2}_{\text{Bias}^2} + \underbrace{\mathrm{Var}[\hat{f}(\mathbf{x})]}_{\text{Variance}} + \underbrace{\sigma^2}_{\text{nhiễu}} .
+\end{equation}
+Mô hình đơn giản có bias cao, mô hình phức tạp có variance cao; điểm tối ưu nằm ở giữa.
+
+\hinhchuachen{ch-validation-bias-variance.png}{Lỗi huấn luyện và lỗi kiểm tra theo độ phức tạp của mô hình: vùng dưới khớp, vùng tối ưu và vùng quá khớp.}{fig:bias-variance}
+
+% ---------------------------------------------------------
+\section{Chiến lược chia dữ liệu}
+% ---------------------------------------------------------
+
+\subsection{Hold-out: train / validation / test}
+
+\begin{itemize}
+    \item \textbf{Tập huấn luyện} (train): học tham số mô hình.
+    \item \textbf{Tập kiểm định} (validation): so sánh mô hình, chọn siêu tham số.
+    \item \textbf{Tập kiểm tra} (test): đánh giá \textbf{một lần duy nhất} ở cuối. Nếu dùng tập test để chọn mô hình, nó trở thành tập validation và ước lượng không còn khách quan.
+\end{itemize}
+Tỉ lệ thường dùng là 60/20/20 hoặc 70/15/15; với dữ liệu rất lớn, tập test chỉ cần 1\%. Với bài toán phân lớp, dùng \texttt{stratify=y} để giữ tỉ lệ các lớp.
+
+\begin{lstlisting}[caption={Chia dữ liệu ba phần}]
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+
+X, y = load_breast_cancer(return_X_y=True)
+X_tmp, X_test, y_tmp, y_test = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=42)
+X_train, X_val, y_train, y_val = train_test_split(
+    X_tmp, y_tmp, test_size=0.25, stratify=y_tmp, random_state=42)  # 0.25*0.8 = 0.2
+print(len(X_train), len(X_val), len(X_test))   # 341 114 114
+\end{lstlisting}
+
+\subsection{Kiểm định chéo k-fold}
+
+Hold-out lãng phí dữ liệu và kết quả phụ thuộc vào cách chia ngẫu nhiên. \textbf{Kiểm định chéo} (cross-validation), được Stone (1974) và Geisser (1975) hình thức hóa, khắc phục điều này:
+\begin{enumerate}
+    \item Chia dữ liệu thành $k$ phần (fold) gần bằng nhau.
+    \item Lần lượt dùng mỗi phần làm tập validation, $k - 1$ phần còn lại làm tập huấn luyện.
+    \item Điểm cuối cùng là trung bình (và độ lệch chuẩn) của $k$ lần đánh giá.
+\end{enumerate}
+Mỗi mẫu được dùng để kiểm định đúng một lần. $k = 5$ hoặc $10$ là lựa chọn phổ biến (Kohavi, 1995). Trường hợp $k = n$ gọi là \textbf{Leave-One-Out} (LOOCV): ít bias nhưng tốn kém và có variance cao.
+
+\hinhchuachen{ch-validation-kfold.png}{Sơ đồ kiểm định chéo 5-fold: mỗi lượt một fold (tô đậm) làm tập kiểm định.}{fig:kfold}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|p{8.5cm}|}
+\hline
+\textbf{Bộ chia} & \textbf{Khi nào dùng} \\
+\hline
+\texttt{KFold} & Hồi quy, dữ liệu độc lập cùng phân phối \\ \hline
+\texttt{StratifiedKFold} & Phân lớp (mặc định của \texttt{cross\_val\_score} khi mô hình là bộ phân lớp), đặc biệt khi lớp mất cân bằng \\ \hline
+\texttt{GroupKFold} & Nhiều mẫu từ cùng một đối tượng (bệnh nhân, khách hàng): mọi mẫu của một nhóm phải nằm cùng phía \\ \hline
+\texttt{TimeSeriesSplit} & Chuỗi thời gian: luôn huấn luyện trên quá khứ, kiểm định trên tương lai (Chương~\ref{chap:regression}) \\ \hline
+\end{tabular}
+\caption{Các bộ chia dữ liệu trong scikit-learn}
+\end{table}
+
+\begin{lstlisting}[caption={Kiểm định chéo với cross\_val\_score và cross\_validate}]
+from sklearn.model_selection import cross_val_score, cross_validate, StratifiedKFold
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+
+model = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+scores = cross_val_score(model, X_tmp, y_tmp, cv=cv, scoring="accuracy")
+print(scores.round(4), scores.mean().round(4), scores.std().round(4))
+
+res = cross_validate(model, X_tmp, y_tmp, cv=cv,
+                     scoring=["accuracy", "f1", "roc_auc"], return_train_score=True)
+print({k: v.mean().round(4) for k, v in res.items() if "test" in k})
+\end{lstlisting}
+
+\noindent\textbf{Quan trọng:} bộ tiền xử lý (scaler, encoder, PCA, \dots) phải nằm \textbf{trong pipeline} để được \texttt{fit} lại trên từng fold huấn luyện. Nếu chuẩn hóa toàn bộ dữ liệu trước rồi mới kiểm định chéo, thông tin của fold kiểm định đã rò rỉ vào quá trình huấn luyện (xem Chương~\ref{chap:preprocessing}).
+
+% ---------------------------------------------------------
+\section{Độ đo cho bài toán phân lớp}
+% ---------------------------------------------------------
+
+\subsection{Ma trận nhầm lẫn}
+
+Với bài toán hai lớp (lớp \textbf{dương} là lớp ta quan tâm: có bệnh, thư rác, gian lận \dots), mọi dự đoán rơi vào một trong bốn ô:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|}
+\hline
+ & \textbf{Dự đoán dương} & \textbf{Dự đoán âm} \\
+\hline
+\textbf{Thực tế dương} & TP (True Positive) & FN (False Negative) \\ \hline
+\textbf{Thực tế âm} & FP (False Positive) & TN (True Negative) \\ \hline
+\end{tabular}
+\caption{Ma trận nhầm lẫn (confusion matrix)}
+\end{table}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|p{6cm}|}
+\hline
+\textbf{Độ đo} & \textbf{Công thức} & \textbf{Ý nghĩa} \\
+\hline
+Accuracy & $\frac{TP + TN}{TP + TN + FP + FN}$ & Tỉ lệ dự đoán đúng \\[4pt] \hline
+Precision & $\frac{TP}{TP + FP}$ & Trong các mẫu báo dương, bao nhiêu là dương thật \\[4pt] \hline
+Recall (Sensitivity) & $\frac{TP}{TP + FN}$ & Trong các mẫu dương thật, tìm ra được bao nhiêu \\[4pt] \hline
+Specificity & $\frac{TN}{TN + FP}$ & Trong các mẫu âm thật, nhận đúng bao nhiêu \\[4pt] \hline
+F1-score & $\frac{2 \cdot P \cdot R}{P + R}$ & Trung bình điều hòa của precision và recall \\[4pt] \hline
+\end{tabular}
+\caption{Các độ đo phân lớp}
+\end{table}
+
+\begin{example}[Tính tay các độ đo]
+Một mô hình sàng lọc bệnh được thử trên 100 người: 50 người có bệnh, 50 người không. Kết quả: $TP = 40$, $FN = 10$, $FP = 5$, $TN = 45$.
+\begin{align*}
+    \text{Accuracy} &= \tfrac{40 + 45}{100} = 0{,}85, &
+    \text{Precision} &= \tfrac{40}{45} = 0{,}8889, \\
+    \text{Recall} &= \tfrac{40}{50} = 0{,}80, &
+    \text{Specificity} &= \tfrac{45}{50} = 0{,}90, \\
+    F_1 &= \tfrac{2 \times 0{,}8889 \times 0{,}80}{0{,}8889 + 0{,}80} = 0{,}8421 .
+\end{align*}
+Mô hình bỏ sót 10 trong 50 người bệnh (recall 80\%) --- với bài toán y tế, đây là điều cần cải thiện dù accuracy khá cao.
+\end{example}
+
+\paragraph{Nghịch lý accuracy.} Với dữ liệu mất cân bằng (ví dụ 1\% giao dịch gian lận), mô hình luôn đoán ``không gian lận'' đạt accuracy 99\% nhưng recall bằng 0. Khi đó phải dùng precision, recall, F1 hoặc AUC. Việc ưu tiên precision hay recall tùy vào \textbf{chi phí} của từng loại lỗi: lọc thư rác ưu tiên precision (không muốn chặn nhầm thư quan trọng), sàng lọc ung thư ưu tiên recall (không muốn bỏ sót).
+
+\paragraph{Bài toán nhiều lớp.} Tính độ đo cho từng lớp (một lớp là dương, còn lại là âm) rồi lấy trung bình: \textbf{macro} (trung bình cộng, mỗi lớp như nhau), \textbf{weighted} (trọng số theo số mẫu), \textbf{micro} (cộng dồn TP, FP, FN của mọi lớp).
+
+\subsection{Đường ROC và AUC}
+
+Hầu hết bộ phân lớp đưa ra \textbf{điểm số} hoặc xác suất (\texttt{predict\_proba}), sau đó so với \textbf{ngưỡng} (mặc định 0,5). Thay đổi ngưỡng sẽ đổi precision lấy recall. Đường \textbf{ROC} (Receiver Operating Characteristic) --- bắt nguồn từ lý thuyết phát hiện tín hiệu radar trong Thế chiến II --- vẽ $TPR = \text{Recall}$ theo $FPR = 1 - \text{Specificity}$ khi ngưỡng chạy từ cao đến thấp. \textbf{AUC} là diện tích dưới đường ROC: bằng 1 với bộ phân lớp hoàn hảo, 0,5 với đoán ngẫu nhiên. AUC có một diễn giải xác suất đẹp (Hanley \& McNeil, 1982): \textit{AUC là xác suất một mẫu dương ngẫu nhiên được chấm điểm cao hơn một mẫu âm ngẫu nhiên.}
+
+\begin{example}[Tính AUC bằng cách đếm cặp]
+Bốn mẫu có nhãn $y = (0, 0, 1, 1)$ và điểm số $s = (0{,}1;\ 0{,}4;\ 0{,}35;\ 0{,}8)$. Có $2 \times 2 = 4$ cặp (dương, âm):
+\begin{itemize}
+    \item $(0{,}35 \text{ vs } 0{,}1)$: đúng thứ tự; $(0{,}35 \text{ vs } 0{,}4)$: \textbf{sai} thứ tự;
+    \item $(0{,}8 \text{ vs } 0{,}1)$: đúng; $(0{,}8 \text{ vs } 0{,}4)$: đúng.
+\end{itemize}
+$\text{AUC} = 3/4 = 0{,}75$.
+\end{example}
+
+\begin{lstlisting}[caption={Ma trận nhầm lẫn, báo cáo phân lớp và ROC}]
+from sklearn.metrics import (confusion_matrix, classification_report,
+                             roc_auc_score, RocCurveDisplay, ConfusionMatrixDisplay)
+
+print(roc_auc_score([0, 0, 1, 1], [0.1, 0.4, 0.35, 0.8]))   # 0.75
+
+model.fit(X_train, y_train)
+y_pred = model.predict(X_test)
+y_score = model.predict_proba(X_test)[:, 1]
+
+print(confusion_matrix(y_test, y_pred))
+print(classification_report(y_test, y_pred, digits=4))
+print("AUC:", roc_auc_score(y_test, y_score))
+
+ConfusionMatrixDisplay.from_predictions(y_test, y_pred)
+RocCurveDisplay.from_predictions(y_test, y_score)
+\end{lstlisting}
+
+\hinhchuachen{ch-validation-roc.png}{Đường ROC của mô hình Logistic Regression trên tập ung thư vú so với đường chéo của bộ đoán ngẫu nhiên.}{fig:roc}
+
+Với dữ liệu mất cân bằng nặng, đường \textbf{Precision -- Recall} và diện tích dưới nó (Average Precision) thường phản ánh chất lượng mô hình rõ hơn ROC (Saito \& Rehmsmeier, 2015).
+
+% ---------------------------------------------------------
+\section{Độ đo cho bài toán hồi quy}
+% ---------------------------------------------------------
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|p{6cm}|}
+\hline
+\textbf{Độ đo} & \textbf{Công thức} & \textbf{Ghi chú} \\
+\hline
+MAE & $\frac{1}{n}\sum |y_i - \hat{y}_i|$ & Cùng đơn vị với $y$, ít nhạy với ngoại lai \\[4pt] \hline
+MSE & $\frac{1}{n}\sum (y_i - \hat{y}_i)^2$ & Phạt nặng sai số lớn \\[4pt] \hline
+RMSE & $\sqrt{\text{MSE}}$ & Cùng đơn vị với $y$ \\[4pt] \hline
+$R^2$ & $1 - \frac{\sum (y_i - \hat{y}_i)^2}{\sum (y_i - \bar{y})^2}$ & Tỉ lệ phương sai được giải thích; có thể âm \\[4pt] \hline
+MAPE & $\frac{1}{n}\sum \left|\frac{y_i - \hat{y}_i}{y_i}\right|$ & Sai số tương đối; không dùng khi $y_i \approx 0$ \\[4pt] \hline
+\end{tabular}
+\caption{Các độ đo hồi quy}
+\end{table}
+
+\begin{example}[Tính tay độ đo hồi quy]
+$y = (3;\ -0{,}5;\ 2;\ 7)$, $\hat{y} = (2{,}5;\ 0;\ 2;\ 8)$. Sai số: $(0{,}5;\ -0{,}5;\ 0;\ -1)$.
+\[
+    \text{MAE} = \tfrac{0{,}5 + 0{,}5 + 0 + 1}{4} = 0{,}5, \quad
+    \text{MSE} = \tfrac{0{,}25 + 0{,}25 + 0 + 1}{4} = 0{,}375, \quad
+    \text{RMSE} = 0{,}6124 .
+\]
+$\bar{y} = 2{,}875$, $\sum (y_i - \bar{y})^2 = 29{,}1875$, nên $R^2 = 1 - 1{,}5 / 29{,}1875 = 0{,}9486$.
+\end{example}
+
+\begin{lstlisting}[caption={Độ đo hồi quy trong scikit-learn}]
+from sklearn.metrics import (mean_absolute_error, mean_squared_error,
+                             root_mean_squared_error, r2_score)
+y_true, y_hat = [3, -0.5, 2, 7], [2.5, 0.0, 2, 8]
+print(mean_absolute_error(y_true, y_hat))       # 0.5
+print(mean_squared_error(y_true, y_hat))        # 0.375
+print(root_mean_squared_error(y_true, y_hat))   # 0.6124
+print(r2_score(y_true, y_hat))                  # 0.9486
+\end{lstlisting}
+
+\noindent\textit{Lưu ý:} trong \texttt{cross\_val\_score}, scikit-learn quy ước ``điểm càng lớn càng tốt'', nên các độ đo sai số có dạng âm như \texttt{scoring="neg\_root\_mean\_squared\_error"}.
+
+% ---------------------------------------------------------
+\section{Tìm siêu tham số}
+% ---------------------------------------------------------
+
+\textbf{Tham số} (trọng số hồi quy, ngưỡng chia của cây) được học từ dữ liệu; \textbf{siêu tham số} (\texttt{alpha} của Ridge, \texttt{n\_neighbors} của KNN, \texttt{max\_depth} của cây) phải được chọn trước khi huấn luyện. Ta chọn siêu tham số bằng cách tối ưu điểm kiểm định chéo.
+
+\begin{itemize}
+    \item \textbf{Grid search}: thử mọi tổ hợp trên lưới giá trị --- đầy đủ nhưng chi phí tăng theo cấp số nhân với số siêu tham số.
+    \item \textbf{Random search}: lấy mẫu ngẫu nhiên $N$ tổ hợp từ các phân phối. Bergstra và Bengio (2012) chỉ ra rằng với cùng ngân sách, random search thường tốt hơn vì chỉ vài siêu tham số thực sự quan trọng.
+    \item \textbf{Tối ưu Bayes} (Optuna, scikit-optimize): dùng kết quả các lần thử trước để chọn điểm thử tiếp theo.
+\end{itemize}
+
+\begin{lstlisting}[caption={GridSearchCV và RandomizedSearchCV}]
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+from sklearn.svm import SVC
+from scipy.stats import loguniform
+
+pipe = make_pipeline(StandardScaler(), SVC())
+param_grid = {"svc__C": [0.1, 1, 10, 100],
+              "svc__gamma": [0.001, 0.01, 0.1, 1],
+              "svc__kernel": ["rbf"]}
+grid = GridSearchCV(pipe, param_grid, cv=5, scoring="f1", n_jobs=-1)
+grid.fit(X_tmp, y_tmp)                       # 16 to hop x 5 fold = 80 lan fit
+print(grid.best_params_, round(grid.best_score_, 4))
+print("Test F1:", round(grid.score(X_test, y_test), 4))   # danh gia 1 lan cuoi
+
+rand = RandomizedSearchCV(pipe, {"svc__C": loguniform(1e-2, 1e3),
+                                 "svc__gamma": loguniform(1e-4, 1e0)},
+                          n_iter=30, cv=5, scoring="f1", random_state=0, n_jobs=-1)
+rand.fit(X_tmp, y_tmp)
+print(rand.best_params_)
+\end{lstlisting}
+
+\hinhchuachen{ch-validation-grid-heatmap.png}{Bản đồ nhiệt điểm F1 kiểm định chéo theo \texttt{C} và \texttt{gamma} của SVM.}{fig:grid-heatmap}
+
+\paragraph{Kiểm định chéo lồng nhau.} \texttt{best\_score\_} của GridSearchCV là ước lượng \textbf{lạc quan}, vì chính nó đã được dùng để chọn siêu tham số (Cawley \& Talbot, 2010). Để ước lượng khách quan khi không có tập test riêng, dùng \textbf{nested CV}: vòng ngoài đánh giá, vòng trong tìm siêu tham số.
+\begin{lstlisting}[caption={Nested cross-validation}]
+outer = cross_val_score(GridSearchCV(pipe, param_grid, cv=3),
+                        X, y, cv=5, scoring="f1")
+print(outer.mean().round(4), outer.std().round(4))
+\end{lstlisting}
+
+\subsection{Đường cong học và đường cong kiểm định}
+
+\begin{itemize}
+    \item \textbf{Learning curve}: điểm train và validation theo \textbf{kích thước tập huấn luyện}. Hai đường cách xa nhau là dấu hiệu quá khớp, thêm dữ liệu sẽ có ích; hai đường hội tụ ở mức thấp là dưới khớp.
+    \item \textbf{Validation curve}: điểm theo \textbf{một siêu tham số}, cho thấy vùng dưới khớp -- quá khớp.
+\end{itemize}
+
+\begin{lstlisting}[caption={Learning curve và validation curve}]
+from sklearn.model_selection import LearningCurveDisplay, ValidationCurveDisplay
+from sklearn.tree import DecisionTreeClassifier
+
+LearningCurveDisplay.from_estimator(pipe, X, y, cv=5,
+                                    train_sizes=np.linspace(0.1, 1.0, 8))
+ValidationCurveDisplay.from_estimator(DecisionTreeClassifier(random_state=0), X, y,
+                                      param_name="max_depth",
+                                      param_range=range(1, 15), cv=5)
+\end{lstlisting}
+
+\hinhchuachen{ch-validation-curves.png}{Trái: learning curve; phải: validation curve theo \texttt{max\_depth} của cây quyết định.}{fig:val-curves}
+
+% ---------------------------------------------------------
+\section{Những sai lầm thường gặp}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item \textbf{Rò rỉ dữ liệu}: tiền xử lý, chọn đặc trưng hoặc cân bằng lớp (SMOTE) trên toàn bộ dữ liệu trước khi chia. Cách tránh: mọi bước đặt trong \texttt{Pipeline}.
+    \item \textbf{Đặc trưng chứa thông tin tương lai}: ví dụ dùng ``ngày xuất viện'' để dự đoán ``có nhập viện không''.
+    \item \textbf{Xáo trộn chuỗi thời gian} khi kiểm định chéo.
+    \item \textbf{Trùng lặp mẫu} giữa train và test (cùng một bệnh nhân, ảnh gần giống nhau).
+    \item \textbf{Nhìn tập test nhiều lần} để chỉnh mô hình.
+    \item \textbf{Chỉ báo accuracy} với dữ liệu mất cân bằng; không báo độ lệch chuẩn giữa các fold.
+\end{enumerate}
+
+% ---------------------------------------------------------
+\section{Tóm tắt chương}
+% ---------------------------------------------------------
+\begin{itemize}
+    \item Mục tiêu là lỗi tổng quát hóa; lỗi huấn luyện luôn lạc quan. Cân bằng bias và variance.
+    \item Chia train / validation / test; tập test chỉ dùng một lần. Kiểm định chéo k-fold cho ước lượng ổn định hơn; chọn bộ chia phù hợp (stratified, group, time series).
+    \item Phân lớp: ma trận nhầm lẫn, precision, recall, F1, ROC -- AUC; hồi quy: MAE, MSE, RMSE, $R^2$.
+    \item Tìm siêu tham số bằng Grid/Random search trên pipeline; dùng nested CV để có ước lượng khách quan.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Bài tập}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Một bộ lọc thư rác trên 1000 email (100 thư rác) cho $TP = 80$, $FP = 30$. Lập ma trận nhầm lẫn và tính accuracy, precision, recall, F1, specificity.
+    \item Tính AUC bằng cách đếm cặp cho $y = (1, 0, 1, 0, 1)$, $s = (0{,}9;\ 0{,}8;\ 0{,}7;\ 0{,}3;\ 0{,}2)$, rồi kiểm tra bằng \texttt{roc\_auc\_score}.
+    \item Chứng minh rằng $R^2$ của mô hình luôn dự đoán $\bar{y}$ bằng 0. Khi nào $R^2 < 0$?
+    \item So sánh điểm accuracy của KNN ($K = 5$) trên tập Iris khi đánh giá bằng hold-out với 10 seed khác nhau và bằng 10-fold CV. Nhận xét về độ biến động.
+    \item Chứng minh bằng thực nghiệm hiện tượng rò rỉ dữ liệu: sinh dữ liệu ngẫu nhiên $X$ (100 mẫu, 10\,000 cột) và nhãn ngẫu nhiên; chọn 20 cột tương quan cao nhất với $y$ \textit{trên toàn bộ dữ liệu} rồi mới kiểm định chéo. So sánh với việc đặt \texttt{SelectKBest} trong pipeline.
+    \item Trên Ames Housing, dùng \texttt{GridSearchCV} để chọn \texttt{alpha} cho Ridge và Lasso (thang log), báo cáo RMSE kiểm định chéo và RMSE trên tập test.
+\end{enumerate}
+
+% ---------------------------------------------------------
+\section*{Tài liệu tham khảo của chương}
+\addcontentsline{toc}{section}{Tài liệu tham khảo của chương}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Bergstra, J., \& Bengio, Y. (2012). Random Search for Hyper-Parameter Optimization. \textit{Journal of Machine Learning Research}, 13, 281--305.
+    \item Cawley, G. C., \& Talbot, N. L. C. (2010). On Over-fitting in Model Selection and Subsequent Selection Bias in Performance Evaluation. \textit{Journal of Machine Learning Research}, 11, 2079--2107.
+    \item Fawcett, T. (2006). An introduction to ROC analysis. \textit{Pattern Recognition Letters}, 27(8), 861--874.
+    \item Geisser, S. (1975). The Predictive Sample Reuse Method with Applications. \textit{Journal of the American Statistical Association}, 70(350), 320--328.
+    \item Geman, S., Bienenstock, E., \& Doursat, R. (1992). Neural Networks and the Bias/Variance Dilemma. \textit{Neural Computation}, 4(1), 1--58.
+    \item Hanley, J. A., \& McNeil, B. J. (1982). The meaning and use of the area under a receiver operating characteristic (ROC) curve. \textit{Radiology}, 143(1), 29--36.
+    \item Hastie, T., Tibshirani, R., \& Friedman, J. (2009). \textit{The Elements of Statistical Learning} (2nd ed.), Chapter 7. Springer.
+    \item Kohavi, R. (1995). A Study of Cross-Validation and Bootstrap for Accuracy Estimation and Model Selection. \textit{Proceedings of IJCAI '95}, 1137--1143.
+    \item Saito, T., \& Rehmsmeier, M. (2015). The Precision-Recall Plot Is More Informative than the ROC Plot When Evaluating Binary Classifiers on Imbalanced Datasets. \textit{PLoS ONE}, 10(3), e0118432.
+    \item Stone, M. (1974). Cross-Validatory Choice and Assessment of Statistical Predictions. \textit{Journal of the Royal Statistical Society: Series B}, 36(2), 111--147.
+\end{enumerate}

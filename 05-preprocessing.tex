@@ -34,9 +34,11 @@ Các thuật toán học máy (Machine Learning -- ML) cổ điển như hồi q
 \begin{itemize}
     \item Trình bày được nguồn gốc lịch sử và vị trí của tiền xử lý dữ liệu trong quy trình khai phá tri thức (KDD) và CRISP-DM.
     \item Phân biệt các kiểu dữ liệu (định danh, thứ bậc, số, văn bản) và chọn phép biến đổi phù hợp cho từng kiểu.
+    \item Xử lý dữ liệu thiếu bằng \textbf{Simple Imputer}, \textbf{KNN Imputer} (khoảng cách nan-Euclid) và \textbf{Iterative Imputer}; phát hiện ngoại lai bằng z-score, quy tắc IQR và \textbf{Local Outlier Factor}.
     \item Mã hóa dữ liệu phân loại bằng \textbf{Label Encoder} và \textbf{One Hot Encoder}, hiểu rõ ưu nhược điểm của từng cách.
     \item Vector hóa văn bản bằng \textbf{Count Vectorizer} và \textbf{TF-IDF Vectorizer}, tự tính tay được ma trận TF-IDF.
     \item Chuẩn hóa thang đo đặc trưng bằng \textbf{Min Max Scaler}, \textbf{Max Abs Scaler}, \textbf{Standard Scaler} và \textbf{Robust Scaler}.
+    \item Xử lý dữ liệu mất cân bằng bằng \textbf{SMOTE} và đặt bước lấy mẫu đúng vị trí trong pipeline.
     \item Xây dựng quy trình tiền xử lý hoàn chỉnh, tránh rò rỉ dữ liệu, trên bộ dữ liệu thực tế \textbf{Ames Housing}.
 \end{itemize}
 
@@ -60,11 +62,11 @@ Năm 1996, Fayyad, Piatetsky-Shapiro và Smyth công bố bài báo kinh điển
     \item \textbf{Diễn giải / Đánh giá} (Interpretation/Evaluation).
 \end{enumerate}
 
-\hinhchuachen{ch-preprocessing-kdd.png}{Quy trình KDD theo Fayyad và cộng sự (1996). Tiền xử lý và biến đổi dữ liệu đứng trước bước khai phá dữ liệu.}{fig:kdd}
+\hinhchuachen{ch-preprocessing-kdd.jpg}{Quy trình KDD theo Fayyad và cộng sự (1996). Tiền xử lý và biến đổi dữ liệu đứng trước bước khai phá dữ liệu.(https://onlinelibrary.wiley.com/doi/epdf/10.1609/aimag.v17i3.1230)}{fig:kdd}
 
 Cùng thời điểm, một liên minh công nghiệp gồm DaimlerChrysler, SPSS và NCR phát triển chuẩn \textbf{CRISP-DM} (Cross-Industry Standard Process for Data Mining, công bố bản 1.0 năm 2000) gồm sáu pha: \textit{Hiểu nghiệp vụ -- Hiểu dữ liệu -- Chuẩn bị dữ liệu -- Mô hình hóa -- Đánh giá -- Triển khai}. Pha \textit{Chuẩn bị dữ liệu} được nhiều tài liệu thực hành ước tính chiếm phần lớn thời gian của một dự án (con số thường được trích dẫn là khoảng 60--80\%). Cuốn \textit{Data Preparation for Data Mining} của Dorian Pyle (1999) là một trong những chuyên khảo đầu tiên dành riêng cho chủ đề này.
 
-\hinhchuachen{ch-preprocessing-crispdm.png}{Sáu pha của CRISP-DM. Pha ``Chuẩn bị dữ liệu'' là nơi diễn ra phần lớn các kỹ thuật trong chương này.}{fig:crispdm}
+\hinhchuachen{ch-preprocessing-crispdm.jpg}{Sáu pha của CRISP-DM. Pha ``Chuẩn bị dữ liệu'' là nơi diễn ra phần lớn các kỹ thuật trong chương này.(https://rdsic.edu.vn/blog/blog-6/1549734giai-doan-nao-trong-crisp-dm-xem-xet-cac-dinh-dang-du-lieu-cua-nguon-du-lieu-trong-a-to-vi-cb.html)}{fig:crispdm}
 
 \subsection{Phân loại các tác vụ tiền xử lý}
 
@@ -76,7 +78,7 @@ Theo Han, Kamber và Pei (\textit{Data Mining: Concepts and Techniques}), tiền
 \hline
 \textbf{Nhóm tác vụ} & \textbf{Nội dung} \\
 \hline
-Làm sạch dữ liệu & Xử lý giá trị thiếu, dữ liệu nhiễu, ngoại lai, dữ liệu sai định dạng. \\
+Làm sạch dữ liệu & Xử lý giá trị thiếu (\textbf{Simple / KNN / Iterative Imputer}), dữ liệu nhiễu, \textbf{ngoại lai} (IQR, LOF), dữ liệu sai định dạng. \\
 \hline
 Tích hợp dữ liệu & Gộp dữ liệu từ nhiều nguồn, xử lý trùng lặp và mâu thuẫn. \\
 \hline
@@ -89,7 +91,7 @@ Rút gọn dữ liệu & Giảm số chiều (PCA, SVD -- xem chương Giảm ch
 \label{tab:preproc-tasks}
 \end{table}
 
-Chương này tập trung vào nhóm \textbf{biến đổi dữ liệu} --- nhóm kỹ thuật mà gần như mọi bài toán ML đều phải dùng --- và minh họa phần làm sạch dữ liệu qua nghiên cứu tình huống ở cuối chương.
+Chương này đi theo đúng trình tự của quy trình KDD: trước hết là nhóm \textbf{làm sạch dữ liệu} (điền giá trị thiếu, phát hiện ngoại lai), sau đó là nhóm \textbf{biến đổi dữ liệu} --- nhóm kỹ thuật mà gần như mọi bài toán ML đều phải dùng --- rồi đến kỹ thuật \textbf{cân bằng dữ liệu} SMOTE, và kết thúc bằng một nghiên cứu tình huống trên dữ liệu thực.
 
 \subsection{Thư viện scikit-learn và giao diện \texttt{fit} / \texttt{transform}}
 
@@ -147,6 +149,415 @@ Văn bản (text) & Chuỗi từ có độ dài thay đổi & bình luận, tài
 \end{table}
 
 % ---------------------------------------------------------
+\section{Xử lý dữ liệu thiếu (Missing Values)}
+\label{sec:missing}
+% ---------------------------------------------------------
+
+Dữ liệu thiếu xuất hiện trong hầu hết các bộ dữ liệu thực tế: người được khảo sát bỏ trống câu hỏi, cảm biến mất tín hiệu, dữ liệu ghép từ nhiều nguồn không khớp nhau\ldots{} Trong NumPy và pandas, giá trị thiếu được biểu diễn bằng \texttt{NaN} (\textit{Not a Number} --- một giá trị đặc biệt của chuẩn số thực dấu phẩy động IEEE 754). Phần lớn mô hình của scikit-learn (hồi quy tuyến tính, SVM, KNN, PCA\ldots) sẽ \textbf{báo lỗi} khi gặp \texttt{NaN}, vì vậy xử lý dữ liệu thiếu là bước bắt buộc trước khi huấn luyện.
+
+\subsection{Cơ chế sinh dữ liệu thiếu}
+
+Donald Rubin (1976) đặt nền móng lý thuyết cho bài toán dữ liệu thiếu khi phân biệt ba \textbf{cơ chế thiếu}:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{3.6cm}|p{5.4cm}|p{4.4cm}|}
+\hline
+\textbf{Cơ chế} & \textbf{Ý nghĩa} & \textbf{Ví dụ} \\
+\hline
+MCAR -- Missing Completely At Random & Việc thiếu hoàn toàn ngẫu nhiên, không phụ thuộc vào biến nào & Phiếu khảo sát bị thất lạc ngẫu nhiên \\ \hline
+MAR -- Missing At Random & Việc thiếu chỉ phụ thuộc vào các biến \textbf{quan sát được} & Người trẻ ít khai thu nhập hơn (tuổi đã biết) \\ \hline
+MNAR -- Missing Not At Random & Việc thiếu phụ thuộc vào chính \textbf{giá trị bị thiếu} & Người thu nhập rất cao từ chối khai thu nhập \\ \hline
+\end{tabular}
+\caption{Ba cơ chế thiếu dữ liệu theo Rubin (1976)}
+\label{tab:missing-mech}
+\end{table}
+
+Xóa các dòng có ô trống (\texttt{df.dropna()}) chỉ an toàn khi dữ liệu thiếu kiểu MCAR và chiếm tỉ lệ nhỏ; trong các trường hợp còn lại, xóa dòng vừa lãng phí dữ liệu vừa làm \textbf{lệch} mẫu. Giải pháp phổ biến hơn là \textbf{điền giá trị thiếu} (imputation). scikit-learn cung cấp ba bộ điền với mức độ phức tạp tăng dần: \texttt{SimpleImputer}, \texttt{KNNImputer} và \texttt{IterativeImputer}. Giống mọi bộ biến đổi khác, bộ điền phải được \texttt{fit} \textbf{chỉ trên tập huấn luyện}.
+
+\subsection{Simple Imputer: trung bình, trung vị, giá trị phổ biến}
+
+Cách đơn giản nhất là thay mọi ô thiếu của một cột bằng một \textbf{thống kê của chính cột đó}, tính trên các giá trị quan sát được:
+\begin{itemize}
+    \item \texttt{strategy="mean"} -- trung bình cộng: phù hợp với dữ liệu gần đối xứng, ít ngoại lai.
+    \item \texttt{strategy="median"} -- trung vị: bền vững với ngoại lai và dữ liệu lệch.
+    \item \texttt{strategy="most\_frequent"} -- giá trị xuất hiện nhiều nhất (mode): dùng được cho cả cột chữ.
+    \item \texttt{strategy="constant"} -- một hằng số do người dùng chọn (ví dụ \texttt{"NA"} hoặc 0).
+\end{itemize}
+
+\begin{example}[Điền bằng trung bình và trung vị]
+Hai cột dữ liệu, mỗi cột thiếu một giá trị:
+\[
+    A = (7,\ 3,\ 4,\ 6,\ 2,\ ?), \qquad B = (6,\ 8,\ 9,\ 8,\ 7,\ ?).
+\]
+\textbf{Cách 1 -- theo trung bình:}
+\[
+    \bar{A} = \frac{7 + 3 + 4 + 6 + 2}{5} = \frac{22}{5} = 4{,}4, \qquad
+    \bar{B} = \frac{6 + 8 + 9 + 8 + 7}{5} = \frac{38}{5} = 7{,}6.
+\]
+\textbf{Cách 2 -- theo trung vị:} sắp xếp các giá trị quan sát được rồi chọn phần tử ở giữa:
+$A \to (2, 3, \mathbf{4}, 6, 7)$, điền 4; \quad $B \to (6, 7, \mathbf{8}, 8, 9)$, điền 8.
+
+Khi số giá trị quan sát được là \textbf{chẵn}, trung vị là trung bình cộng của hai phần tử ở giữa. Ví dụ với $(6, 9, 7, 3, 2, 5)$: sắp xếp thành $(2, 3, \mathbf{5}, \mathbf{6}, 7, 9)$, trung vị bằng $\frac{5 + 6}{2} = 5{,}5$.
+\end{example}
+
+\begin{lstlisting}[caption={SimpleImputer với ví dụ trên}]
+import numpy as np
+from sklearn.impute import SimpleImputer
+
+X = np.array([[7, 6], [3, 8], [4, 9], [6, 8], [2, 7], [np.nan, np.nan]])
+for s in ["mean", "median", "most_frequent"]:
+    imp = SimpleImputer(strategy=s).fit(X)
+    print(s, imp.statistics_)
+# mean          [4.4 7.6]
+# median        [4.  8. ]
+# most_frequent [2.  8. ]  (cot A khong co gia tri lap -> lay gia tri nho nhat)
+print(np.median([6, 9, 7, 3, 2, 5]))     # 5.5
+\end{lstlisting}
+
+\paragraph{Hạn chế.} Điền bằng một hằng số làm \textbf{giảm phương sai} của cột và \textbf{làm yếu tương quan} giữa các cột, vì mọi ô thiếu nhận cùng một giá trị bất kể các thuộc tính còn lại của bản ghi. Tham số \texttt{add\_indicator=True} bổ sung cột nhị phân đánh dấu ô nào đã được điền --- bản thân sự kiện ``bị thiếu'' nhiều khi cũng mang thông tin có ích cho mô hình.
+
+\subsection{KNN Imputer và khoảng cách nan-Euclid}
+
+Troyanskaya và cộng sự (2001) đề xuất điền giá trị thiếu trong dữ liệu biểu hiện gen bằng các \textbf{láng giềng gần nhất}: hai bản ghi giống nhau ở các cột quan sát được thì nhiều khả năng cũng giống nhau ở cột bị thiếu. Thuật toán KNN được trình bày đầy đủ ở Chương~\ref{chap:classify}; ở đây chỉ cần ý tưởng: \textit{giá trị điền là trung bình của cột đó trên $k$ bản ghi gần nhất}.
+
+Khó khăn là chính các bản ghi cũng có ô trống, nên không tính được khoảng cách Euclid thông thường. Ta dùng khoảng cách \textbf{nan-Euclid}: chỉ cộng trên những tọa độ mà \textbf{cả hai} điểm đều có giá trị, rồi nhân với một hệ số để bù cho các tọa độ bị bỏ qua.
+
+\begin{definition}[Khoảng cách nan-Euclid]
+Với hai vector $\mathbf{x}, \mathbf{y} \in \mathbb{R}^d$ có thể chứa giá trị thiếu, gọi $P$ là tập các tọa độ mà cả hai vector cùng có giá trị:
+\begin{equation}
+    d_{\text{nan}}(\mathbf{x}, \mathbf{y}) = \sqrt{\frac{d}{|P|} \sum_{j \in P} (x_j - y_j)^2},
+\end{equation}
+trong đó $d$ là \textbf{tổng số chiều} của bài toán và $|P|$ là \textbf{số chiều tính được}.
+\end{definition}
+
+\begin{example}[Tính khoảng cách nan-Euclid]
+\begin{itemize}
+    \item $\mathbf{x} = (5, \text{nan})$ và $\mathbf{y} = (4, 5)$: chỉ tọa độ thứ nhất tính được, $d = 2$, $|P| = 1$:
+    \[ d_{\text{nan}} = \sqrt{\tfrac{2}{1}(5 - 4)^2} = \sqrt{2} \approx 1{,}414. \]
+    \item $\mathbf{A} = (3, \text{nan}, \text{nan}, 6)$ và $\mathbf{B} = (1, \text{nan}, 4, 5)$: tính được tọa độ 1 và 4, $d = 4$, $|P| = 2$:
+    \[ d_{\text{nan}} = \sqrt{\tfrac{4}{2}\big[(3 - 1)^2 + (6 - 5)^2\big]} = \sqrt{10} \approx 3{,}162. \]
+\end{itemize}
+\end{example}
+
+\begin{example}[Chạy tay KNN Imputer với $k = 3$]
+Điền ba ô thiếu trong Bảng~\ref{tab:knn-impute}.
+\end{example}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{STT} & $x_1$ & $x_2$ & $x_3$ \\
+\hline
+1 & 7 & 6 & 4 \\ \hline
+2 & \textbf{?} & 4 & 5 \\ \hline
+3 & 1 & 5 & \textbf{?} \\ \hline
+4 & 3 & 9 & 7 \\ \hline
+5 & 8 & \textbf{?} & 8 \\ \hline
+\end{tabular}
+\caption{Dữ liệu ví dụ cho KNN Imputer}
+\label{tab:knn-impute}
+\end{table}
+
+\noindent\textbf{Bước 1 -- xác định $X$ và $y$.} Để điền $x_1$ ở dòng 2, coi cột $x_1$ là ``nhãn'' $y$, hai cột còn lại $(x_2, x_3)$ là đặc trưng $X$. Điểm cần dự đoán là $\mathbf{q} = (4, 5)$; các dòng được làm láng giềng phải \textbf{có} giá trị $x_1$ (dòng 1, 3, 4, 5).
+
+\noindent\textbf{Bước 2 -- tính khoảng cách nan-Euclid} trên hai cột $(x_2, x_3)$, $d = 2$:
+\begin{align*}
+    d(\mathbf{q}, \text{dòng } 1) &= \sqrt{(4 - 6)^2 + (5 - 4)^2} = \sqrt{5} \approx 2{,}236, \\
+    d(\mathbf{q}, \text{dòng } 3) &= \sqrt{\tfrac{2}{1}(4 - 5)^2} = \sqrt{2} \approx 1{,}414 && (\text{dòng 3 thiếu } x_3), \\
+    d(\mathbf{q}, \text{dòng } 4) &= \sqrt{(4 - 9)^2 + (5 - 7)^2} = \sqrt{29} \approx 5{,}385, \\
+    d(\mathbf{q}, \text{dòng } 5) &= \sqrt{\tfrac{2}{1}(5 - 8)^2} = \sqrt{18} \approx 4{,}243 && (\text{dòng 5 thiếu } x_2).
+\end{align*}
+
+\noindent\textbf{Bước 3 -- lấy trung bình của $k = 3$ láng giềng gần nhất} (dòng 3, 1, 5): $x_1 = \frac{1 + 7 + 8}{3} \approx 5{,}333$.
+
+Làm tương tự cho hai ô còn lại, ta được bảng tổng hợp:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|p{1.6cm}|p{2.2cm}|p{4.7cm}|p{1.5cm}|p{2.5cm}|}
+\hline
+\textbf{Ô cần điền} & \textbf{Điểm $\mathbf{q}$} & \textbf{Khoảng cách đến các dòng} & \textbf{3 láng giềng} & \textbf{Giá trị điền} \\
+\hline
+$x_1$, dòng 2 & $(x_2, x_3) = (4, 5)$ & $d_1 = 2{,}236$; $d_3 = 1{,}414$; $d_4 = 5{,}385$; $d_5 = 4{,}243$ & 3, 1, 5 & $\frac{1 + 7 + 8}{3} \approx 5{,}333$ \\ \hline
+$x_3$, dòng 3 & $(x_1, x_2) = (1, 5)$ & $d_1 = 6{,}083$; $d_2 = 1{,}414$; $d_4 = 4{,}472$; $d_5 = 9{,}899$ & 2, 4, 1 & $\frac{5 + 7 + 4}{3} \approx 5{,}333$ \\ \hline
+$x_2$, dòng 5 & $(x_1, x_3) = (8, 8)$ & $d_1 = 4{,}123$; $d_2 = 4{,}243$; $d_3 = 9{,}899$; $d_4 = 5{,}099$ & 1, 2, 4 & $\frac{6 + 4 + 9}{3} \approx 6{,}333$ \\ \hline
+\end{tabular}
+\caption{Kết quả chạy tay KNN Imputer ($k = 3$)}
+\label{tab:knn-impute-result}
+\end{table}
+
+\paragraph{Lưu ý.}
+\begin{itemize}
+    \item Hệ số $d/|P|$ phải được áp dụng \textbf{mỗi khi} có tọa độ bị thiếu. Quên hệ số này --- chẳng hạn viết $d(\mathbf{q}, \text{dòng } 5) = \sqrt{(5 - 8)^2} = 3$ thay vì $\sqrt{18} \approx 4{,}243$ --- là lỗi hay gặp khi tính tay. Ở ví dụ này lỗi đó tình cờ không làm đổi tập láng giềng, nhưng trong trường hợp tổng quát sẽ cho kết quả sai.
+    \item \texttt{KNNImputer} của scikit-learn đo khoảng cách trên \textbf{toàn bộ} 3 cột. Tọa độ đang cần điền của dòng nhận vốn bị thiếu nên tự động bị loại, và hệ số trở thành $3/|P|$ thay vì $2/|P|$. Mọi khoảng cách từ dòng nhận vì thế cùng được nhân với $\sqrt{3/2}$, nên thứ tự láng giềng và giá trị điền \textbf{không đổi}.
+    \item KNN Imputer dựa trên khoảng cách nên cần \textbf{chuẩn hóa thang đo} (mục~\ref{sec:scaling}) trước khi dùng; tham số \texttt{weights="distance"} cho láng giềng gần hơn trọng số lớn hơn.
+\end{itemize}
+
+\begin{lstlisting}[caption={Khoảng cách nan-Euclid và KNNImputer}]
+import numpy as np
+from sklearn.impute import KNNImputer
+from sklearn.metrics.pairwise import nan_euclidean_distances
+
+nan = np.nan
+print(nan_euclidean_distances([[5, nan]], [[4, 5]]))                  # [[1.4142]]
+print(nan_euclidean_distances([[3, nan, nan, 6]], [[1, nan, 4, 5]]))  # [[3.1623]]
+
+X = np.array([[7, 6, 4], [nan, 4, 5], [1, 5, nan], [3, 9, 7], [8, nan, 8]])
+print(KNNImputer(n_neighbors=3).fit_transform(X).round(3))
+# [[7.    6.    4.   ]
+#  [5.333 4.    5.   ]
+#  [1.    5.    5.333]
+#  [3.    9.    7.   ]
+#  [8.    6.333 8.   ]]
+\end{lstlisting}
+
+\subsection{Iterative Imputer}
+
+Simple Imputer bỏ qua quan hệ giữa các cột; KNN Imputer khai thác quan hệ đó một cách cục bộ. \textbf{Iterative Imputer} đi xa hơn: \textit{mô hình hóa mỗi cột có giá trị thiếu như một hàm hồi quy của các cột còn lại}. Ý tưởng này bắt nguồn từ kỹ thuật \textbf{MICE} (Multivariate Imputation by Chained Equations) của van Buuren và Groothuis-Oudshoorn (2011), vốn phát triển từ khung \textit{điền khuyết bội} (multiple imputation) của Rubin (1987). Trong scikit-learn, lớp \texttt{IterativeImputer} vẫn được xếp vào nhóm thử nghiệm, nên cần khai báo \texttt{from sklearn.experimental import enable\_iterative\_imputer} trước khi dùng.
+
+\noindent\textbf{Thuật toán:}
+\begin{enumerate}
+    \item \textbf{Khởi tạo}: điền tạm mọi ô thiếu bằng trung bình cột.
+    \item Lần lượt với từng cột $x_j$ có ô thiếu: coi $x_j$ là biến mục tiêu $y$, các cột còn lại (với giá trị đang điền tạm) là $X$; huấn luyện mô hình hồi quy trên các dòng mà $x_j$ được quan sát; dự đoán và \textbf{cập nhật} các ô thiếu của $x_j$.
+    \item Lặp lại bước 2 cho đến khi các giá trị điền ổn định hoặc đạt số vòng tối đa \texttt{max\_iter}.
+\end{enumerate}
+
+Bộ hồi quy ở bước 2 có thể là bất kỳ mô hình nào. Trong ví dụ dưới đây ta dùng hồi quy tuyến tính, giải bằng phương trình chuẩn $\boldsymbol{\beta} = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}$ (Chương~\ref{chap:regression}); cột đầu tiên của $\mathbf{X}$ toàn số 1 ứng với hệ số chặn $\beta_0$.
+
+\begin{example}[Chạy tay một vòng Iterative Imputer]
+Điền ba ô thiếu trong Bảng~\ref{tab:iter-impute} theo thứ tự cột $x_1 \to x_2 \to x_3$.
+\end{example}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{STT} & $x_1$ & $x_2$ & $x_3$ \\
+\hline
+1 & 3 & 7 & 1 \\ \hline
+2 & \textbf{?} & 4 & 8 \\ \hline
+3 & 6 & 3 & 7 \\ \hline
+4 & 5 & \textbf{?} & 4 \\ \hline
+5 & 1 & 9 & \textbf{?} \\ \hline
+\end{tabular}
+\caption{Dữ liệu ví dụ cho Iterative Imputer}
+\label{tab:iter-impute}
+\end{table}
+
+\noindent\textbf{Bước 1 -- khởi tạo bằng trung bình cột:}
+\[
+    \bar{x}_1 = \frac{3 + 6 + 5 + 1}{4} = 3{,}75, \qquad
+    \bar{x}_2 = \frac{7 + 4 + 3 + 9}{4} = 5{,}75, \qquad
+    \bar{x}_3 = \frac{1 + 8 + 7 + 4}{4} = 5.
+\]
+
+\noindent\textbf{Bước 2 -- dự đoán $x_1$ từ $(x_2, x_3)$.} Dùng bốn dòng có $x_1$ (dòng 4 đang mang giá trị tạm $x_2 = 5{,}75$, dòng 5 mang $x_3 = 5$):
+\[
+    \mathbf{X} = \begin{pmatrix} 1 & 7 & 1 \\ 1 & 3 & 7 \\ 1 & 5{,}75 & 4 \\ 1 & 9 & 5 \end{pmatrix}, \quad
+    \mathbf{y} = \begin{pmatrix} 3 \\ 6 \\ 5 \\ 1 \end{pmatrix}, \quad
+    \mathbf{X}^\top\mathbf{X} = \begin{pmatrix} 4 & 24{,}75 & 17 \\ 24{,}75 & 172{,}06 & 96 \\ 17 & 96 & 91 \end{pmatrix}, \quad
+    \mathbf{X}^\top\mathbf{y} = \begin{pmatrix} 15 \\ 76{,}75 \\ 70 \end{pmatrix},
+\]
+\[
+    (\mathbf{X}^\top\mathbf{X})^{-1} \approx \begin{pmatrix} 5{,}9563 & -0{,}5735 & -0{,}5077 \\ -0{,}5735 & 0{,}0693 & 0{,}0340 \\ -0{,}5077 & 0{,}0340 & 0{,}0700 \end{pmatrix}, \qquad
+    \boldsymbol{\beta} = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y} \approx \begin{pmatrix} 9{,}78895 \\ -0{,}90153 \\ -0{,}10841 \end{pmatrix}.
+\]
+Thay dòng 2 ($x_2 = 4$, $x_3 = 8$): $x_1 = 9{,}78895 - 0{,}90153 \times 4 - 0{,}10841 \times 8 \approx 5{,}3155$.
+
+\noindent\textbf{Bước 3 -- dự đoán $x_2$ từ $(x_1, x_3)$}, thế giá trị vừa điền $x_1 = 5{,}3155$ vào dòng 2 (dòng 5 vẫn mang $x_3 = 5$):
+\[
+    \mathbf{X} = \begin{pmatrix} 1 & 3 & 1 \\ 1 & 5{,}3155 & 8 \\ 1 & 6 & 7 \\ 1 & 1 & 5 \end{pmatrix}, \quad
+    \mathbf{y} = \begin{pmatrix} 7 \\ 4 \\ 3 \\ 9 \end{pmatrix}
+    \ \Rightarrow\
+    \boldsymbol{\beta} \approx \begin{pmatrix} 10{,}4972 \\ -1{,}1578 \\ -0{,}0598 \end{pmatrix}.
+\]
+Thay dòng 4 ($x_1 = 5$, $x_3 = 4$): $x_2 = 10{,}4972 - 1{,}1578 \times 5 - 0{,}0598 \times 4 \approx 4{,}469$.
+
+\noindent\textbf{Bước 4 -- dự đoán $x_3$ từ $(x_1, x_2)$} với các giá trị vừa điền (tính với đầy đủ chữ số):
+\[
+    \mathbf{X} = \begin{pmatrix} 1 & 3 & 7 \\ 1 & 5{,}3155 & 4 \\ 1 & 6 & 3 \\ 1 & 5 & 4{,}4689 \end{pmatrix}, \quad
+    \mathbf{y} = \begin{pmatrix} 1 \\ 8 \\ 7 \\ 4 \end{pmatrix}
+    \ \Rightarrow\
+    \boldsymbol{\beta} \approx \begin{pmatrix} 9{,}7807 \\ 0{,}3487 \\ -1{,}4001 \end{pmatrix}.
+\]
+Thay dòng 5 ($x_1 = 1$, $x_2 = 9$): $x_3 = 9{,}7807 + 0{,}3487 \times 1 - 1{,}4001 \times 9 \approx -2{,}47$.
+
+Kết thúc vòng thứ nhất: $x_1 \approx 5{,}32$; $x_2 \approx 4{,}47$; $x_3 \approx -2{,}47$.
+
+\paragraph{Phân tích kết quả: bài toán điều kiện xấu.} Giá trị $x_3 \approx -2{,}47$ nằm \textbf{ngoài} miền quan sát $[1;\ 8]$ của cột $x_3$ --- một dấu hiệu cảnh báo. Nguyên nhân nằm ở bốn dòng dùng để hồi quy ở bước 4: tổng $x_1 + x_2$ của chúng lần lượt là $10$; $9{,}32$; $9$; $9{,}47$, tức hai đặc trưng gần như phụ thuộc tuyến tính (\textbf{đa cộng tuyến}). Khi đó $\mathbf{X}^\top\mathbf{X}$ gần suy biến: số điều kiện của nó vào khoảng $1{,}8 \times 10^6$ và phần tử lớn nhất của $(\mathbf{X}^\top\mathbf{X})^{-1}$ lên tới khoảng $9505$. Hệ quả là nghiệm cực kỳ nhạy với sai số làm tròn ở các bước trước:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+\textbf{$x_1$ (dòng 2)} & \textbf{$x_2$ (dòng 4)} & $\beta_0$ & $\beta_1$ & $\beta_2$ & \textbf{$x_3$ (dòng 5)} \\
+\hline
+5,31553\ldots{} (đủ chữ số) & 4,46889\ldots & 9,781 & 0,349 & $-1{,}400$ & $-2{,}47$ \\ \hline
+5,316 & 4,469 & 8,852 & 0,460 & $-1{,}316$ & $-2{,}53$ \\ \hline
+5,32 & 4,47 & 1,242 & 1,375 & $-0{,}624$ & $-3{,}00$ \\ \hline
+5,306 & 4,47 & 32,894 & $-2{,}430$ & $-3{,}501$ & $-1{,}04$ \\ \hline
+5,3445 & 4,47 & $-41{,}058$ & 6,445 & 3,224 & $-5{,}59$ \\ \hline
+\end{tabular}
+\caption{Độ nhạy của bước 4 khi các giá trị điền trước đó bị làm tròn}
+\label{tab:iter-sensitivity}
+\end{table}
+
+Chỉ cần $x_1$ lệch $0{,}01$ là hệ số chặn $\beta_0$ đã nhảy từ khoảng 9,8 lên 32,9 hay xuống $-41$. Vì vậy, khi tính tay mỗi người làm tròn một kiểu sẽ cho những hệ số rất khác nhau, dù \textbf{không ai tính sai phép tính}. Lặp thêm nhiều vòng cũng không giúp gì: với \texttt{max\_iter=10}, giá trị điền của $x_3$ còn trôi tới khoảng $-28{,}5$.
+
+Bài học thực hành:
+\begin{enumerate}
+    \item Luôn \textbf{kiểm tra tính hợp lý} của giá trị được điền (so với miền quan sát, ý nghĩa nghiệp vụ).
+    \item Giới hạn miền giá trị bằng \texttt{min\_value}, \texttt{max\_value}.
+    \item Ưu tiên bộ hồi quy \textbf{có điều chuẩn} --- mặc định của \texttt{IterativeImputer} là \texttt{BayesianRidge} --- vì hệ số ổn định hơn khi có đa cộng tuyến (xem Ridge ở Chương~\ref{chap:regression}). Tuy vậy, điều chuẩn không thay thế được bước kiểm tra: trên chính ví dụ này, \texttt{BayesianRidge} không giới hạn miền vẫn cho $x_3 \approx -2{,}51$.
+    \item Chỉ dùng Iterative Imputer khi có \textbf{đủ dữ liệu} để ước lượng quan hệ giữa các cột; với bốn dòng như ví dụ, Simple Imputer hoặc KNN Imputer an toàn hơn.
+\end{enumerate}
+
+\begin{lstlisting}[caption={IterativeImputer tái hiện ví dụ tính tay}]
+import numpy as np
+from sklearn.experimental import enable_iterative_imputer  # bat tinh nang thu nghiem
+from sklearn.impute import IterativeImputer
+from sklearn.linear_model import LinearRegression
+
+nan = np.nan
+X = np.array([[3, 7, 1], [nan, 4, 8], [6, 3, 7], [5, nan, 4], [1, 9, nan]])
+
+# Mot vong, hoi quy tuyen tinh, thu tu cot x1 -> x2 -> x3 (giong tinh tay)
+imp = IterativeImputer(estimator=LinearRegression(), initial_strategy="mean",
+                       imputation_order="roman", max_iter=1)
+print(imp.fit_transform(X).round(4))
+# dong 2: x1 = 5.3155 ; dong 4: x2 = 4.4689 ; dong 5: x3 = -2.4715
+
+# Mac dinh BayesianRidge, 10 vong, gioi han mien gia tri theo du lieu quan sat
+lo, hi = np.nanmin(X, axis=0), np.nanmax(X, axis=0)
+imp = IterativeImputer(max_iter=10, min_value=lo, max_value=hi, random_state=0)
+print(imp.fit_transform(X).round(3))
+# dong 2: x1 = 4.833 ; dong 4: x2 = 4.5 ; dong 5: x3 = 1.0 (bi chan duoi)
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{3.1cm}|p{3.7cm}|p{3cm}|p{3.6cm}|}
+\hline
+\textbf{Bộ điền} & \textbf{Ý tưởng} & \textbf{Ưu điểm} & \textbf{Nhược điểm} \\
+\hline
+SimpleImputer & Thống kê của chính cột (mean, median, mode) & Nhanh, đơn giản, ổn định & Bỏ qua quan hệ giữa các cột; làm giảm phương sai \\ \hline
+KNNImputer & Trung bình của $k$ láng giềng theo khoảng cách nan-Euclid & Tận dụng sự tương đồng giữa các bản ghi & Chậm với dữ liệu lớn; cần chuẩn hóa thang đo \\ \hline
+IterativeImputer & Hồi quy lặp từng cột theo các cột còn lại (MICE) & Khai thác quan hệ đa biến & Chậm; có thể ngoại suy phi thực tế; cần kiểm tra kết quả \\ \hline
+\end{tabular}
+\caption{So sánh ba bộ điền giá trị thiếu}
+\label{tab:imputers}
+\end{table}
+
+% ---------------------------------------------------------
+\section{Phát hiện ngoại lai (Outlier Detection)}
+\label{sec:outlier}
+% ---------------------------------------------------------
+
+Theo định nghĩa kinh điển của Hawkins (1980), \textbf{ngoại lai} (outlier) là \textit{``một quan sát lệch khỏi các quan sát khác nhiều đến mức gợi nghi ngờ rằng nó được sinh ra bởi một cơ chế khác''}. Ngoại lai có thể là lỗi nhập liệu (năm xây garage 2207 trong Ames Housing), lỗi đo đạc, hoặc là hiện tượng có thật nhưng hiếm (một giao dịch gian lận). Vì vậy \textbf{phát hiện} và \textbf{xử lý} là hai quyết định khác nhau: chỉ loại bỏ khi chắc chắn đó là lỗi; trong các trường hợp khác có thể giữ nguyên, biến đổi (lấy logarit), cắt ngưỡng (winsorizing), hoặc dùng mô hình và bộ chuẩn hóa bền vững như \texttt{RobustScaler}.
+
+\subsection{Phương pháp một biến: z-score và quy tắc IQR}
+
+\paragraph{Quy tắc z-score.} Coi điểm có $|z| = |x - \bar{x}|/s > 3$ là ngoại lai. Điểm yếu của quy tắc này là chính ngoại lai kéo lệch $\bar{x}$ và làm $s$ phình to (\textbf{hiệu ứng che lấp} -- masking). Với cột $x = (2, 4, 6, 8, 30)$ sẽ dùng lại ở mục~\ref{sec:scaling}: $\bar{x} = 10$, $s = 10{,}20$ nên $z(30) = 1{,}96 < 3$ --- giá trị 30 \textbf{không} bị phát hiện. Thực ra có thể chứng minh $|z| \leq \sqrt{n - 1}$ (Shiffler, 1988), nên với $n = 5$ không quan sát nào có thể vượt ngưỡng 3.
+
+\paragraph{Quy tắc IQR (Tukey, 1977).} Dựa trên các tứ phân vị $Q_1$, $Q_3$ và khoảng tứ phân vị $\mathrm{IQR} = Q_3 - Q_1$; điểm nằm ngoài khoảng
+\begin{equation}
+    \big[\,Q_1 - 1{,}5\,\mathrm{IQR},\ \ Q_3 + 1{,}5\,\mathrm{IQR}\,\big]
+\end{equation}
+là ngoại lai --- đây cũng chính là ``râu'' của biểu đồ hộp (boxplot). Với cùng dữ liệu: $Q_1 = 4$, $Q_3 = 8$, $\mathrm{IQR} = 4$, khoảng hợp lệ là $[-2;\ 14]$, nên 30 bị phát hiện. Tứ phân vị bền vững với ngoại lai nên quy tắc IQR không bị che lấp.
+
+\begin{lstlisting}[caption={z-score và quy tắc IQR}]
+import numpy as np
+
+x = np.array([2, 4, 6, 8, 30])
+z = (x - x.mean()) / x.std()
+print(z.round(2))                                       # [-0.78 -0.59 -0.39 -0.2   1.96]
+q1, q3 = np.percentile(x, [25, 75]); iqr = q3 - q1
+print(x[(x < q1 - 1.5 * iqr) | (x > q3 + 1.5 * iqr)])  # [30]
+\end{lstlisting}
+
+\subsection{Phương pháp nhiều biến: Local Outlier Factor (LOF)}
+
+Trong không gian nhiều chiều, một điểm có thể ``bình thường'' trên từng biến riêng lẻ nhưng bất thường khi xét đồng thời. Breunig, Kriegel, Ng và Sander (2000) đề xuất \textbf{LOF} (Local Outlier Factor): so sánh \textbf{mật độ cục bộ} của một điểm với mật độ của các láng giềng; điểm nằm trong vùng thưa hơn hẳn các láng giềng của nó là ngoại lai. LOF cùng tư tưởng ``dựa trên mật độ'' với thuật toán phân cụm DBSCAN (Chương~\ref{chap:clustering}); hai công trình có chung hai tác giả là Hans-Peter Kriegel và Jörg Sander.
+
+\begin{definition}[Các đại lượng của LOF]
+Với số láng giềng $k$ và $N_k(p)$ là tập $k$ láng giềng gần nhất của điểm $p$:
+\begin{itemize}
+    \item \textbf{$k$-khoảng cách}: $\text{k-dist}(p)$ là khoảng cách từ $p$ đến láng giềng thứ $k$ của nó.
+    \item \textbf{Khoảng cách tiếp cận} (reachability distance):
+    \[ \text{reach-dist}_k(p, o) = \max\{\text{k-dist}(o),\ d(p, o)\}. \]
+    \item \textbf{Mật độ tiếp cận cục bộ} (local reachability density):
+    \[ \text{lrd}_k(p) = \left(\frac{1}{k}\sum_{o \in N_k(p)} \text{reach-dist}_k(p, o)\right)^{-1}. \]
+    \item \textbf{Hệ số ngoại lai cục bộ}:
+    \[ \text{LOF}_k(p) = \frac{1}{k}\sum_{o \in N_k(p)} \frac{\text{lrd}_k(o)}{\text{lrd}_k(p)}. \]
+\end{itemize}
+$\text{LOF} \approx 1$: mật độ tương đương các láng giềng (điểm bình thường); $\text{LOF} \gg 1$: điểm thưa hơn hẳn láng giềng (ngoại lai).
+\end{definition}
+
+Phép lấy $\max$ trong khoảng cách tiếp cận có tác dụng \textbf{làm trơn}: các điểm nằm sâu trong cùng một cụm dày đặc có khoảng cách tiếp cận bằng nhau, nhờ đó LOF không dao động vì những chênh lệch khoảng cách rất nhỏ.
+
+\begin{example}[Tính tay LOF với $k = 3$]
+Cho 5 điểm $A(0, 0)$, $B(1, 0)$, $C(0, 1)$, $D(1, 1)$ và $E(5, 4)$ với ma trận khoảng cách Euclid trong Bảng~\ref{tab:lof-dist}.
+\end{example}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+ & $A$ & $B$ & $C$ & $D$ & $E$ \\
+\hline
+$A$ & 0 & 1 & 1 & 1,414 & 6,403 \\ \hline
+$B$ & 1 & 0 & 1,414 & 1 & 5,657 \\ \hline
+$C$ & 1 & 1,414 & 0 & 1 & 5,831 \\ \hline
+$D$ & 1,414 & 1 & 1 & 0 & 5 \\ \hline
+$E$ & 6,403 & 5,657 & 5,831 & 5 & 0 \\ \hline
+\end{tabular}
+\caption{Khoảng cách giữa 5 điểm của ví dụ LOF}
+\label{tab:lof-dist}
+\end{table}
+
+\noindent\textbf{Bước 1 -- $k$-khoảng cách.} Mỗi điểm $A, B, C, D$ có hai láng giềng ở khoảng cách 1 và một láng giềng ở khoảng cách $\sqrt{2}$, nên $\text{k-dist} = 1{,}414$. Ba láng giềng của $E$ là $D, B, C$, nên $\text{k-dist}(E) = 5{,}831$.
+
+\noindent\textbf{Bước 2 -- khoảng cách tiếp cận.} Chẳng hạn $\text{reach-dist}(A, B) = \max\{\text{k-dist}(B),\ d(A, B)\} = \max\{1{,}414;\ 1\} = 1{,}414$: dù $A$ chỉ cách $B$ một đơn vị, khoảng cách tiếp cận vẫn là $1{,}414$. Với $E$, các khoảng cách thật đều lớn hơn $k$-khoảng cách của láng giềng nên được giữ nguyên.
+
+\noindent\textbf{Bước 3 -- mật độ và hệ số LOF} được tổng hợp trong Bảng~\ref{tab:lof}.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|c|c|c|c|c|c|c|}
+\hline
+\textbf{Điểm} & \textbf{3 láng giềng} & \textbf{reach-dist} & \textbf{TB reach-dist} & \textbf{lrd} & \textbf{LOF} & \textbf{Nhãn} \\
+\hline
+$A$ & $B, C, D$ & 1,414; 1,414; 1,414 & 1,414 & 0,7071 & 1,000 & 1 \\ \hline
+$B$ & $A, D, C$ & 1,414; 1,414; 1,414 & 1,414 & 0,7071 & 1,000 & 1 \\ \hline
+$C$ & $A, D, B$ & 1,414; 1,414; 1,414 & 1,414 & 0,7071 & 1,000 & 1 \\ \hline
+$D$ & $B, C, A$ & 1,414; 1,414; 1,414 & 1,414 & 0,7071 & 1,000 & 1 \\ \hline
+$E$ & $D, B, C$ & 5; 5,657; 5,831 & 5,496 & 0,1820 & \textbf{3,886} & $-1$ \\ \hline
+\end{tabular}
+\caption{Bảng tính LOF ($k = 3$); nhãn theo quy ước của scikit-learn: 1 là điểm bình thường, $-1$ là ngoại lai}
+\label{tab:lof}
+\end{table}
+
+Chẳng hạn $\text{LOF}(E) = \dfrac{(0{,}7071 + 0{,}7071 + 0{,}7071)/3}{0{,}1820} \approx 3{,}886 \gg 1$, nên $E$ là ngoại lai; các điểm còn lại có $\text{LOF} = 1$. Với \texttt{contamination="auto"}, scikit-learn coi điểm có $\text{LOF} > 1{,}5$ là ngoại lai.
+
+\hinhchuachen{ch-preprocessing-lof.png}{Minh họa LOF: bốn điểm $A, B, C, D$ tạo thành vùng dày đặc; điểm $E$ nằm trong vùng thưa với $\text{LOF} \approx 3{,}89$.}{fig:lof}
+
+\begin{lstlisting}[caption={Local Outlier Factor với scikit-learn}]
+import numpy as np
+from sklearn.neighbors import LocalOutlierFactor
+
+X = np.array([[0, 0], [1, 0], [0, 1], [1, 1], [5, 4]])
+lof = LocalOutlierFactor(n_neighbors=3)
+print(lof.fit_predict(X))                       # [ 1  1  1  1 -1]
+print(-lof.negative_outlier_factor_.round(4))   # [1.     1.     1.     1.     3.8862]
+\end{lstlisting}
+
+Để phát hiện ngoại lai trên \textbf{dữ liệu mới} (sau khi đã huấn luyện), đặt tham số \texttt{novelty=True} cho \texttt{LocalOutlierFactor}. Một lựa chọn khác mở rộng tốt cho dữ liệu lớn là \texttt{IsolationForest} (Liu, Ting \& Zhou, 2008): ngoại lai là những điểm bị cô lập sau rất ít lần chia ngẫu nhiên.
+
+% ---------------------------------------------------------
 \section{Mã hóa dữ liệu phân loại}
 % ---------------------------------------------------------
 
@@ -185,7 +596,7 @@ red & 0 \\ green & 1 \\ blue & 2 \\ orange & 3 \\
 \label{tab:labelenc}
 \end{table}
 
-\hinhchuachen{ch-preprocessing-label-encoder.png}{Minh họa Label Encoder trên bảng tính: dòng input, dòng output và từ điển ánh xạ.}{fig:labelenc}
+\hinhchuachen{ch-preprocessing-label-encoder.jpg}{Minh họa Label Encoder trên bảng tính: dòng input, dòng output và từ điển ánh xạ.}{fig:labelenc}
 
 Để hiểu bản chất thuật toán, ta tự cài đặt Label Encoder chỉ bằng các cấu trúc đã học ở chương Python cơ bản: \textbf{list, vòng lặp \texttt{for} và dictionary}.
 
@@ -284,7 +695,7 @@ Cho dãy 9 phần tử (chỉ số 0--8): \texttt{red, blue, red, red, blue, whi
 \label{tab:onehot}
 \end{table}
 
-\hinhchuachen{ch-preprocessing-one-hot-encoder.png}{Minh họa One Hot Encoder trên bảng tính: từ điển (Key -- Value) và ma trận đầu ra; ô được tô vàng là vị trí số 1 tương ứng với nhãn của từng hàng.}{fig:onehot}
+\hinhchuachen{ch-preprocessing-one-hot-encoder.jpg}{Minh họa One Hot Encoder trên bảng tính: từ điển (Key -- Value) và ma trận đầu ra; ô được tô vàng là vị trí số 1 tương ứng với nhãn của từng hàng.}{fig:onehot}
 
 \begin{lstlisting}[caption={Tự cài đặt One Hot Encoder bằng list, for và dictionary}]
 data = ["red", "blue", "red", "red", "blue",
@@ -584,6 +995,7 @@ TF-IDF mặc định & True & True & \texttt{"l2"} \\ \hline
 
 % ---------------------------------------------------------
 \section{Chuẩn hóa thang đo đặc trưng (Feature Scaling)}
+\label{sec:scaling}
 % ---------------------------------------------------------
 
 \subsection{Vì sao cần chuẩn hóa thang đo?}
@@ -683,6 +1095,89 @@ RobustScaler & Không giới hạn & Có & Dữ liệu lệch, nhiều ngoại l
 \end{tabular}
 \caption{Tóm tắt lựa chọn bộ chuẩn hóa}
 \end{table}
+
+% ---------------------------------------------------------
+\section{Dữ liệu mất cân bằng và SMOTE}
+\label{sec:smote}
+% ---------------------------------------------------------
+
+Trong nhiều bài toán phân lớp, lớp quan trọng nhất lại là lớp \textbf{hiếm}: giao dịch gian lận (thường dưới 1\%), bệnh hiếm, thiết bị sắp hỏng. Mô hình huấn luyện trên dữ liệu như vậy có xu hướng ``bỏ qua'' lớp thiểu số mà vẫn đạt accuracy cao --- \textit{nghịch lý accuracy} sẽ được phân tích ở Chương~\ref{chap:validation}. Có ba nhóm giải pháp:
+\begin{itemize}
+    \item \textbf{Ở mức thuật toán}: gán trọng số lớn hơn cho lỗi trên lớp thiểu số, ví dụ đặt tham số \texttt{class\_weight} bằng \texttt{"balanced"}.
+    \item \textbf{Giảm mẫu lớp đa số} (undersampling): bỏ bớt mẫu của lớp đông --- đơn giản nhưng mất thông tin.
+    \item \textbf{Tăng mẫu lớp thiểu số} (oversampling): nhân bản ngẫu nhiên các mẫu hiếm dễ gây quá khớp, vì mô hình gặp đi gặp lại đúng những điểm đó.
+\end{itemize}
+
+\textbf{SMOTE} (Synthetic Minority Over-sampling Technique), do Chawla, Bowyer, Hall và Kegelmeyer công bố năm 2002, khắc phục nhược điểm của việc nhân bản: thay vì sao chép, SMOTE \textbf{tổng hợp mẫu mới} nằm trên đoạn thẳng nối một mẫu thiểu số với một láng giềng cùng lớp của nó.
+
+\begin{definition}[Sinh mẫu SMOTE]
+Với mỗi mẫu thiểu số $\mathbf{x}_i$: tìm $k$ láng giềng gần nhất \textbf{trong lớp thiểu số}; chọn ngẫu nhiên một láng giềng $\mathbf{x}_{nn}$ và một số $\lambda \sim U(0, 1)$; mẫu mới là
+\begin{equation}
+    \mathbf{x}_{\text{mới}} = \mathbf{x}_i + \lambda\,(\mathbf{x}_{nn} - \mathbf{x}_i).
+\end{equation}
+\end{definition}
+
+\begin{example}[Tạo một mẫu SMOTE]
+Lớp thiểu số gồm $P_1(2, 3)$, $P_2(4, 4)$, $P_3(3, 6)$; chọn $k = 2$. Hai láng giềng của $P_1$ là $P_2$ ($d = \sqrt{5} \approx 2{,}236$) và $P_3$ ($d = \sqrt{10} \approx 3{,}162$). Giả sử lần rút ngẫu nhiên chọn được $P_2$ và $\lambda = 0{,}4$:
+\[
+    \mathbf{x}_{\text{mới}} = (2, 3) + 0{,}4 \times \big[(4, 4) - (2, 3)\big] = (2, 3) + (0{,}8;\ 0{,}4) = (2{,}8;\ 3{,}4).
+\]
+Điểm mới nằm trên đoạn $P_1P_2$, bên trong vùng của lớp thiểu số, và không trùng với mẫu nào đã có.
+\end{example}
+
+\hinhchuachen{ch-preprocessing-smote.png}{SMOTE sinh mẫu tổng hợp trên đoạn thẳng nối các mẫu thiểu số với láng giềng cùng lớp.}{fig:smote}
+
+SMOTE được cài đặt trong thư viện \texttt{imbalanced-learn} (Lemaître, Nogueira \& Aridas, 2017), cài bằng lệnh \texttt{pip install imbalanced-learn}. Các biến thể đáng chú ý: \textbf{Borderline-SMOTE} (Han và cộng sự, 2005) chỉ sinh mẫu gần biên quyết định; \textbf{ADASYN} (He và cộng sự, 2008) sinh nhiều mẫu hơn ở vùng khó học; \textbf{SMOTE-NC} xử lý dữ liệu có cột định danh.
+
+\begin{lstlisting}[caption={SMOTE với imbalanced-learn}]
+from collections import Counter
+from sklearn.datasets import make_classification
+from imblearn.over_sampling import SMOTE
+
+X, y = make_classification(n_samples=1000, n_features=4, n_informative=2,
+                           weights=[0.9, 0.1], random_state=42)
+print(Counter(y))                    # lop 0: 895, lop 1: 105
+X_res, y_res = SMOTE(k_neighbors=5, random_state=42).fit_resample(X, y)
+print(Counter(y_res))                # lop 0: 895, lop 1: 895
+\end{lstlisting}
+
+\noindent\textbf{Nguyên tắc vàng:} chỉ áp dụng SMOTE trên \textbf{tập huấn luyện}. Nếu sinh mẫu trước khi chia dữ liệu, các mẫu tổng hợp được nội suy từ chính những điểm sẽ rơi vào tập kiểm tra, khiến kết quả đánh giá lạc quan giả tạo (rò rỉ dữ liệu). Thư viện \texttt{imbalanced-learn} cung cấp \texttt{Pipeline} riêng, trong đó bước lấy mẫu \textbf{chỉ chạy khi \texttt{fit}}, tức chỉ trên phần huấn luyện của mỗi fold kiểm định chéo:
+
+\begin{lstlisting}[caption={So sánh các cách xử lý mất cân bằng trong Pipeline của imbalanced-learn}]
+from imblearn.pipeline import Pipeline as ImbPipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_validate
+
+models = {
+    "khong xu ly": ImbPipeline([("scale", StandardScaler()),
+                                ("clf", LogisticRegression())]),
+    "class_weight": ImbPipeline([("scale", StandardScaler()),
+                                 ("clf", LogisticRegression(class_weight="balanced"))]),
+    "smote": ImbPipeline([("scale", StandardScaler()),
+                          ("smote", SMOTE(random_state=42)),   # chi chay khi fit
+                          ("clf", LogisticRegression())]),
+}
+for name, m in models.items():
+    r = cross_validate(m, X, y, cv=5, scoring=["recall", "precision", "f1"])
+    print(name, {k[5:]: round(v.mean(), 3) for k, v in r.items() if k.startswith("test")})
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Cách xử lý} & \textbf{Recall} & \textbf{Precision} & \textbf{F1} \\
+\hline
+Không xử lý & 0,486 & 0,807 & 0,589 \\ \hline
+\texttt{class\_weight="balanced"} & 0,838 & 0,437 & 0,572 \\ \hline
+SMOTE trong pipeline & 0,838 & 0,441 & 0,575 \\ \hline
+\end{tabular}
+\caption{Hồi quy logistic trên dữ liệu tỉ lệ 90/10, kiểm định chéo 5-fold; lớp dương là lớp thiểu số}
+\label{tab:smote-compare}
+\end{table}
+
+Kết quả cho một bài học quan trọng: SMOTE giúp mô hình tìm ra nhiều mẫu thiểu số hơn hẳn (recall tăng từ 0,486 lên 0,838), nhưng phải trả giá bằng nhiều báo động nhầm hơn (precision giảm từ 0,807 xuống 0,441); F1 gần như không đổi, và hiệu quả tương đương cách đơn giản \texttt{class\_weight="balanced"}. SMOTE vì vậy \textbf{không phải phép màu}: nó dịch chuyển điểm cân bằng giữa precision và recall, và nên được chọn khi \textbf{bỏ sót lớp thiểu số đắt hơn báo động nhầm} (sàng lọc bệnh, phát hiện gian lận). Việc so sánh phải dựa trên độ đo phù hợp với bài toán (Chương~\ref{chap:validation}), không phải accuracy.
 
 % ---------------------------------------------------------
 \section{Kết hợp các bước: Pipeline và ColumnTransformer}
@@ -837,11 +1332,14 @@ print(scores.mean().round(3))
 % ---------------------------------------------------------
 \begin{itemize}
     \item Tiền xử lý dữ liệu là bước nền tảng trong quy trình KDD (Fayyad và cộng sự, 1996) và pha Chuẩn bị dữ liệu của CRISP-DM; nguyên lý ``rác vào, rác ra'' nhắc rằng chất lượng mô hình bị giới hạn bởi chất lượng dữ liệu.
+    \item Dữ liệu thiếu có ba cơ chế MCAR, MAR, MNAR (Rubin, 1976). \textbf{Simple Imputer} điền bằng trung bình/trung vị/mode; \textbf{KNN Imputer} lấy trung bình $k$ láng giềng theo khoảng cách nan-Euclid $\sqrt{\frac{d}{|P|}\sum_{j \in P}(x_j - y_j)^2}$; \textbf{Iterative Imputer} hồi quy lặp từng cột theo các cột còn lại --- mạnh nhưng có thể ngoại suy phi thực tế khi dữ liệu ít hoặc đa cộng tuyến, nên luôn phải kiểm tra giá trị điền.
+    \item Ngoại lai: z-score dễ bị che lấp; quy tắc IQR của Tukey bền vững hơn; \textbf{LOF} so sánh mật độ cục bộ của một điểm với láng giềng, $\text{LOF} \gg 1$ là ngoại lai.
     \item Mô hình ML chỉ làm việc với số: dữ liệu chữ phải được mã hóa sao cho \textbf{không tạo ra quan hệ giả}.
     \item \textbf{Label Encoder} ánh xạ nhãn $\rightarrow$ số nguyên, gọn nhẹ nhưng tạo thứ tự giả; dùng cho biến mục tiêu. \textbf{Ordinal Encoder} dùng cho đặc trưng thứ bậc.
     \item \textbf{One Hot Encoder} biến mỗi nhãn thành một vector đơn vị, mọi nhãn cách đều $\sqrt{2}$; phù hợp với KNN, K-Means, mô hình tuyến tính.
     \item \textbf{Count Vectorizer} biểu diễn văn bản bằng số lần xuất hiện của từ; \textbf{TF-IDF} (Spärck Jones, 1972) giảm trọng số của các từ phổ biến; chuẩn hóa L2 cho phép đo độ tương đồng cosine bằng tích vô hướng.
     \item Bốn bộ chuẩn hóa \textbf{MinMax, MaxAbs, Standard, Robust} khác nhau về miền giá trị, khả năng giữ tính thưa và độ bền với ngoại lai.
+    \item \textbf{SMOTE} sinh mẫu thiểu số bằng nội suy $\mathbf{x}_i + \lambda(\mathbf{x}_{nn} - \mathbf{x}_i)$; chỉ áp dụng trên tập huấn luyện (dùng Pipeline của imbalanced-learn) và đánh giá bằng recall, precision, F1 thay vì accuracy.
     \item Luôn \texttt{fit} trên tập huấn luyện; dùng \texttt{Pipeline} và \texttt{ColumnTransformer} để quy trình gọn gàng và tránh rò rỉ dữ liệu.
 \end{itemize}
 
@@ -856,6 +1354,12 @@ print(scores.mean().round(3))
     \item Cho cột $x = (10, 12, 11, 13, 12, 100)$. Tính tay kết quả của bốn bộ chuẩn hóa và nhận xét bộ nào phù hợp nhất. Vì sao?
     \item Giải thích vì sao gọi \texttt{StandardScaler().fit(X)} trên toàn bộ dữ liệu trước khi chia train/test là rò rỉ dữ liệu. Thiết kế thí nghiệm trên Ames Housing để minh họa.
     \item Với Ames Housing: đếm số lượng giá trị \texttt{NA} (``không có'') và ô rỗng (thiếu thật sự) trong từng cột; bổ sung các cột \texttt{Heating QC}, \texttt{Garage Finish}, \texttt{Foundation} vào pipeline với kỹ thuật mã hóa phù hợp.
+    \item Cho cột $(5, 8, ?, 6, 100, 7)$. Điền giá trị thiếu bằng trung bình và bằng trung vị. Cách nào hợp lý hơn? Vì sao? (Đáp số: 25,2 và 7.)
+    \item Tính khoảng cách nan-Euclid giữa $(1, \text{nan}, 3, 4)$ và $(2, 5, \text{nan}, 6)$, rồi kiểm tra bằng \texttt{nan\_euclidean\_distances}.
+    \item Với Bảng~\ref{tab:knn-impute}, chạy tay lại KNN Imputer với $k = 2$, sau đó với $k = 3$ và trọng số $1/d$. So sánh với \texttt{KNNImputer(n\_neighbors=2)} và \texttt{KNNImputer(n\_neighbors=3, weights="distance")}.
+    \item Tiếp tục ví dụ Iterative Imputer thêm một vòng nữa (bắt đầu từ các giá trị điền của vòng 1), rồi so sánh với \texttt{IterativeImputer(estimator=LinearRegression(), imputation\_order="roman", max\_iter=2)}. Giải thích vì sao giá trị của $x_3$ không hội tụ về miền $[1;\ 8]$.
+    \item Thêm điểm $F(2, 2)$ vào ví dụ LOF và tính lại bảng LOF với $k = 3$. Hệ số LOF của $E$ thay đổi thế nào?
+    \item Trên \texttt{load\_breast\_cancer}, giữ lại toàn bộ lớp lành tính và chỉ 10\% lớp ác tính để tạo dữ liệu mất cân bằng. So sánh recall, precision, F1 của hồi quy logistic khi: không xử lý, \texttt{class\_weight="balanced"}, SMOTE trong pipeline, và SMOTE áp dụng \textbf{sai} lên toàn bộ dữ liệu trước khi kiểm định chéo.
 \end{enumerate}
 
 % ---------------------------------------------------------
@@ -863,18 +1367,31 @@ print(scores.mean().round(3))
 \addcontentsline{toc}{section}{Tài liệu tham khảo của chương}
 % ---------------------------------------------------------
 \begin{enumerate}
+    \item Breunig, M. M., Kriegel, H.-P., Ng, R. T., \& Sander, J. (2000). LOF: Identifying Density-Based Local Outliers. \textit{Proceedings of ACM SIGMOD 2000}, 93--104.
     \item Buitinck, L. et al. (2013). API design for machine learning software: experiences from the scikit-learn project. \textit{ECML PKDD Workshop: Languages for Data Mining and Machine Learning}.
+    \item Chawla, N. V., Bowyer, K. W., Hall, L. O., \& Kegelmeyer, W. P. (2002). SMOTE: Synthetic Minority Over-sampling Technique. \textit{Journal of Artificial Intelligence Research}, 16, 321--357.
     \item De Cock, D. (2011). Ames, Iowa: Alternative to the Boston Housing Data as an End of Semester Regression Project. \textit{Journal of Statistics Education}, 19(3).
     \item Fayyad, U., Piatetsky-Shapiro, G., \& Smyth, P. (1996). From Data Mining to Knowledge Discovery in Databases. \textit{AI Magazine}, 17(3), 37--54.
     \item Han, J., Kamber, M., \& Pei, J. (2011). \textit{Data Mining: Concepts and Techniques} (3rd ed.), Chương 3: Data Preprocessing. Morgan Kaufmann.
+    \item Han, H., Wang, W.-Y., \& Mao, B.-H. (2005). Borderline-SMOTE: A New Over-Sampling Method in Imbalanced Data Sets Learning. \textit{Advances in Intelligent Computing (ICIC 2005)}, LNCS 3644, 878--887.
     \item Harris, Z. S. (1954). Distributional Structure. \textit{Word}, 10(2--3), 146--162.
+    \item Hawkins, D. M. (1980). \textit{Identification of Outliers}. Chapman and Hall.
+    \item He, H., Bai, Y., Garcia, E. A., \& Li, S. (2008). ADASYN: Adaptive Synthetic Sampling Approach for Imbalanced Learning. \textit{Proceedings of IJCNN 2008}, 1322--1328.
+    \item Lemaître, G., Nogueira, F., \& Aridas, C. K. (2017). Imbalanced-learn: A Python Toolbox to Tackle the Curse of Imbalanced Datasets in Machine Learning. \textit{Journal of Machine Learning Research}, 18(17), 1--5.
+    \item Liu, F. T., Ting, K. M., \& Zhou, Z.-H. (2008). Isolation Forest. \textit{Proceedings of the 8th IEEE International Conference on Data Mining (ICDM)}, 413--422.
     \item Luhn, H. P. (1957). A Statistical Approach to Mechanized Encoding and Searching of Literary Information. \textit{IBM Journal of Research and Development}, 1(4), 309--317.
     \item Pedregosa, F. et al. (2011). Scikit-learn: Machine Learning in Python. \textit{Journal of Machine Learning Research}, 12, 2825--2830.
     \item Pyle, D. (1999). \textit{Data Preparation for Data Mining}. Morgan Kaufmann.
+    \item Rubin, D. B. (1976). Inference and Missing Data. \textit{Biometrika}, 63(3), 581--592.
+    \item Rubin, D. B. (1987). \textit{Multiple Imputation for Nonresponse in Surveys}. Wiley.
     \item Salton, G., Wong, A., \& Yang, C. S. (1975). A Vector Space Model for Automatic Indexing. \textit{Communications of the ACM}, 18(11), 613--620.
     \item Salton, G., \& Buckley, C. (1988). Term-weighting approaches in automatic text retrieval. \textit{Information Processing \& Management}, 24(5), 513--523.
+    \item Shiffler, R. E. (1988). Maximum Z Scores and Outliers. \textit{The American Statistician}, 42(1), 79--80.
     \item Spärck Jones, K. (1972). A statistical interpretation of term specificity and its application in retrieval. \textit{Journal of Documentation}, 28(1), 11--21.
     \item Stevens, S. S. (1946). On the Theory of Scales of Measurement. \textit{Science}, 103(2684), 677--680.
     \item Suits, D. B. (1957). Use of Dummy Variables in Regression Equations. \textit{Journal of the American Statistical Association}, 52(280), 548--551.
+    \item Troyanskaya, O., Cantor, M., Sherlock, G., Brown, P., Hastie, T., Tibshirani, R., Botstein, D., \& Altman, R. B. (2001). Missing value estimation methods for DNA microarrays. \textit{Bioinformatics}, 17(6), 520--525.
+    \item Tukey, J. W. (1977). \textit{Exploratory Data Analysis}. Addison-Wesley.
+    \item van Buuren, S., \& Groothuis-Oudshoorn, K. (2011). mice: Multivariate Imputation by Chained Equations in R. \textit{Journal of Statistical Software}, 45(3), 1--67.
     \item Wirth, R., \& Hipp, J. (2000). CRISP-DM: Towards a Standard Process Model for Data Mining. \textit{Proceedings of the 4th International Conference on the Practical Applications of Knowledge Discovery and Data Mining}.
 \end{enumerate}
