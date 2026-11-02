@@ -11,6 +11,7 @@ Mạng nơ-ron nhân tạo là họ mô hình đứng sau hầu hết thành t�
 \begin{itemize}
     \item Trình bày lịch sử phát triển của mạng nơ-ron và lý do của các ``mùa đông AI''.
     \item Tính tay đầu ra của perceptron và giải thích vì sao perceptron không học được XOR.
+    \item Cài đặt Adaline bằng Gradient Descent và SGD; giải thích ảnh hưởng của tốc độ học và chuẩn hóa đặc trưng đến sự hội tụ.
     \item Tính tay một bước lan truyền xuôi và lan truyền ngược trên mạng nhỏ.
     \item Huấn luyện \texttt{MLPClassifier}/\texttt{MLPRegressor} và một mạng Keras đơn giản, lựa chọn hàm kích hoạt, hàm mất mát, bộ tối ưu và kỹ thuật điều chuẩn.
 \end{itemize}
@@ -109,6 +110,120 @@ print(p_and.w, p_and.b, p_and.predict(X))   # hoc dung AND
 p_xor = Perceptron(epochs=100).fit(X, np.array([0, 1, 1, 0]))
 print(p_xor.predict(X))                     # khong bao gio dung ca 4
 \end{lstlisting}
+
+% ---------------------------------------------------------
+\section{Adaline: từ quy tắc perceptron đến Gradient Descent}
+\label{sec:adaline}
+% ---------------------------------------------------------
+
+Chỉ hai năm sau perceptron, Bernard Widrow và sinh viên Ted Hoff tại Đại học Stanford công bố \textbf{Adaline} (ADAptive LInear NEuron; Widrow \& Hoff, 1960). Đóng góp quan trọng nhất của Adaline là đưa việc học trọng số về bài toán \textbf{cực tiểu một hàm mất mát liên tục, khả vi} --- nền tảng của mọi mạng nơ-ron hiện đại (Raschka và cộng sự, 2022, Chương 2). Quy tắc học của nó được biết đến với tên \textbf{quy tắc Widrow--Hoff}, hay quy tắc LMS (least mean squares).
+
+\paragraph{Khác biệt với perceptron.} Perceptron cập nhật trọng số dựa trên \textbf{nhãn dự đoán} sau hàm bước, vốn không khả vi. Adaline cập nhật dựa trên \textbf{đầu ra tuyến tính} $\sigma(z) = z = \mathbf{w}^\top\mathbf{x} + b$; hàm bước chỉ dùng ở cuối để đưa ra nhãn. Hàm mất mát là sai số bình phương trung bình:
+\begin{equation}
+    L(\mathbf{w}, b) = \frac{1}{n}\sum_{i=1}^{n}\big(y_i - \sigma(z_i)\big)^2 .
+\end{equation}
+Hàm này lồi và khả vi, nên Gradient Descent (Chương~\ref{chap:regression}) bảo đảm tiến về cực tiểu toàn cục khi tốc độ học đủ nhỏ:
+\begin{equation}
+    \frac{\partial L}{\partial w_j} = -\frac{2}{n}\sum_{i=1}^{n}\big(y_i - \sigma(z_i)\big)x_{ij}, \qquad
+    \mathbf{w} \leftarrow \mathbf{w} + \eta\,\frac{2}{n}\sum_{i=1}^{n}\big(y_i - \sigma(z_i)\big)\mathbf{x}_i .
+\end{equation}
+Mỗi bước cập nhật dùng \textbf{toàn bộ} dữ liệu, nên phương pháp này còn gọi là \textbf{Gradient Descent theo lô} (full batch). Có thể thấy Adaline chính là hồi quy tuyến tính được huấn luyện bằng Gradient Descent rồi lấy ngưỡng; thay hàm kích hoạt bằng sigmoid và hàm mất mát bằng entropy chéo, ta được hồi quy logistic (Chương~\ref{chap:classify}).
+
+\subsection{Tốc độ học và chuẩn hóa đặc trưng}
+
+Thí nghiệm sau phân loại hai loài \textit{setosa} và \textit{versicolor} của bộ dữ liệu Iris (100 mẫu) theo hai đặc trưng chiều dài đài hoa và chiều dài cánh hoa, với nhãn 0/1.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\textbf{Cấu hình} & \textbf{Epoch 1} & \textbf{Epoch 5} & \textbf{Epoch 10} & \textbf{Epoch 20} & \textbf{Accuracy} \\
+\hline
+Không chuẩn hóa, $\eta = 0{,}1$ & 0,43 & \multicolumn{3}{c|}{phân kỳ: 13; 649; 32\,694 \ldots} & --- \\ \hline
+Không chuẩn hóa, $\eta = 0{,}0001$ & 0,4348 & 0,4184 & 0,3993 & 0,3655 & 0,50 \\ \hline
+Chuẩn hóa, GD, $\eta = 0{,}1$ & 0,4942 & 0,0900 & 0,0377 & 0,0220 & 0,99 \\ \hline
+Chuẩn hóa, SGD, $\eta = 0{,}01$ & 0,1344 & 0,0141 & 0,0128 & 0,0127 & 1,00 \\ \hline
+\end{tabular}
+\caption{Sai số bình phương trung bình của Adaline qua các epoch}
+\label{tab:adaline}
+\end{table}
+
+Bảng~\ref{tab:adaline} minh họa ba hiện tượng kinh điển:
+\begin{itemize}
+    \item \textbf{Tốc độ học quá lớn}: mỗi bước vượt quá điểm cực tiểu, sai số tăng theo cấp số nhân --- thuật toán \textbf{phân kỳ}.
+    \item \textbf{Tốc độ học quá nhỏ}: thuật toán hội tụ nhưng cực chậm; sau 20 epoch mô hình vẫn chỉ đoán đúng 50\%.
+    \item \textbf{Chuẩn hóa đặc trưng} (z-score, Chương~\ref{chap:preprocessing}) làm các đường đồng mức của hàm mất mát tròn hơn, nên gradient chỉ thẳng về điểm cực tiểu và cho phép dùng tốc độ học lớn một cách an toàn: chỉ sau 20 epoch sai số còn 0,022, độ chính xác 99\%.
+\end{itemize}
+
+\hinhchuachen{ch-nn-learning-rate.png}{Ảnh hưởng của tốc độ học đến Gradient Descent: quá lớn thì phân kỳ, quá nhỏ thì hội tụ chậm; chuẩn hóa đặc trưng làm đường đồng mức tròn hơn.}{fig:learning-rate}
+
+\subsection{Gradient Descent ngẫu nhiên (SGD)}
+
+Khi $n$ lên tới hàng triệu, mỗi bước Gradient Descent theo lô phải duyệt toàn bộ dữ liệu. \textbf{Gradient Descent ngẫu nhiên} (Stochastic Gradient Descent -- SGD), có gốc từ phương pháp xấp xỉ ngẫu nhiên của Robbins và Monro (1951), cập nhật trọng số \textbf{sau từng mẫu}:
+\begin{equation}
+    \mathbf{w} \leftarrow \mathbf{w} + \eta\,2\big(y_i - \sigma(z_i)\big)\mathbf{x}_i .
+\end{equation}
+Mỗi epoch, dữ liệu được \textbf{xáo trộn} để tránh chu kỳ. Đường đi của SGD nhiễu hơn nhưng tiến nhanh hơn nhiều: ở Bảng~\ref{tab:adaline}, ngay sau epoch đầu SGD đã có sai số 0,134. SGD còn cho phép \textbf{học trực tuyến} (Chương~\ref{chap:preprocessing}): cập nhật mô hình ngay khi dữ liệu mới đến, qua phương thức \texttt{partial\_fit} của scikit-learn. Phương án dung hòa là \textbf{SGD theo lô nhỏ} (mini-batch), cập nhật sau mỗi 32--256 mẫu --- cách mọi mạng nơ-ron sâu được huấn luyện ngày nay.
+
+\begin{lstlisting}[caption={Cài đặt Adaline theo lối hướng đối tượng: Gradient Descent và SGD}]
+import numpy as np
+from sklearn.datasets import load_iris
+
+class AdalineGD:
+    """Adaline huan luyen bang Gradient Descent theo lo (full batch)."""
+    def __init__(self, eta=0.01, n_iter=50, random_state=1):
+        self.eta, self.n_iter, self.random_state = eta, n_iter, random_state
+
+    def net_input(self, X):
+        return X @ self.w_ + self.b_
+
+    def fit(self, X, y):
+        rgen = np.random.RandomState(self.random_state)
+        self.w_ = rgen.normal(0.0, 0.01, X.shape[1])
+        self.b_ = 0.0
+        self.losses_ = []
+        for _ in range(self.n_iter):
+            errors = y - self.net_input(X)              # kich hoat tuyen tinh
+            self.w_ += self.eta * 2.0 * X.T @ errors / X.shape[0]
+            self.b_ += self.eta * 2.0 * errors.mean()
+            self.losses_.append((errors ** 2).mean())   # MSE
+        return self
+
+    def predict(self, X):
+        return np.where(self.net_input(X) >= 0.5, 1, 0)
+
+
+class AdalineSGD(AdalineGD):
+    """Adaline huan luyen bang SGD: cap nhat sau tung mau."""
+    def fit(self, X, y):
+        rgen = np.random.RandomState(self.random_state)
+        self.w_ = rgen.normal(0.0, 0.01, X.shape[1])
+        self.b_ = 0.0
+        self.losses_ = []
+        for _ in range(self.n_iter):
+            losses = []
+            for i in rgen.permutation(len(y)):          # xao tron moi epoch
+                error = y[i] - (X[i] @ self.w_ + self.b_)
+                self.w_ += self.eta * 2.0 * error * X[i]
+                self.b_ += self.eta * 2.0 * error
+                losses.append(error ** 2)
+            self.losses_.append(np.mean(losses))
+        return self
+
+
+iris = load_iris()
+X = iris.data[:100][:, [0, 2]]                 # setosa, versicolor; 2 dac trung
+y = (iris.target[:100] == 1).astype(float)
+X_std = (X - X.mean(axis=0)) / X.std(axis=0)
+
+for eta, data in [(0.0001, X), (0.1, X_std)]:
+    ada = AdalineGD(eta=eta, n_iter=20).fit(data, y)
+    print(eta, np.round(ada.losses_[-1], 4), (ada.predict(data) == y).mean())
+sgd = AdalineSGD(eta=0.01, n_iter=20).fit(X_std, y)
+print(np.round(sgd.losses_[-1], 4), (sgd.predict(X_std) == y).mean())   # 0.0127 1.0
+\end{lstlisting}
+
+Trong scikit-learn, \texttt{SGDClassifier} là một ``bộ khung'' SGD cho các mô hình tuyến tính: \texttt{loss="squared\_error"} tương ứng với Adaline, \texttt{loss="log\_loss"} với hồi quy logistic, \texttt{loss="hinge"} với SVM tuyến tính.
 
 % ---------------------------------------------------------
 \section{Mạng nơ-ron nhiều lớp (MLP)}
@@ -370,6 +485,7 @@ Chuỗi, văn bản & RNN/LSTM, Transformer & Dịch máy, phân tích cảm xú
 % ---------------------------------------------------------
 \begin{itemize}
     \item Perceptron là bộ phân lớp tuyến tính, không học được XOR; thêm lớp ẩn với hàm kích hoạt phi tuyến cho MLP có khả năng xấp xỉ vạn năng.
+    \item Adaline (Widrow \& Hoff, 1960) học bằng cách cực tiểu MSE khả vi với kích hoạt tuyến tính; tốc độ học quá lớn gây phân kỳ, quá nhỏ gây hội tụ chậm; chuẩn hóa đặc trưng giúp hội tụ nhanh; SGD và mini-batch cập nhật sau từng mẫu hoặc từng lô nhỏ.
     \item Lan truyền xuôi tính đầu ra; lan truyền ngược dùng quy tắc dây chuyền tính gradient cho mọi trọng số; cập nhật bằng SGD/Adam.
     \item ReLU cho lớp ẩn; sigmoid/softmax cho lớp ra phân lớp; ghép đúng với cross-entropy.
     \item Chuẩn hóa đầu vào, khởi tạo hợp lý, điều chuẩn L2, Dropout và dừng sớm là các kỹ thuật thiết yếu.
@@ -381,6 +497,7 @@ Chuỗi, văn bản & RNN/LSTM, Transformer & Dịch máy, phân tích cảm xú
 % ---------------------------------------------------------
 \begin{enumerate}
     \item Tìm trọng số perceptron cho hàm OR và NAND. Ghép chúng với perceptron AND (Bảng~\ref{tab:and}) thành mạng hai lớp biểu diễn XOR; kiểm tra trên cả 4 đầu vào.
+    \item Với lớp \texttt{AdalineGD}, vẽ MSE theo epoch trên dữ liệu Iris đã chuẩn hóa với $\eta \in \{0{,}001;\ 0{,}01;\ 0{,}1;\ 0{,}5;\ 1\}$. Giá trị nào bắt đầu gây phân kỳ? Lặp lại với \texttt{AdalineSGD} và với \texttt{SGDClassifier(loss="squared\_error")}.
     \item Chạy lại ví dụ lan truyền ngược thêm 100 bước. Vẽ mất mát theo số bước. Lặp lại với hàm kích hoạt ReLU ở lớp ẩn.
     \item Chứng minh $\sigma'(z) = \sigma(z)(1 - \sigma(z))$ và $\sigma'(z) \leq 0{,}25$. Ước lượng độ lớn gradient ở lớp đầu tiên của mạng 10 lớp sigmoid.
     \item Với softmax và cross-entropy, chứng minh $\partial L / \partial z_k = \hat{y}_k - y_k$.
@@ -401,8 +518,11 @@ Chuỗi, văn bản & RNN/LSTM, Transformer & Dịch máy, phân tích cảm xú
     \item LeCun, Y., Bengio, Y., \& Hinton, G. (2015). Deep learning. \textit{Nature}, 521, 436--444.
     \item McCulloch, W. S., \& Pitts, W. (1943). A logical calculus of the ideas immanent in nervous activity. \textit{Bulletin of Mathematical Biophysics}, 5, 115--133.
     \item Minsky, M., \& Papert, S. (1969). \textit{Perceptrons}. MIT Press.
+    \item Raschka, S., Liu, Y. (H.), \& Mirjalili, V. (2022). \textit{Machine Learning with PyTorch and Scikit-Learn}, Chương 2 (Perceptron, Adaline) và Chương 11 (MLP from scratch). Packt Publishing.
+    \item Robbins, H., \& Monro, S. (1951). A Stochastic Approximation Method. \textit{The Annals of Mathematical Statistics}, 22(3), 400--407.
     \item Rosenblatt, F. (1958). The perceptron: A probabilistic model for information storage and organization in the brain. \textit{Psychological Review}, 65(6), 386--408.
     \item Rumelhart, D. E., Hinton, G. E., \& Williams, R. J. (1986). Learning representations by back-propagating errors. \textit{Nature}, 323, 533--536.
     \item Srivastava, N., Hinton, G., Krizhevsky, A., Sutskever, I., \& Salakhutdinov, R. (2014). Dropout: A Simple Way to Prevent Neural Networks from Overfitting. \textit{Journal of Machine Learning Research}, 15, 1929--1958.
     \item Vaswani, A., et al. (2017). Attention Is All You Need. \textit{Advances in Neural Information Processing Systems 30}.
+    \item Widrow, B., \& Hoff, M. E. (1960). Adaptive Switching Circuits. \textit{IRE WESCON Convention Record}, Part 4, 96--104.
 \end{enumerate}

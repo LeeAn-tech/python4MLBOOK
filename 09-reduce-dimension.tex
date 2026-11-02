@@ -16,6 +16,7 @@ Theo kế hoạch giảng dạy, chương này tập trung vào hai kỹ thuật
     \item Tính tay SVD của ma trận nhỏ và xấp xỉ hạng thấp.
     \item Tính tay PCA (chuẩn hóa tâm, ma trận hiệp phương sai, trị riêng, chiếu dữ liệu).
     \item Dùng \texttt{PCA}, \texttt{TruncatedSVD} của scikit-learn và chọn số thành phần theo phương sai giải thích.
+    \item Tính tay biệt thức tuyến tính Fisher (LDA), phân biệt giảm chiều có giám sát và không giám sát; sử dụng Kernel PCA và t-SNE đúng mục đích.
 \end{itemize}
 
 % ---------------------------------------------------------
@@ -443,6 +444,169 @@ for k in [5, 10, 20, 40]:
 \end{itemize}
 
 % ---------------------------------------------------------
+\section{Phân tích biệt thức tuyến tính (LDA)}
+\label{sec:lda}
+% ---------------------------------------------------------
+
+PCA tìm hướng có \textbf{phương sai lớn nhất} mà không nhìn nhãn, nên hướng đó chưa chắc giúp phân biệt các lớp. \textbf{Phân tích biệt thức tuyến tính} (Linear Discriminant Analysis -- LDA) là phương pháp \textbf{có giám sát}: nó tìm hướng chiếu sao cho các lớp \textbf{tách xa nhau nhất}. Ý tưởng do R. A. Fisher (1936) đề xuất trong chính bài báo giới thiệu bộ dữ liệu hoa Iris, và được C. R. Rao (1948) mở rộng cho nhiều lớp.
+
+\hinhchuachen{ch-reduce-pca-vs-lda.png}{PCA chọn hướng có phương sai lớn nhất (có thể làm hai lớp chồng lên nhau khi chiếu), còn LDA chọn hướng tách hai lớp tốt nhất.}{fig:pca-vs-lda}
+
+\begin{definition}[Tiêu chí Fisher]
+Với $C$ lớp, gọi $\mathbf{m}_c$ là vector trung bình của lớp $c$ (có $n_c$ mẫu) và $\mathbf{m}$ là trung bình chung. Định nghĩa \textbf{ma trận tán xạ trong lớp} và \textbf{ma trận tán xạ giữa các lớp}:
+\begin{equation}
+    \mathbf{S}_W = \sum_{c=1}^{C}\ \sum_{\mathbf{x} \in \text{lớp } c} (\mathbf{x} - \mathbf{m}_c)(\mathbf{x} - \mathbf{m}_c)^\top, \qquad
+    \mathbf{S}_B = \sum_{c=1}^{C} n_c\,(\mathbf{m}_c - \mathbf{m})(\mathbf{m}_c - \mathbf{m})^\top .
+\end{equation}
+LDA tìm hướng $\mathbf{w}$ cực đại tỉ số giữa độ tách các lớp và độ phân tán bên trong lớp:
+\begin{equation}
+    J(\mathbf{w}) = \frac{\mathbf{w}^\top\mathbf{S}_B\,\mathbf{w}}{\mathbf{w}^\top\mathbf{S}_W\,\mathbf{w}} .
+\end{equation}
+\end{definition}
+
+Lấy đạo hàm và cho bằng 0 dẫn đến bài toán trị riêng tổng quát $\mathbf{S}_W^{-1}\mathbf{S}_B\,\mathbf{w} = \lambda\mathbf{w}$, với $J(\mathbf{w}) = \lambda$. Vì $\mathbf{S}_B$ là tổng của $C$ ma trận hạng 1 bị ràng buộc bởi trung bình chung, hạng của nó không quá $C - 1$: \textbf{LDA giảm được tối đa xuống $C - 1$ chiều} (2 chiều với 3 lớp). Với hai lớp, nghiệm có dạng tường minh $\mathbf{w} \propto \mathbf{S}_W^{-1}(\mathbf{m}_1 - \mathbf{m}_2)$.
+
+\noindent\textbf{Các bước của LDA} (Raschka và cộng sự, 2022, Chương 5):
+\begin{enumerate}
+    \item Chuẩn hóa $d$ đặc trưng.
+    \item Tính vector trung bình $d$ chiều của từng lớp.
+    \item Lập ma trận $\mathbf{S}_B$ và $\mathbf{S}_W$.
+    \item Tìm trị riêng và vector riêng của $\mathbf{S}_W^{-1}\mathbf{S}_B$.
+    \item Sắp xếp trị riêng giảm dần; chọn $k$ vector riêng đầu làm ma trận chiếu $\mathbf{W}$ kích thước $d \times k$.
+    \item Chiếu dữ liệu: $\mathbf{X}' = \mathbf{X}\mathbf{W}$.
+\end{enumerate}
+
+\begin{example}[Tính tay LDA hai lớp]
+Lớp 1: $(4, 2)$, $(2, 4)$, $(2, 3)$, $(3, 6)$, $(4, 4)$. Lớp 2: $(9, 10)$, $(6, 8)$, $(9, 5)$, $(8, 7)$, $(10, 8)$.
+\end{example}
+
+\noindent\textbf{Bước 1 -- trung bình lớp:} $\mathbf{m}_1 = (3;\ 3{,}8)$, $\mathbf{m}_2 = (8{,}4;\ 7{,}6)$.
+
+\noindent\textbf{Bước 2 -- tán xạ trong từng lớp.} Độ lệch của lớp 1 so với $\mathbf{m}_1$ là $(1;\ -1{,}8)$, $(-1;\ 0{,}2)$, $(-1;\ -0{,}8)$, $(0;\ 2{,}2)$, $(1;\ 0{,}2)$, nên
+\[
+    \mathbf{S}_1 = \begin{pmatrix} 4 & -1 \\ -1 & 8{,}8 \end{pmatrix}, \qquad
+    \mathbf{S}_2 = \begin{pmatrix} 9{,}2 & -0{,}2 \\ -0{,}2 & 13{,}2 \end{pmatrix}, \qquad
+    \mathbf{S}_W = \mathbf{S}_1 + \mathbf{S}_2 = \begin{pmatrix} 13{,}2 & -1{,}2 \\ -1{,}2 & 22 \end{pmatrix}.
+\]
+
+\noindent\textbf{Bước 3 -- hướng chiếu.} $\det\mathbf{S}_W = 13{,}2 \times 22 - 1{,}2^2 = 288{,}96$, nên
+\[
+    \mathbf{S}_W^{-1} = \frac{1}{288{,}96}\begin{pmatrix} 22 & 1{,}2 \\ 1{,}2 & 13{,}2 \end{pmatrix}, \qquad
+    \mathbf{m}_1 - \mathbf{m}_2 = \begin{pmatrix} -5{,}4 \\ -3{,}8 \end{pmatrix},
+\]
+\[
+    \mathbf{w} = \mathbf{S}_W^{-1}(\mathbf{m}_1 - \mathbf{m}_2) = \frac{1}{288{,}96}\begin{pmatrix} 22 \cdot (-5{,}4) + 1{,}2 \cdot (-3{,}8) \\ 1{,}2 \cdot (-5{,}4) + 13{,}2 \cdot (-3{,}8) \end{pmatrix} \approx \begin{pmatrix} -0{,}4269 \\ -0{,}1960 \end{pmatrix}.
+\]
+Chuẩn hóa về độ dài 1 và đổi dấu cho dễ đọc: $\mathbf{u} \approx (0{,}9088;\ 0{,}4173)$.
+
+\noindent\textbf{Bước 4 -- chiếu dữ liệu} $z = \mathbf{u}^\top\mathbf{x}$: lớp 1 cho $(4{,}47;\ 3{,}49;\ 3{,}07;\ 5{,}23;\ 5{,}30)$, lớp 2 cho $(12{,}35;\ 8{,}79;\ 10{,}27;\ 10{,}19;\ 12{,}43)$. Trên trục mới, mọi điểm lớp 1 đều nhỏ hơn 5,31 và mọi điểm lớp 2 đều lớn hơn 8,79: hai lớp \textbf{tách rời hoàn toàn} chỉ bằng một chiều. Giá trị tiêu chí Fisher tại nghiệm bằng $J = \lambda \approx 3{,}05$, cũng là trị riêng khác 0 duy nhất của $\mathbf{S}_W^{-1}\mathbf{S}_B$ (với $\mathbf{S}_B = (\mathbf{m}_1 - \mathbf{m}_2)(\mathbf{m}_1 - \mathbf{m}_2)^\top$ trong trường hợp hai lớp).
+
+\paragraph{PCA và LDA trên bộ dữ liệu Wine.} Với 13 đặc trưng đã chuẩn hóa và 3 lớp (Chương~\ref{chap:preprocessing}), LDA cho 2 trục biệt thức với tỉ lệ ``khả năng phân biệt'' 66,2\% và 33,8\%. Hồi quy logistic trên 2 trục LDA đạt độ chính xác kiểm tra \textbf{1,000}; trên 2 thành phần chính của PCA (giữ 55,4\% phương sai), độ chính xác chỉ là 0,926. Kết quả này minh họa ưu thế của giảm chiều có giám sát khi mục tiêu là phân lớp. Đổi lại, vì LDA dùng nhãn, \textbf{nguy cơ quá khớp và rò rỉ dữ liệu cao hơn}: LDA phải được \texttt{fit} trên tập huấn luyện bên trong pipeline. LDA còn giả định mỗi lớp có phân phối chuẩn với cùng ma trận hiệp phương sai; trên thực tế phương pháp vẫn hoạt động khá tốt khi giả định bị vi phạm vừa phải.
+
+\begin{lstlisting}[caption={LDA tính tay và LDA với scikit-learn}]
+import numpy as np
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+
+X1 = np.array([[4, 2], [2, 4], [2, 3], [3, 6], [4, 4]], dtype=float)
+X2 = np.array([[9, 10], [6, 8], [9, 5], [8, 7], [10, 8]], dtype=float)
+m1, m2 = X1.mean(axis=0), X2.mean(axis=0)
+S_W = (X1 - m1).T @ (X1 - m1) + (X2 - m2).T @ (X2 - m2)
+w = np.linalg.solve(S_W, m1 - m2)             # = S_W^{-1} (m1 - m2)
+u = -w / np.linalg.norm(w)
+print(S_W)                                    # [[13.2 -1.2] [-1.2 22. ]]
+print(u.round(4))                             # [0.9088 0.4173]
+print((X1 @ u).round(2), (X2 @ u).round(2))
+
+# Tren bo du lieu Wine: LDA trong pipeline, fit chi tren tap huan luyen
+from sklearn.datasets import load_wine
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.linear_model import LogisticRegression
+
+X, y = load_wine(return_X_y=True)
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, stratify=y, random_state=0)
+for name, reducer in [("PCA", PCA(n_components=2)), ("LDA", LDA(n_components=2))]:
+    model = make_pipeline(StandardScaler(), reducer, LogisticRegression())
+    model.fit(X_tr, y_tr)
+    print(name, round(model.score(X_te, y_te), 3))      # PCA 0.926 ; LDA 1.0
+\end{lstlisting}
+
+\noindent\textit{Lưu ý về tên gọi:} trong xử lý ngôn ngữ tự nhiên, ``LDA'' còn là viết tắt của \textit{Latent Dirichlet Allocation} (Blei, Ng \& Jordan, 2003), một mô hình chủ đề hoàn toàn khác (Raschka và cộng sự, 2022, Chương 8; Liu, 2019, Chương 3). Trong scikit-learn, mô hình đó là \texttt{LatentDirichletAllocation}.
+
+% ---------------------------------------------------------
+\section{Giảm chiều phi tuyến: Kernel PCA và t-SNE}
+\label{sec:nonlinear-dr}
+% ---------------------------------------------------------
+
+PCA và LDA đều là phép chiếu \textbf{tuyến tính}. Khi dữ liệu nằm trên một \textbf{đa tạp cong} --- hai vòng tròn lồng nhau, hai nửa mặt trăng đan vào nhau, ``cuộn Thụy Sĩ'' --- không phép chiếu tuyến tính nào ``trải phẳng'' được cấu trúc đó (Raschka và cộng sự, 2022, Chương 5).
+
+\subsection{Kernel PCA}
+
+Schölkopf, Smola và Müller (1998) áp dụng \textbf{thủ thuật nhân} --- cùng ý tưởng với SVM ở Chương~\ref{chap:classify} --- cho PCA: ánh xạ dữ liệu lên một không gian đặc trưng nhiều chiều qua hàm $\phi$, rồi thực hiện PCA ở đó. Phép ánh xạ không cần tính tường minh, vì mọi phép toán chỉ cần tích vô hướng $\phi(\mathbf{x}_i)^\top\phi(\mathbf{x}_j) = K(\mathbf{x}_i, \mathbf{x}_j)$, chẳng hạn nhân RBF $K(\mathbf{x}, \mathbf{x}') = \exp(-\gamma\|\mathbf{x} - \mathbf{x}'\|^2)$. Trị riêng và vector riêng được tính trên \textbf{ma trận nhân} $n \times n$ (đã chuẩn hóa tâm) thay vì ma trận hiệp phương sai $d \times d$, nên Kernel PCA tốn kém với $n$ lớn.
+
+\begin{lstlisting}[caption={Kernel PCA "trải phẳng" hai nửa mặt trăng}]
+from sklearn.datasets import make_moons
+from sklearn.decomposition import KernelPCA
+
+X_m, y_m = make_moons(n_samples=200, noise=0.05, random_state=123)
+Z_lin = PCA(n_components=2).fit_transform(X_m)          # hai lop van dan vao nhau
+kpca = KernelPCA(n_components=2, kernel="rbf", gamma=15)
+Z_rbf = kpca.fit_transform(X_m)                          # hai lop tach duoc tuyen tinh
+\end{lstlisting}
+
+\subsection{t-SNE}
+
+\textbf{t-SNE} (t-distributed Stochastic Neighbor Embedding; van der Maaten \& Hinton, 2008), phát triển từ SNE của Hinton và Roweis (2002), là kỹ thuật phổ biến nhất để \textbf{trực quan hóa} dữ liệu nhiều chiều. Mục tiêu của nó không phải giữ phương sai mà là \textbf{giữ quan hệ láng giềng}: các điểm gần nhau trong không gian gốc phải gần nhau trên mặt phẳng.
+\begin{enumerate}
+    \item Trong không gian gốc, độ tương tự giữa hai điểm được đo bằng xác suất $p_{ij}$, tính từ phân phối Gauss quanh mỗi điểm. Độ rộng $\sigma_i$ của từng phân phối được chọn sao cho \textbf{độ bối rối} (perplexity, thường từ 5 đến 50) bằng giá trị người dùng đặt --- có thể hiểu là ``số láng giềng hiệu dụng''.
+    \item Trong không gian hai chiều, độ tương tự $q_{ij}$ dùng phân phối \textbf{Student-t một bậc tự do}: $q_{ij} \propto (1 + \|\mathbf{y}_i - \mathbf{y}_j\|^2)^{-1}$. Đuôi dày của phân phối t cho phép các điểm không cùng nhóm nằm xa nhau, khắc phục ``hiện tượng chen chúc'' (crowding problem) của SNE.
+    \item Tìm tọa độ $\mathbf{y}_i$ cực tiểu độ phân kỳ Kullback--Leibler $\mathrm{KL}(P\,\|\,Q) = \sum_{i \neq j} p_{ij}\ln\frac{p_{ij}}{q_{ij}}$ bằng Gradient Descent.
+\end{enumerate}
+
+\begin{lstlisting}[caption={So sánh PCA và t-SNE trên tập chữ số viết tay}]
+from sklearn.datasets import load_digits
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
+
+digits = load_digits()
+Z_pca = PCA(n_components=2).fit_transform(digits.data)
+Z_tsne = TSNE(n_components=2, perplexity=30, init="pca",
+              random_state=123).fit_transform(digits.data)
+fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+for a, Z, title in [(ax[0], Z_pca, "PCA"), (ax[1], Z_tsne, "t-SNE")]:
+    a.scatter(Z[:, 0], Z[:, 1], c=digits.target, cmap="tab10", s=6)
+    a.set_title(title)
+plt.show()
+\end{lstlisting}
+
+\hinhchuachen{ch-reduce-tsne-digits.png}{Tập \texttt{digits} chiếu xuống hai chiều: PCA (trái) để các chữ số chồng lấn, t-SNE (phải) tách thành 10 cụm rõ rệt.}{fig:tsne-digits}
+
+\paragraph{Đọc kết quả t-SNE đúng cách.} t-SNE rất dễ bị diễn giải sai (Wattenberg, Viégas \& Johnson, 2016):
+\begin{itemize}
+    \item \textbf{Kích thước cụm} và \textbf{khoảng cách giữa các cụm} trên hình không mang ý nghĩa định lượng; chỉ quan hệ láng giềng cục bộ là đáng tin.
+    \item Kết quả thay đổi theo perplexity và \texttt{random\_state}; nên thử vài giá trị trước khi kết luận.
+    \item t-SNE \textbf{không có phương thức \texttt{transform}} cho dữ liệu mới, nên chỉ dùng để \textbf{trực quan hóa}, không dùng làm bước tiền xử lý cho mô hình dự đoán.
+    \item Chi phí tính toán lớn; với dữ liệu nhiều chiều, nên giảm xuống khoảng 50 chiều bằng PCA trước. UMAP (McInnes, Healy \& Melville, 2018) là lựa chọn thay thế nhanh hơn và có \texttt{transform}.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|c|p{4.3cm}|}
+\hline
+\textbf{Phương pháp} & \textbf{Dùng nhãn} & \textbf{Tuyến tính} & \textbf{\texttt{transform}} & \textbf{Mục đích chính} \\
+\hline
+PCA & Không & Có & Có & Nén, khử nhiễu, tiền xử lý \\ \hline
+LDA & Có & Có & Có & Giảm chiều cho phân lớp (tối đa $C - 1$ chiều) \\ \hline
+Kernel PCA & Không & Không & Có & Cấu trúc phi tuyến, $n$ vừa phải \\ \hline
+t-SNE & Không & Không & Không & Trực quan hóa 2--3 chiều \\ \hline
+\end{tabular}
+\caption{So sánh các phương pháp giảm chiều}
+\label{tab:dr-compare}
+\end{table}
+
+% ---------------------------------------------------------
 \section{Tóm tắt chương}
 % ---------------------------------------------------------
 \begin{itemize}
@@ -451,6 +615,8 @@ for k in [5, 10, 20, 40]:
     \item SVD: $\mathbf{A} = \mathbf{U}\boldsymbol{\Sigma}\mathbf{V}^{\top}$; giữ $k$ giá trị suy biến lớn nhất cho xấp xỉ hạng $k$ tối ưu (Eckart--Young). Dùng cho nén ảnh, LSA, hệ gợi ý.
     \item PCA tìm các hướng trực giao có phương sai lớn nhất: vector riêng của ma trận hiệp phương sai, tính thực tế bằng SVD của dữ liệu đã chuẩn hóa tâm.
     \item Chọn số thành phần theo phương sai tích lũy, biểu đồ scree hoặc kiểm định chéo; luôn đặt PCA trong pipeline.
+    \item LDA (Fisher, 1936) là giảm chiều có giám sát: cực đại $J(\mathbf{w}) = \frac{\mathbf{w}^\top\mathbf{S}_B\mathbf{w}}{\mathbf{w}^\top\mathbf{S}_W\mathbf{w}}$, giải bằng trị riêng của $\mathbf{S}_W^{-1}\mathbf{S}_B$, tối đa $C - 1$ chiều; với hai lớp $\mathbf{w} \propto \mathbf{S}_W^{-1}(\mathbf{m}_1 - \mathbf{m}_2)$.
+    \item Kernel PCA dùng thủ thuật nhân cho cấu trúc phi tuyến; t-SNE giữ quan hệ láng giềng để trực quan hóa, không dùng làm bước tiền xử lý và không diễn giải khoảng cách giữa các cụm.
 \end{itemize}
 
 % ---------------------------------------------------------
@@ -473,6 +639,9 @@ for k in [5, 10, 20, 40]:
     \item Chứng minh rằng các tọa độ chiếu $\mathbf{z}$ trên thành phần chính thứ nhất có trung bình 0 và phương sai $\lambda_1$.
     \item Trên tập \texttt{load\_breast\_cancer}, so sánh tỉ lệ phương sai giải thích của PCA khi có và không có \texttt{StandardScaler}. Giải thích.
     \item Nén một bức ảnh bằng SVD với $k = 10, 30, 100$; tính tỉ lệ nén và sai số Frobenius tương đối.
+    \item Tính tay LDA cho hai lớp: lớp 1 gồm $(1, 2)$, $(2, 3)$, $(3, 3)$; lớp 2 gồm $(6, 5)$, $(7, 8)$, $(8, 6)$. Tìm $\mathbf{S}_W$, hướng $\mathbf{w} \propto \mathbf{S}_W^{-1}(\mathbf{m}_1 - \mathbf{m}_2)$ và tọa độ chiếu; kiểm tra bằng \texttt{LinearDiscriminantAnalysis}.
+    \item Trên bộ dữ liệu Iris, vẽ dữ liệu chiếu xuống 2 chiều bằng PCA và bằng LDA cạnh nhau. Vì sao LDA chỉ cho tối đa 2 trục? Phương pháp nào tách loài \textit{versicolor} và \textit{virginica} tốt hơn?
+    \item Chạy t-SNE trên tập \texttt{digits} với perplexity $\in \{2, 5, 30, 100\}$ và hai giá trị \texttt{random\_state}. Mô tả những gì thay đổi và những gì giữ nguyên. Vì sao không nên đưa đầu ra t-SNE vào một bộ phân lớp?
     \item Với tập Ames Housing đã tiền xử lý ở Chương~\ref{chap:preprocessing}, đặt PCA vào pipeline Ridge. Dùng \texttt{GridSearchCV} để chọn \texttt{n\_components}.
 \end{enumerate}
 
@@ -483,14 +652,23 @@ for k in [5, 10, 20, 40]:
 \begin{enumerate}
     \item Bellman, R. (1957). \textit{Dynamic Programming}. Princeton University Press.
     \item Beyer, K., Goldstein, J., Ramakrishnan, R., \& Shaft, U. (1999). When Is ``Nearest Neighbor'' Meaningful? \textit{Proceedings of ICDT '99}, 217--235.
+    \item Blei, D. M., Ng, A. Y., \& Jordan, M. I. (2003). Latent Dirichlet Allocation. \textit{Journal of Machine Learning Research}, 3, 993--1022.
     \item Deerwester, S., Dumais, S. T., Furnas, G. W., Landauer, T. K., \& Harshman, R. (1990). Indexing by Latent Semantic Analysis. \textit{Journal of the American Society for Information Science}, 41(6), 391--407.
     \item Eckart, C., \& Young, G. (1936). The approximation of one matrix by another of lower rank. \textit{Psychometrika}, 1(3), 211--218.
+    \item Fisher, R. A. (1936). The use of multiple measurements in taxonomic problems. \textit{Annals of Eugenics}, 7(2), 179--188.
     \item Golub, G., \& Kahan, W. (1965). Calculating the Singular Values and Pseudo-Inverse of a Matrix. \textit{SIAM Journal on Numerical Analysis}, 2(2), 205--224.
+    \item Hinton, G. E., \& Roweis, S. T. (2002). Stochastic Neighbor Embedding. \textit{Advances in Neural Information Processing Systems 15}, 833--840.
     \item Hotelling, H. (1933). Analysis of a complex of statistical variables into principal components. \textit{Journal of Educational Psychology}, 24(6), 417--441.
     \item Jolliffe, I. T. (2002). \textit{Principal Component Analysis} (2nd ed.). Springer.
+    \item Liu, Y. (H.) (2019). \textit{Python Machine Learning By Example} (2nd ed.), Chương 3: Mining the 20 Newsgroups Dataset with Clustering and Topic Modeling Algorithms. Packt Publishing.
+    \item McInnes, L., Healy, J., \& Melville, J. (2018). UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction. \textit{arXiv:1802.03426}.
     \item Pearson, K. (1896). Mathematical Contributions to the Theory of Evolution. III. Regression, Heredity, and Panmixia. \textit{Philosophical Transactions of the Royal Society of London, Series A}, 187, 253--318.
     \item Pearson, K. (1901). On Lines and Planes of Closest Fit to Systems of Points in Space. \textit{Philosophical Magazine}, 2(11), 559--572.
+    \item Rao, C. R. (1948). The Utilization of Multiple Measurements in Problems of Biological Classification. \textit{Journal of the Royal Statistical Society, Series B}, 10(2), 159--203.
+    \item Raschka, S., Liu, Y. (H.), \& Mirjalili, V. (2022). \textit{Machine Learning with PyTorch and Scikit-Learn}, Chương 5: Compressing Data via Dimensionality Reduction. Packt Publishing.
+    \item Schölkopf, B., Smola, A., \& Müller, K.-R. (1998). Nonlinear Component Analysis as a Kernel Eigenvalue Problem. \textit{Neural Computation}, 10(5), 1299--1319.
     \item Smith, L. I. (2002). \textit{A tutorial on Principal Components Analysis}. University of Otago.
     \item Strang, G. (2016). \textit{Introduction to Linear Algebra} (5th ed.). Wellesley-Cambridge Press.
     \item van der Maaten, L., \& Hinton, G. (2008). Visualizing Data using t-SNE. \textit{Journal of Machine Learning Research}, 9, 2579--2605.
+    \item Wattenberg, M., Viégas, F., \& Johnson, I. (2016). How to Use t-SNE Effectively. \textit{Distill}, 1(10).
 \end{enumerate}

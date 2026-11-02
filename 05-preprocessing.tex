@@ -32,6 +32,7 @@ Các thuật toán học máy (Machine Learning -- ML) cổ điển như hồi q
 
 \noindent Sau khi học xong chương này, người học có khả năng:
 \begin{itemize}
+    \item Phát biểu định nghĩa hình thức của học máy, phân biệt ba loại học máy và sử dụng thống nhất hệ thống thuật ngữ, ký hiệu của giáo trình.
     \item Trình bày được nguồn gốc lịch sử và vị trí của tiền xử lý dữ liệu trong quy trình khai phá tri thức (KDD) và CRISP-DM.
     \item Phân biệt các kiểu dữ liệu (định danh, thứ bậc, số, văn bản) và chọn phép biến đổi phù hợp cho từng kiểu.
     \item Xử lý dữ liệu thiếu bằng \textbf{Simple Imputer}, \textbf{KNN Imputer} (khoảng cách nan-Euclid) và \textbf{Iterative Imputer}; phát hiện ngoại lai bằng z-score, quy tắc IQR và \textbf{Local Outlier Factor}.
@@ -41,6 +42,93 @@ Các thuật toán học máy (Machine Learning -- ML) cổ điển như hồi q
     \item Xử lý dữ liệu mất cân bằng bằng \textbf{SMOTE} và đặt bước lấy mẫu đúng vị trí trong pipeline.
     \item Xây dựng quy trình tiền xử lý hoàn chỉnh, tránh rò rỉ dữ liệu, trên bộ dữ liệu thực tế \textbf{Ames Housing}.
 \end{itemize}
+
+% ---------------------------------------------------------
+\section{Học máy: định nghĩa, phân loại và hệ thống ký hiệu}
+\label{sec:ml-basics}
+% ---------------------------------------------------------
+
+Đây là chương đầu tiên của giáo trình đi vào học máy, vì vậy trước khi bàn đến dữ liệu, cần thống nhất \textit{học máy là gì}, \textit{có những loại bài toán nào} và \textit{các đại lượng được ký hiệu ra sao}. Hệ thống ký hiệu dưới đây được dùng xuyên suốt các chương sau.
+
+\subsection{Định nghĩa học máy}
+
+Thuật ngữ \textit{machine learning} xuất hiện trong công trình của Arthur Samuel (1959) tại IBM về chương trình chơi cờ đam tự cải thiện qua các ván đấu với chính nó. Quan niệm của Samuel thường được tóm lược là: học máy là lĩnh vực nghiên cứu nhằm \textit{cho máy tính khả năng học mà không cần được lập trình một cách tường minh}. Gần bốn thập kỷ sau, Tom Mitchell (1997) đưa ra định nghĩa hình thức được dùng rộng rãi nhất hiện nay:
+
+\begin{definition}[Học máy -- Mitchell, 1997]
+Một chương trình máy tính được gọi là \textbf{học} từ kinh nghiệm $E$ đối với một lớp tác vụ $T$ và một độ đo hiệu năng $P$, nếu hiệu năng của nó trên các tác vụ thuộc $T$, đo bằng $P$, được cải thiện nhờ kinh nghiệm $E$.
+\end{definition}
+
+\begin{example}[Bộ lọc thư rác theo định nghĩa của Mitchell]
+\textbf{Tác vụ} $T$: phân loại một email là thư rác hay thư thường. \textbf{Kinh nghiệm} $E$: tập email đã được người dùng gán nhãn. \textbf{Độ đo} $P$: tỉ lệ email được phân loại đúng, hoặc chính xác hơn là precision và recall (Chương~\ref{chap:validation}). Chương trình ``học'' nếu càng nhận nhiều email có nhãn thì $P$ càng tăng.
+\end{example}
+
+Định nghĩa này làm rõ điểm khác biệt căn bản so với lập trình truyền thống (Sarkar và cộng sự, 2018, Chương 1). Trong lập trình truyền thống, con người viết \textbf{quy tắc} và máy tính áp dụng quy tắc lên dữ liệu để sinh kết quả. Trong học máy, con người cung cấp \textbf{dữ liệu cùng kết quả mong muốn}, còn thuật toán tự rút ra quy tắc dưới dạng một \textbf{mô hình}. Cách tiếp cận này đặc biệt có giá trị khi quy tắc quá phức tạp để viết tay (nhận dạng chữ viết), thay đổi theo thời gian (hành vi gian lận), hoặc chưa ai biết trước (phân khúc khách hàng).
+
+\hinhchuachen{ch-preprocessing-ml-paradigm.png}{Lập trình truyền thống (dữ liệu + quy tắc $\rightarrow$ kết quả) so với học máy (dữ liệu + kết quả $\rightarrow$ mô hình).}{fig:ml-paradigm}
+
+\subsection{Ba loại học máy}
+
+Căn cứ vào loại ``kinh nghiệm'' $E$ mà thuật toán nhận được, học máy được chia thành ba loại chính (Raschka và cộng sự, 2022, Chương 1):
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{2.6cm}|p{4.4cm}|p{3.4cm}|p{2.9cm}|}
+\hline
+\textbf{Loại} & \textbf{Dữ liệu và mục tiêu} & \textbf{Bài toán tiêu biểu} & \textbf{Trong giáo trình} \\
+\hline
+Học có giám sát (supervised) & Dữ liệu có nhãn $(\mathbf{x}, y)$; học ánh xạ $\mathbf{x} \mapsto y$ để dự đoán cho dữ liệu mới & Phân lớp ($y$ rời rạc), hồi quy ($y$ liên tục) & Chương~\ref{chap:regression}, \ref{chap:classify}, \ref{chap:ensemble}, \ref{chap:neural-network} \\ \hline
+Học không giám sát (unsupervised) & Chỉ có $\mathbf{x}$, không có nhãn; khám phá cấu trúc ẩn & Phân cụm, giảm chiều, phát hiện bất thường & Chương~\ref{chap:clustering}, \ref{chap:reduce-dimension} \\ \hline
+Học tăng cường (reinforcement) & Tác tử tương tác với môi trường, nhận \textbf{phần thưởng}; học chính sách hành động & Chơi cờ, điều khiển robot & Ngoài phạm vi \\ \hline
+\end{tabular}
+\caption{Ba loại học máy và vị trí của chúng trong giáo trình}
+\label{tab:ml-types}
+\end{table}
+
+Giữa hai loại đầu còn có \textbf{học bán giám sát} (semi-supervised): chỉ một phần nhỏ dữ liệu có nhãn, phần lớn không có nhãn --- tình huống rất phổ biến vì gán nhãn tốn kém. Ngoài ra, có thể phân loại theo hai tiêu chí khác (Sarkar và cộng sự, 2018): theo cách nhận dữ liệu, gồm \textbf{học theo lô} (batch learning, huấn luyện một lần trên toàn bộ dữ liệu) và \textbf{học trực tuyến} (online learning, cập nhật dần khi dữ liệu mới đến); theo cách tổng quát hóa, gồm \textbf{học dựa trên mẫu} (instance-based, như KNN: ghi nhớ dữ liệu và so sánh) và \textbf{học dựa trên mô hình} (model-based, như hồi quy tuyến tính: rút ra tham số rồi bỏ dữ liệu).
+
+\subsection{Thuật ngữ và ký hiệu}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{3.2cm}|p{4.2cm}|p{5.6cm}|}
+\hline
+\textbf{Thuật ngữ} & \textbf{Tiếng Anh (đồng nghĩa)} & \textbf{Ý nghĩa} \\
+\hline
+Mẫu & sample, instance, observation, example & Một dòng của bảng dữ liệu \\ \hline
+Đặc trưng & feature, attribute, predictor, input variable & Một cột dùng làm đầu vào \\ \hline
+Nhãn, biến mục tiêu & label, target, response, output & Đại lượng cần dự đoán \\ \hline
+Mô hình & model, hypothesis & Hàm $f$ ánh xạ $\mathbf{x}$ thành dự đoán $\hat{y}$ \\ \hline
+Tham số & parameter, weight & Đại lượng học từ dữ liệu (trọng số $\mathbf{w}$, hệ số chặn $b$) \\ \hline
+Siêu tham số & hyperparameter & Đại lượng chọn trước khi huấn luyện ($K$ của KNN, độ sâu của cây) \\ \hline
+Hàm mất mát & loss function, cost function & Đo mức sai khác giữa dự đoán và giá trị thật; huấn luyện là cực tiểu hóa hàm này \\ \hline
+\end{tabular}
+\caption{Thuật ngữ cơ bản của học máy}
+\label{tab:ml-terms}
+\end{table}
+
+\noindent\textbf{Quy ước ký hiệu} dùng trong toàn bộ giáo trình:
+\begin{itemize}
+    \item $n$: số mẫu; $d$: số đặc trưng.
+    \item $\mathbf{X} \in \mathbb{R}^{n \times d}$: \textbf{ma trận dữ liệu}, mỗi dòng là một mẫu, mỗi cột là một đặc trưng --- đúng với cấu trúc của \texttt{DataFrame} trong pandas và quy ước \texttt{X} của scikit-learn.
+    \item $\mathbf{x}_i \in \mathbb{R}^{d}$: mẫu thứ $i$ (dòng $i$ của $\mathbf{X}$); $x_{ij}$: giá trị đặc trưng $j$ của mẫu $i$.
+    \item $\mathbf{y} \in \mathbb{R}^{n}$: vector nhãn; $y_i$: nhãn của mẫu $i$; $\hat{y}_i$: giá trị \textbf{dự đoán}.
+    \item Vector được viết in đậm và hiểu là vector cột; $\mathbf{w}^\top\mathbf{x} = \sum_{j} w_j x_j$ là tích vô hướng.
+\end{itemize}
+Ví dụ, bộ dữ liệu hoa Iris (Fisher, 1936) có $n = 150$ mẫu, $d = 4$ đặc trưng (chiều dài, chiều rộng của đài hoa và cánh hoa), nên $\mathbf{X} \in \mathbb{R}^{150 \times 4}$ và $\mathbf{y} \in \{0, 1, 2\}^{150}$ ứng với ba loài hoa.
+
+\subsection{Lộ trình xây dựng một hệ thống học máy}
+
+Mọi dự án học máy có giám sát đều đi qua bốn giai đoạn (Raschka và cộng sự, 2022), cũng là trình tự các chương của giáo trình này:
+\begin{enumerate}
+    \item \textbf{Tiền xử lý} (Chương~\ref{chap:preprocessing}): làm sạch, mã hóa, chuẩn hóa, tạo và lựa chọn đặc trưng; chia dữ liệu thành tập huấn luyện và tập kiểm tra.
+    \item \textbf{Huấn luyện và lựa chọn mô hình} (Chương~\ref{chap:regression}--\ref{chap:ensemble}, \ref{chap:neural-network}): thử nhiều thuật toán, tinh chỉnh siêu tham số bằng kiểm định chéo.
+    \item \textbf{Đánh giá} (Chương~\ref{chap:validation}): ước lượng hiệu năng trên dữ liệu chưa từng thấy bằng tập kiểm tra.
+    \item \textbf{Dự đoán}: dùng mô hình cuối cùng cho dữ liệu mới, theo dõi chất lượng khi triển khai.
+\end{enumerate}
+
+\hinhchuachen{ch-preprocessing-ml-roadmap.png}{Lộ trình xây dựng hệ thống học máy: tiền xử lý $\rightarrow$ huấn luyện và lựa chọn mô hình $\rightarrow$ đánh giá $\rightarrow$ dự đoán.}{fig:ml-roadmap}
+
+\paragraph{Không có thuật toán tốt nhất cho mọi bài toán.} Định lý \textit{không có bữa trưa miễn phí} (No Free Lunch) của Wolpert (1996) chỉ ra rằng, tính trung bình trên mọi bài toán có thể có, không thuật toán học nào vượt trội hơn thuật toán nào. Một thuật toán chỉ tốt hơn trên những bài toán phù hợp với các giả định ngầm của nó. Hệ quả thực hành, được cả ba tài liệu tham khảo chính nhấn mạnh: \textbf{luôn so sánh nhiều mô hình} (kể cả một mô hình cơ sở đơn giản) bằng quy trình đánh giá đúng đắn, thay vì tin vào một thuật toán ``thần kỳ''. Domingos (2012) bổ sung một nhận xét đúc kết từ thực tiễn: yếu tố quyết định thành bại của phần lớn dự án học máy không phải thuật toán mà là \textbf{đặc trưng} được sử dụng --- đó là lý do chương này dài nhất giáo trình.
 
 % ---------------------------------------------------------
 \section{Khởi nguồn và vai trò của tiền xử lý dữ liệu}
@@ -1097,6 +1185,267 @@ RobustScaler & Không giới hạn & Có & Dữ liệu lệch, nhiều ngoại l
 \end{table}
 
 % ---------------------------------------------------------
+\section{Kỹ thuật tạo đặc trưng (Feature Engineering)}
+\label{sec:feature-eng}
+% ---------------------------------------------------------
+
+\textbf{Kỹ thuật tạo đặc trưng} là quá trình vận dụng tri thức chuyên môn để tạo ra, từ dữ liệu thô, những đặc trưng giúp thuật toán học tốt hơn (Sarkar và cộng sự, 2018, Chương 4; Liu, 2019, Chương 9). Đặc trưng có hai nguồn: \textbf{đặc trưng gốc} lấy trực tiếp từ dữ liệu, và \textbf{đặc trưng dẫn xuất} được tính từ các đặc trưng gốc --- chẳng hạn ``tuổi'' tính từ ``ngày sinh'', hay ``giá trên mỗi mét vuông'' tính từ giá và diện tích. Các bộ mã hóa, bộ vector hóa văn bản và bộ chuẩn hóa ở các mục trước là những trường hợp riêng của kỹ thuật tạo đặc trưng; mục này bổ sung các kỹ thuật dành cho dữ liệu số và dữ liệu thời gian.
+
+\subsection{Nhị phân hóa và rời rạc hóa}
+
+\paragraph{Nhị phân hóa} (binarization) biến một đặc trưng số thành 0/1 theo một ngưỡng $\theta$: $x' = 1$ nếu $x \geq \theta$, ngược lại $x' = 0$. Kỹ thuật này hữu ích khi điều quan trọng chỉ là \textit{có hay không}, chẳng hạn ``đã từng mua hàng'' thay vì ``số lần mua hàng''. Với thu nhập (USD/tháng) $(600, 800, 1000, 1200, 1500, 2000, 2500, 4000, 8000, 20000)$ và ngưỡng 1500, ta được $(0, 0, 0, 0, 1, 1, 1, 1, 1, 1)$. Lưu ý: lớp \texttt{Binarizer} của scikit-learn dùng phép so sánh \textbf{lớn hơn hẳn} ($x > \theta$).
+
+\paragraph{Rời rạc hóa} (binning, discretization) chia miền giá trị thành các khoảng và thay mỗi giá trị bằng chỉ số khoảng chứa nó. Có ba chiến lược chính:
+\begin{itemize}
+    \item \textbf{Khoảng đều} (fixed-width): chỉ số khoảng $= \lfloor x / h \rfloor$ với độ rộng $h$.
+    \item \textbf{Khoảng theo phân vị} (adaptive, quantile): các mốc là phân vị của dữ liệu, nên mỗi khoảng chứa số mẫu xấp xỉ bằng nhau --- thích hợp cho dữ liệu lệch.
+    \item \textbf{Khoảng theo tri thức chuyên môn}: mốc do chuyên gia quy định, ví dụ các nhóm tuổi.
+\end{itemize}
+
+\begin{example}[Rời rạc hóa tuổi]
+Tuổi của 8 khách hàng: $(12, 25, 37, 41, 58, 63, 70, 19)$.
+\begin{itemize}
+    \item Khoảng đều $h = 20$: $\lfloor 12/20 \rfloor = 0$, $\lfloor 25/20 \rfloor = 1$, \ldots{} cho $(0, 1, 1, 2, 2, 3, 3, 0)$.
+    \item Theo tứ phân vị (\texttt{pd.qcut(q=4)}): các mốc $12$; $23{,}5$; $39$; $59{,}25$; $70$, mỗi khoảng chứa đúng 2 mẫu; nhãn khoảng cũng là $(0, 1, 1, 2, 2, 3, 3, 0)$.
+    \item Theo chuyên môn, mốc $(0, 18]$, $(18, 35]$, $(35, 60]$, $(60, 120]$: \textit{trẻ em, thanh niên, trung niên, trung niên, trung niên, cao tuổi, cao tuổi, thanh niên}.
+\end{itemize}
+\end{example}
+
+Rời rạc hóa giúp mô hình tuyến tính nắm bắt quan hệ phi tuyến (mỗi khoảng có một hệ số riêng sau khi mã hóa One Hot) và giảm ảnh hưởng của ngoại lai; cái giá phải trả là mất thông tin chi tiết bên trong mỗi khoảng. scikit-learn cung cấp \texttt{KBinsDiscretizer} với ba chiến lược \texttt{"uniform"}, \texttt{"quantile"}, \texttt{"kmeans"}.
+
+\subsection{Biến đổi thống kê: logarit và Box-Cox}
+
+Nhiều đại lượng thực tế như thu nhập, giá nhà, diện tích lô đất có phân phối \textbf{lệch phải}: đa số giá trị nhỏ, một số ít rất lớn. Các biến đổi thuộc họ \textbf{biến đổi lũy thừa} (power transform) làm phân phối cân đối hơn, ổn định phương sai, và giúp các mô hình giả định phân phối chuẩn hoạt động tốt hơn (Sarkar và cộng sự, 2018, Chương 4).
+
+\begin{itemize}
+    \item \textbf{Biến đổi logarit} $x' = \ln x$ (hoặc $\ln(1 + x)$ khi có giá trị 0): ``nén'' các giá trị lớn và ``giãn'' các giá trị nhỏ.
+    \item \textbf{Biến đổi Box-Cox} (Box \& Cox, 1964), áp dụng cho $x > 0$:
+    \begin{equation}
+        x^{(\lambda)} = \begin{cases} \dfrac{x^{\lambda} - 1}{\lambda} & \lambda \neq 0, \\[6pt] \ln x & \lambda = 0, \end{cases}
+    \end{equation}
+    trong đó $\lambda$ được ước lượng bằng hợp lý cực đại sao cho dữ liệu sau biến đổi gần chuẩn nhất. Biến đổi logarit là trường hợp riêng $\lambda = 0$.
+    \item \textbf{Biến đổi Yeo-Johnson} (Yeo \& Johnson, 2000): mở rộng Box-Cox cho cả giá trị 0 và giá trị âm.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|}
+\hline
+\textbf{Dữ liệu thu nhập (10 giá trị ở trên)} & \textbf{Hệ số bất đối xứng (skewness)} \\
+\hline
+Dữ liệu gốc & 2,10 \\ \hline
+Sau biến đổi logarit & 0,80 \\ \hline
+Sau biến đổi Box-Cox ($\hat{\lambda} \approx -0{,}42$) & 0,16 \\ \hline
+\end{tabular}
+\caption{Hiệu quả của biến đổi lũy thừa; skewness bằng 0 ứng với phân phối đối xứng}
+\label{tab:power-transform}
+\end{table}
+
+\begin{lstlisting}[caption={Nhị phân hóa, rời rạc hóa và biến đổi lũy thừa}]
+import numpy as np
+import pandas as pd
+from scipy import stats
+from sklearn.preprocessing import KBinsDiscretizer, PowerTransformer
+
+income = np.array([600, 800, 1000, 1200, 1500, 2000, 2500, 4000, 8000, 20000.0])
+print((income >= 1500).astype(int))                 # nhi phan hoa
+
+age = np.array([12, 25, 37, 41, 58, 63, 70, 19])
+print(np.floor(age / 20).astype(int))                # khoang deu h = 20
+print(pd.qcut(age, q=4, labels=False))               # theo tu phan vi
+print(pd.cut(age, bins=[0, 18, 35, 60, 120],
+             labels=["tre em", "thanh nien", "trung nien", "cao tuoi"]))
+kb = KBinsDiscretizer(n_bins=4, encode="ordinal", strategy="quantile")
+print(kb.fit_transform(age.reshape(-1, 1)).ravel())
+
+print(stats.skew(income), stats.skew(np.log(income)))     # 2.10  0.80
+x_bc, lam = stats.boxcox(income)
+print(round(lam, 2), stats.skew(x_bc))                    # -0.42  0.16
+pt = PowerTransformer(method="yeo-johnson")   # mac dinh chuan hoa luon ve TB 0, DLC 1
+income_t = pt.fit_transform(income.reshape(-1, 1))
+\end{lstlisting}
+
+\subsection{Đặc trưng tương tác và đa thức}
+
+Mô hình tuyến tính chỉ cộng dồn ảnh hưởng riêng lẻ của từng đặc trưng. Khi ảnh hưởng của đặc trưng này phụ thuộc vào đặc trưng khác --- chẳng hạn diện tích làm tăng giá nhà mạnh hơn khi chất lượng xây dựng cao --- cần bổ sung \textbf{đặc trưng tương tác} $x_j x_k$. \texttt{PolynomialFeatures(degree=p)} sinh mọi đơn thức có bậc không quá $p$; với $d$ đặc trưng, số cột tạo ra (kể cả cột hằng số 1) là $\binom{d + p}{p}$. Với 5 đặc trưng và $p = 2$, đó là $\binom{7}{2} = 21$ cột --- chính là cách Lab 1 (Chương~\ref{chap:labs}) nâng $R^2$ từ 0,78 lên 0,85. Vì số cột tăng theo cấp $d^p$, đặc trưng đa thức thường được dùng kèm chính quy hóa hoặc lựa chọn đặc trưng.
+
+\subsection{Đặc trưng thời gian}
+
+Một cột ngày giờ chưa thể đưa trực tiếp vào mô hình nhưng chứa nhiều thông tin có thể khai thác (Sarkar và cộng sự, 2018, Chương 4):
+\begin{itemize}
+    \item \textbf{Thành phần lịch}: năm, quý, tháng, ngày trong tuần, cuối tuần hay không, giờ trong ngày.
+    \item \textbf{Mã hóa chu kỳ}: tháng 12 và tháng 1 liền nhau nhưng mã số 12 và 1 lại cách xa nhau. Biểu diễn tháng $m$ bằng cặp $\big(\sin\frac{2\pi m}{12}, \cos\frac{2\pi m}{12}\big)$ đặt 12 tháng lên một đường tròn, nhờ đó tháng 12 nằm cạnh tháng 1.
+    \item \textbf{Đặc trưng trễ và cửa sổ trượt} cho chuỗi thời gian: giá trị của các phiên trước (Lab 4), trung bình trượt, độ lệch chuẩn trượt (\textbf{độ biến động}), tỉ suất sinh lời. Khi dự báo giá cổ phiếu, Liu (2019, Chương 9) xây dựng trung bình giá theo tuần, tháng, năm, tỉ số giữa các trung bình đó, và độ lệch chuẩn của giá và khối lượng giao dịch.
+\end{itemize}
+
+\noindent\textbf{Nguyên tắc vàng của đặc trưng thời gian:} chỉ được dùng thông tin \textbf{đã biết tại thời điểm dự báo}. Liu (2019) nhấn mạnh rằng giá cao nhất, thấp nhất và khối lượng của \textit{chính ngày cần dự báo} không được đưa vào đặc trưng, vì chúng chỉ được biết khi phiên đóng cửa. Trong pandas, phép \texttt{shift(1)} bảo đảm mỗi đặc trưng chỉ dùng dữ liệu đến hết phiên hôm trước.
+
+\begin{lstlisting}[caption={Tạo đặc trưng thời gian và đặc trưng cửa sổ trượt}]
+# df: DataFrame co chi so la ngay giao dich va cac cot Close, Volume
+df["month"] = df.index.month
+df["dayofweek"] = df.index.dayofweek                # 0 = thu Hai
+df["month_sin"] = np.sin(2 * np.pi * df["month"] / 12)
+df["month_cos"] = np.cos(2 * np.pi * df["month"] / 12)
+
+close = df["Close"]
+df["ret_1"] = close.pct_change().shift(1)                  # ti suat sinh loi phien truoc
+df["ma_5"] = close.rolling(5).mean().shift(1)              # trung binh 1 tuan
+df["ma_21"] = close.rolling(21).mean().shift(1)            # trung binh 1 thang
+df["ratio_5_21"] = df["ma_5"] / df["ma_21"]                # xu huong ngan / trung han
+df["vol_21"] = close.pct_change().rolling(21).std().shift(1)   # do bien dong
+df = df.dropna()        # bo cac dong dau chua du du lieu cho cua so
+\end{lstlisting}
+
+% ---------------------------------------------------------
+\section{Lựa chọn đặc trưng (Feature Selection)}
+\label{sec:feature-selection}
+% ---------------------------------------------------------
+
+Tạo thêm đặc trưng làm tăng thông tin, nhưng cũng làm tăng số chiều. Những đặc trưng \textbf{không liên quan} hoặc \textbf{dư thừa} làm mô hình dễ quá khớp, tốn chi phí tính toán, khó diễn giải, và đặc biệt gây hại cho các thuật toán dựa trên khoảng cách như KNN (lời nguyền số chiều, Chương~\ref{chap:reduce-dimension}). Có hai hướng giảm số chiều (Raschka và cộng sự, 2022, Chương 4):
+\begin{itemize}
+    \item \textbf{Lựa chọn đặc trưng}: giữ lại một \textbf{tập con} các cột gốc, nên vẫn giữ nguyên ý nghĩa của từng cột --- nội dung của mục này.
+    \item \textbf{Trích xuất đặc trưng}: tạo các cột \textbf{mới} là tổ hợp của cột gốc (PCA, LDA --- Chương~\ref{chap:reduce-dimension}).
+\end{itemize}
+Tìm tập con tốt nhất bằng vét cạn là bất khả thi: $d$ đặc trưng có $2^d - 1$ tập con khác rỗng, tức 8191 tập con khi $d = 13$ và khoảng $10^{15}$ tập con khi $d = 50$. Guyon và Elisseeff (2003) phân các phương pháp thực tế thành ba họ:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{2.4cm}|p{4.6cm}|p{2.9cm}|p{3.2cm}|}
+\hline
+\textbf{Họ} & \textbf{Nguyên lý} & \textbf{Ví dụ} & \textbf{Ưu / nhược} \\
+\hline
+Lọc (filter) & Chấm điểm từng đặc trưng bằng một thống kê, \textbf{độc lập với mô hình} & Ngưỡng phương sai, kiểm định F, $\chi^2$, thông tin tương hỗ & Rất nhanh / bỏ qua tương tác và dư thừa \\ \hline
+Bao gói (wrapper) & Tìm kiếm tập con, đánh giá bằng \textbf{hiệu năng của chính mô hình} & SBS, SFS, RFE & Chính xác / tốn kém \\ \hline
+Nhúng (embedded) & Lựa chọn diễn ra \textbf{trong quá trình huấn luyện} & Chính quy hóa L1, độ quan trọng của rừng ngẫu nhiên & Cân bằng / phụ thuộc mô hình \\ \hline
+\end{tabular}
+\caption{Ba họ phương pháp lựa chọn đặc trưng (Guyon \& Elisseeff, 2003)}
+\label{tab:fs-families}
+\end{table}
+
+Để minh họa, ta dùng bộ dữ liệu \textbf{Wine} của UCI --- cũng là bộ dữ liệu Raschka và cộng sự (2022) dùng cho chủ đề này: 178 mẫu rượu vang thuộc 3 giống nho (59, 71 và 48 mẫu), mô tả bởi 13 đặc trưng hóa học như nồng độ cồn (\texttt{alcohol}), \texttt{flavanoids}, \texttt{proline}, cường độ màu (\texttt{color\_intensity})\ldots{} Dữ liệu được chia phân tầng 70/30 thành 124 mẫu huấn luyện và 54 mẫu kiểm tra (\texttt{random\_state=0}).
+
+\subsection{Phương pháp lọc}
+
+\paragraph{Ngưỡng phương sai.} Đặc trưng gần như hằng số không mang thông tin phân biệt. \texttt{VarianceThreshold} loại các cột có phương sai nhỏ hơn một ngưỡng. Với một đặc trưng nhị phân nhận giá trị 1 với tỉ lệ $p$, phương sai bằng $p(1 - p)$; ngưỡng $0{,}8 \times 0{,}2 = 0{,}16$ vì thế loại các cột mà một giá trị chiếm trên 80\% số mẫu.
+
+\begin{example}[Ngưỡng phương sai]
+Ma trận $\mathbf{X} = \begin{pmatrix} 0 & 2 & 0 & 3 \\ 0 & 1 & 4 & 3 \\ 0 & 1 & 1 & 3 \\ 1 & 1 & 0 & 3 \end{pmatrix}$ có phương sai các cột là $(0{,}1875;\ 0{,}1875;\ 2{,}6875;\ 0)$. Cột 1 là cột nhị phân với $p = 0{,}25$, nên $p(1 - p) = 0{,}1875$. Với ngưỡng 0,2, chỉ cột 3 được giữ lại; cột 4 là hằng số nên chắc chắn bị loại.
+\end{example}
+
+\noindent Vì phương sai phụ thuộc đơn vị đo, ngưỡng phương sai chỉ nên dùng cho các cột cùng thang đo, chẳng hạn các cột nhị phân.
+
+\paragraph{Kiểm định đơn biến.} Mỗi đặc trưng được chấm điểm theo mức độ liên hệ với nhãn: \textbf{thống kê F của ANOVA} (\texttt{f\_classif}) cho đặc trưng số và nhãn phân loại; \textbf{$\chi^2$} (\texttt{chi2}) cho đặc trưng không âm như tần suất từ; \textbf{thông tin tương hỗ} (\texttt{mutual\_info\_classif}) đo được cả quan hệ phi tuyến. \texttt{SelectKBest} giữ lại $k$ đặc trưng điểm cao nhất. Trên Wine, năm đặc trưng có điểm F cao nhất là \texttt{alcohol}, \texttt{flavanoids}, \texttt{hue}, \texttt{od280/od315} và \texttt{proline}; năm đặc trưng có thông tin tương hỗ cao nhất là \texttt{flavanoids} (0,760), \texttt{od280/od315} (0,589), \texttt{proline} (0,546), \texttt{color\_intensity} (0,510) và \texttt{alcohol} (0,465). Hai tiêu chí đồng thuận ở bốn trên năm đặc trưng. Điểm yếu chung của phương pháp lọc là xét \textbf{từng đặc trưng riêng lẻ}: hai đặc trưng tương quan mạnh với nhau đều được điểm cao dù đặc trưng thứ hai không mang thêm thông tin, còn hai đặc trưng chỉ có ích \textit{khi đi cùng nhau} thì đều bị bỏ sót.
+
+\subsection{Phương pháp bao gói: lựa chọn tuần tự lùi (SBS)}
+
+Thuật toán lựa chọn tuần tự lùi (Sequential Backward Selection -- SBS) là một thuật toán \textbf{tham lam}: tại mỗi bước, nó chọn phương án tốt nhất cục bộ thay vì xét mọi tổ hợp (Raschka và cộng sự, 2022, Chương 4; xem so sánh các biến thể trong Ferri và cộng sự, 1994). Gọi $J$ là hàm tiêu chí, chẳng hạn độ chính xác kiểm định chéo của mô hình trên tập đặc trưng đang xét:
+\begin{enumerate}
+    \item Khởi tạo $k = d$ với tập đặc trưng đầy đủ $X_d$.
+    \item Tìm đặc trưng $x^{-}$ mà việc loại bỏ nó làm \textbf{giảm hiệu năng ít nhất}: $x^{-} = \arg\max_{x \in X_k} J(X_k \setminus \{x\})$.
+    \item Loại bỏ: $X_{k-1} = X_k \setminus \{x^{-}\}$, gán $k \leftarrow k - 1$.
+    \item Dừng nếu $k$ bằng số đặc trưng mong muốn; ngược lại quay lại bước 2.
+\end{enumerate}
+Đi từ $d$ xuống 1, SBS chỉ đánh giá $d + (d - 1) + \dots + 2 = \frac{d(d+1)}{2} - 1$ tập con --- 90 tập con với $d = 13$, so với 8191 nếu vét cạn. Biến thể \textbf{lựa chọn tuần tự tiến} (SFS) xuất phát từ tập rỗng và thêm dần; \textbf{loại bỏ đặc trưng đệ quy} (Recursive Feature Elimination -- RFE; Guyon và cộng sự, 2002) rẻ hơn nữa vì loại đặc trưng có hệ số hoặc độ quan trọng nhỏ nhất thay vì huấn luyện lại cho mọi khả năng.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|c|p{7.6cm}|c|c|}
+\hline
+\textbf{$k$} & \textbf{Tập đặc trưng do SBS chọn} & \textbf{CV (train)} & \textbf{Test} \\
+\hline
+13 & toàn bộ & 0,944 & 0,963 \\ \hline
+8 & alcohol, ash, alcalinity\_of\_ash, magnesium, flavanoids, color\_intensity, hue, proline & 0,976 & 0,982 \\ \hline
+5 & alcohol, ash, flavanoids, hue, proline & 0,984 & 0,982 \\ \hline
+3 & alcohol, flavanoids, proline & 0,968 & 0,889 \\ \hline
+2 & flavanoids, proline & 0,927 & 0,870 \\ \hline
+1 & flavanoids & 0,783 & 0,704 \\ \hline
+\end{tabular}
+\caption{SBS cho KNN ($K = 5$, đã chuẩn hóa) trên Wine: độ chính xác kiểm định chéo 5-fold trên tập huấn luyện và trên tập kiểm tra}
+\label{tab:sbs-wine}
+\end{table}
+
+Bảng~\ref{tab:sbs-wine} cho hai nhận xét. Thứ nhất, \textbf{bỏ bớt đặc trưng có thể cải thiện mô hình}: chỉ với 5 trên 13 đặc trưng, KNN đạt độ chính xác kiểm tra 0,982, cao hơn mức 0,963 khi dùng đủ 13 đặc trưng, vì các đặc trưng không liên quan làm méo khoảng cách. Thứ hai, bỏ quá nhiều thì mô hình \textbf{thiếu khớp}. Cột CV là ước lượng \textbf{lạc quan}, vì chính nó đã được dùng để chọn tập con; ước lượng khách quan là cột Test, nơi tập kiểm tra chỉ được dùng một lần.
+
+\subsection{Phương pháp nhúng: chính quy hóa L1 và rừng ngẫu nhiên}
+
+\paragraph{Chính quy hóa L1.} Như đã thấy với Lasso (Tibshirani, 1996; Chương~\ref{chap:regression}), số hạng phạt $\lambda\|\mathbf{w}\|_1$ đẩy nhiều hệ số về \textbf{đúng bằng 0}. Về mặt hình học, cực tiểu hàm mất mát với ràng buộc $\|\mathbf{w}\|_1 \leq t$ có miền ràng buộc là hình thoi với các đỉnh nằm trên trục tọa độ, nên đường đồng mức của hàm mất mát thường chạm miền ràng buộc tại một đỉnh, nơi một số tọa độ bằng 0. Ràng buộc L2 có miền hình tròn, không có đỉnh, nên hệ số chỉ nhỏ đi chứ hiếm khi bằng 0 (Raschka và cộng sự, 2022, Chương 4).
+
+\hinhchuachen{ch-preprocessing-l1-l2.png}{Diễn giải hình học: miền ràng buộc L1 (hình thoi) cho nghiệm thưa tại đỉnh, miền ràng buộc L2 (hình tròn) thì không.}{fig:l1-l2}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|}
+\hline
+$C$ (nghịch đảo mức phạt) & \textbf{Số hệ số khác 0 (trên 39)} & \textbf{Độ chính xác test} \\
+\hline
+0,01 & 0 & 0,389 \\ \hline
+0,05 & 6 & 0,944 \\ \hline
+0,1 & 7 & 0,982 \\ \hline
+0,5 & 13 & 1,000 \\ \hline
+1 & 14 & 1,000 \\ \hline
+10 & 18 & 1,000 \\ \hline
+\end{tabular}
+\caption{Hồi quy logistic với phạt L1 trên Wine (3 lớp $\times$ 13 đặc trưng $= 39$ hệ số)}
+\label{tab:l1-wine}
+\end{table}
+
+Phạt quá mạnh ($C = 0{,}01$) đưa mọi hệ số về 0: mô hình chỉ còn đoán lớp đông nhất, đạt độ chính xác $21/54 \approx 0{,}389$. Chỉ cần 7 hệ số khác 0, mô hình đã đạt 0,982. Một lưu ý về phiên bản: từ scikit-learn 1.8, tham số \texttt{penalty} bị khai tử; phạt L1 được khai báo bằng \texttt{l1\_ratio=1.0} với \texttt{solver="saga"}. Các phiên bản cũ hơn dùng \texttt{penalty="l1"}.
+
+\paragraph{Độ quan trọng từ rừng ngẫu nhiên.} Rừng ngẫu nhiên (Breiman, 2001; Chương~\ref{chap:ensemble}) đo độ quan trọng của một đặc trưng bằng \textbf{mức giảm độ hỗn tạp trung bình} của mọi nút chia theo đặc trưng đó, trên mọi cây. Với 500 cây trên Wine, thứ hạng là \texttt{proline} (0,185), \texttt{flavanoids} (0,175), \texttt{color\_intensity} (0,144), \texttt{od280/od315} (0,136), \texttt{alcohol} (0,119), \texttt{hue} (0,059)\ldots{} Thước đo này có hai hạn chế cần biết (Strobl và cộng sự, 2007): nó thiên vị các đặc trưng liên tục hoặc có nhiều giá trị khác nhau, và các đặc trưng tương quan với nhau phải ``chia nhau'' độ quan trọng. Độ quan trọng hoán vị (\texttt{permutation\_importance}) khắc phục được hạn chế thứ nhất. Lớp \texttt{SelectFromModel} biến bất kỳ mô hình nào có \texttt{coef\_} hoặc \texttt{feature\_importances\_} thành một bộ lựa chọn đặc trưng.
+
+\paragraph{Đối chiếu kết quả.} Ba đặc trưng \texttt{proline}, \texttt{flavanoids} và \texttt{alcohol} xuất hiện trong nhóm đầu ở \textbf{mọi} phương pháp --- lọc, bao gói lẫn nhúng. Sự đồng thuận giữa các phương pháp có nguyên lý khác nhau là bằng chứng đáng tin cậy hơn kết quả của bất kỳ phương pháp riêng lẻ nào.
+
+\begin{lstlisting}[caption={Ba họ phương pháp lựa chọn đặc trưng trên bộ dữ liệu Wine}]
+import pandas as pd
+from sklearn.datasets import load_wine
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_selection import (VarianceThreshold, SelectKBest, f_classif,
+                                       mutual_info_classif, SequentialFeatureSelector)
+
+X, y = load_wine(return_X_y=True, as_frame=True)
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, stratify=y,
+                                          random_state=0)
+
+# 1) Loc: kiem dinh F va thong tin tuong ho
+skb = SelectKBest(f_classif, k=5).fit(X_tr, y_tr)
+print(list(X.columns[skb.get_support()]))
+mi = pd.Series(mutual_info_classif(X_tr, y_tr, random_state=0), index=X.columns)
+print(mi.sort_values(ascending=False).head(5).round(3))
+
+# 2) Bao goi: SBS cho KNN
+knn = make_pipeline(StandardScaler(), KNeighborsClassifier(n_neighbors=5))
+sbs = SequentialFeatureSelector(knn, n_features_to_select=5,
+                                direction="backward", cv=5).fit(X_tr, y_tr)
+cols = list(X.columns[sbs.get_support()])
+print(cols, knn.fit(X_tr[cols], y_tr).score(X_te[cols], y_te))   # 0.9815
+
+# 3) Nhung: phat L1 (scikit-learn >= 1.8) va rung ngau nhien
+l1 = make_pipeline(StandardScaler(),
+                   LogisticRegression(l1_ratio=1.0, C=0.1, solver="saga", max_iter=50000))
+l1.fit(X_tr, y_tr)
+print("He so khac 0:", (l1[-1].coef_ != 0).sum(), "/", l1[-1].coef_.size)
+rf = RandomForestClassifier(n_estimators=500, random_state=1).fit(X_tr, y_tr)
+print(pd.Series(rf.feature_importances_, index=X.columns)
+        .sort_values(ascending=False).head(5).round(3))
+\end{lstlisting}
+
+\subsection{Lựa chọn đặc trưng phải nằm trong quy trình kiểm định}
+
+Đây là một trong những lỗi phương pháp luận nghiêm trọng và phổ biến nhất. Ambroise và McLachlan (2002) phân tích lại các nghiên cứu phân loại ung thư từ dữ liệu biểu hiện gen (vài chục mẫu, hàng nghìn gen) và chỉ ra rằng nhiều tỉ lệ lỗi gần 0\% được công bố là do \textbf{chọn gen trên toàn bộ dữ liệu trước rồi mới kiểm định chéo}. Khi đó các mẫu kiểm định đã góp phần vào việc chọn đặc trưng: đây là rò rỉ dữ liệu dưới dạng \textbf{thiên lệch lựa chọn} (selection bias). Cách làm đúng là đặt bước lựa chọn vào \texttt{Pipeline}, để nó được thực hiện lại trên phần huấn luyện của từng fold:
+
+\begin{lstlisting}[caption={Lựa chọn đặc trưng đúng cách: bên trong Pipeline}]
+pipe = make_pipeline(StandardScaler(), SelectKBest(f_classif, k=5),
+                     KNeighborsClassifier(n_neighbors=5))
+print(cross_val_score(pipe, X_tr, y_tr, cv=5).mean())   # uoc luong khong thien lech
+\end{lstlisting}
+
+% ---------------------------------------------------------
 \section{Dữ liệu mất cân bằng và SMOTE}
 \label{sec:smote}
 % ---------------------------------------------------------
@@ -1331,6 +1680,7 @@ print(scores.mean().round(3))
 \section{Tóm tắt chương}
 % ---------------------------------------------------------
 \begin{itemize}
+    \item Học máy là quá trình cải thiện hiệu năng $P$ trên tác vụ $T$ nhờ kinh nghiệm $E$ (Mitchell, 1997); có ba loại chính: có giám sát, không giám sát và tăng cường. Dữ liệu được ký hiệu thống nhất là $\mathbf{X} \in \mathbb{R}^{n \times d}$ và $\mathbf{y} \in \mathbb{R}^{n}$. Theo định lý No Free Lunch, không có thuật toán tốt nhất cho mọi bài toán.
     \item Tiền xử lý dữ liệu là bước nền tảng trong quy trình KDD (Fayyad và cộng sự, 1996) và pha Chuẩn bị dữ liệu của CRISP-DM; nguyên lý ``rác vào, rác ra'' nhắc rằng chất lượng mô hình bị giới hạn bởi chất lượng dữ liệu.
     \item Dữ liệu thiếu có ba cơ chế MCAR, MAR, MNAR (Rubin, 1976). \textbf{Simple Imputer} điền bằng trung bình/trung vị/mode; \textbf{KNN Imputer} lấy trung bình $k$ láng giềng theo khoảng cách nan-Euclid $\sqrt{\frac{d}{|P|}\sum_{j \in P}(x_j - y_j)^2}$; \textbf{Iterative Imputer} hồi quy lặp từng cột theo các cột còn lại --- mạnh nhưng có thể ngoại suy phi thực tế khi dữ liệu ít hoặc đa cộng tuyến, nên luôn phải kiểm tra giá trị điền.
     \item Ngoại lai: z-score dễ bị che lấp; quy tắc IQR của Tukey bền vững hơn; \textbf{LOF} so sánh mật độ cục bộ của một điểm với láng giềng, $\text{LOF} \gg 1$ là ngoại lai.
@@ -1339,6 +1689,8 @@ print(scores.mean().round(3))
     \item \textbf{One Hot Encoder} biến mỗi nhãn thành một vector đơn vị, mọi nhãn cách đều $\sqrt{2}$; phù hợp với KNN, K-Means, mô hình tuyến tính.
     \item \textbf{Count Vectorizer} biểu diễn văn bản bằng số lần xuất hiện của từ; \textbf{TF-IDF} (Spärck Jones, 1972) giảm trọng số của các từ phổ biến; chuẩn hóa L2 cho phép đo độ tương đồng cosine bằng tích vô hướng.
     \item Bốn bộ chuẩn hóa \textbf{MinMax, MaxAbs, Standard, Robust} khác nhau về miền giá trị, khả năng giữ tính thưa và độ bền với ngoại lai.
+    \item \textbf{Tạo đặc trưng}: nhị phân hóa, rời rạc hóa (khoảng đều, phân vị, chuyên môn), biến đổi lũy thừa (logarit, Box-Cox, Yeo-Johnson) cho dữ liệu lệch, đặc trưng tương tác và đa thức, đặc trưng thời gian (mã hóa chu kỳ, cửa sổ trượt với \texttt{shift(1)} để không dùng thông tin tương lai).
+    \item \textbf{Lựa chọn đặc trưng} gồm ba họ: lọc (ngưỡng phương sai, F, $\chi^2$, thông tin tương hỗ), bao gói (SBS, SFS, RFE) và nhúng (L1, độ quan trọng của rừng ngẫu nhiên). Bước lựa chọn phải nằm trong pipeline để tránh thiên lệch lựa chọn.
     \item \textbf{SMOTE} sinh mẫu thiểu số bằng nội suy $\mathbf{x}_i + \lambda(\mathbf{x}_{nn} - \mathbf{x}_i)$; chỉ áp dụng trên tập huấn luyện (dùng Pipeline của imbalanced-learn) và đánh giá bằng recall, precision, F1 thay vì accuracy.
     \item Luôn \texttt{fit} trên tập huấn luyện; dùng \texttt{Pipeline} và \texttt{ColumnTransformer} để quy trình gọn gàng và tránh rò rỉ dữ liệu.
 \end{itemize}
@@ -1360,6 +1712,10 @@ print(scores.mean().round(3))
     \item Tiếp tục ví dụ Iterative Imputer thêm một vòng nữa (bắt đầu từ các giá trị điền của vòng 1), rồi so sánh với \texttt{IterativeImputer(estimator=LinearRegression(), imputation\_order="roman", max\_iter=2)}. Giải thích vì sao giá trị của $x_3$ không hội tụ về miền $[1;\ 8]$.
     \item Thêm điểm $F(2, 2)$ vào ví dụ LOF và tính lại bảng LOF với $k = 3$. Hệ số LOF của $E$ thay đổi thế nào?
     \item Trên \texttt{load\_breast\_cancer}, giữ lại toàn bộ lớp lành tính và chỉ 10\% lớp ác tính để tạo dữ liệu mất cân bằng. So sánh recall, precision, F1 của hồi quy logistic khi: không xử lý, \texttt{class\_weight="balanced"}, SMOTE trong pipeline, và SMOTE áp dụng \textbf{sai} lên toàn bộ dữ liệu trước khi kiểm định chéo.
+    \item Theo định nghĩa của Mitchell, hãy xác định $T$, $E$, $P$ cho ba bài toán: dự đoán giá nhà Ames, phân khúc khách hàng, và chương trình chơi cờ vua. Bài toán nào là học có giám sát, không giám sát, tăng cường?
+    \item Với cột \texttt{Lot Area} của Ames Housing: vẽ histogram trước và sau biến đổi logarit, Box-Cox, Yeo-Johnson; báo cáo skewness và $\hat{\lambda}$. Rời rạc hóa cột này thành 5 khoảng theo hai chiến lược \texttt{"uniform"} và \texttt{"quantile"}; vì sao chiến lược thứ nhất cho các khoảng gần như rỗng?
+    \item Cài đặt thuật toán SBS từ đầu (không dùng \texttt{SequentialFeatureSelector}) cho KNN trên Wine và vẽ độ chính xác theo số đặc trưng $k = 1, \dots, 13$. So sánh tập 5 đặc trưng tìm được với Bảng~\ref{tab:sbs-wine}.
+    \item Thí nghiệm thiên lệch lựa chọn: sinh 50 mẫu với 5000 đặc trưng ngẫu nhiên và nhãn ngẫu nhiên. So sánh độ chính xác kiểm định chéo khi (a) chọn 20 đặc trưng bằng \texttt{SelectKBest} trên toàn bộ dữ liệu rồi mới kiểm định chéo, (b) đặt \texttt{SelectKBest} trong pipeline. Giá trị đúng phải xấp xỉ bao nhiêu?
 \end{enumerate}
 
 % ---------------------------------------------------------
@@ -1367,11 +1723,19 @@ print(scores.mean().round(3))
 \addcontentsline{toc}{section}{Tài liệu tham khảo của chương}
 % ---------------------------------------------------------
 \begin{enumerate}
+    \item Ambroise, C., \& McLachlan, G. J. (2002). Selection bias in gene extraction on the basis of microarray gene-expression data. \textit{Proceedings of the National Academy of Sciences}, 99(10), 6562--6566.
+    \item Box, G. E. P., \& Cox, D. R. (1964). An Analysis of Transformations. \textit{Journal of the Royal Statistical Society, Series B}, 26(2), 211--252.
+    \item Breiman, L. (2001). Random Forests. \textit{Machine Learning}, 45(1), 5--32.
     \item Breunig, M. M., Kriegel, H.-P., Ng, R. T., \& Sander, J. (2000). LOF: Identifying Density-Based Local Outliers. \textit{Proceedings of ACM SIGMOD 2000}, 93--104.
     \item Buitinck, L. et al. (2013). API design for machine learning software: experiences from the scikit-learn project. \textit{ECML PKDD Workshop: Languages for Data Mining and Machine Learning}.
     \item Chawla, N. V., Bowyer, K. W., Hall, L. O., \& Kegelmeyer, W. P. (2002). SMOTE: Synthetic Minority Over-sampling Technique. \textit{Journal of Artificial Intelligence Research}, 16, 321--357.
     \item De Cock, D. (2011). Ames, Iowa: Alternative to the Boston Housing Data as an End of Semester Regression Project. \textit{Journal of Statistics Education}, 19(3).
+    \item Domingos, P. (2012). A Few Useful Things to Know about Machine Learning. \textit{Communications of the ACM}, 55(10), 78--87.
     \item Fayyad, U., Piatetsky-Shapiro, G., \& Smyth, P. (1996). From Data Mining to Knowledge Discovery in Databases. \textit{AI Magazine}, 17(3), 37--54.
+    \item Ferri, F. J., Pudil, P., Hatef, M., \& Kittler, J. (1994). Comparative study of techniques for large-scale feature selection. \textit{Pattern Recognition in Practice IV}, 403--413.
+    \item Fisher, R. A. (1936). The use of multiple measurements in taxonomic problems. \textit{Annals of Eugenics}, 7(2), 179--188.
+    \item Guyon, I., \& Elisseeff, A. (2003). An Introduction to Variable and Feature Selection. \textit{Journal of Machine Learning Research}, 3, 1157--1182.
+    \item Guyon, I., Weston, J., Barnhill, S., \& Vapnik, V. (2002). Gene Selection for Cancer Classification using Support Vector Machines. \textit{Machine Learning}, 46, 389--422.
     \item Han, J., Kamber, M., \& Pei, J. (2011). \textit{Data Mining: Concepts and Techniques} (3rd ed.), Chương 3: Data Preprocessing. Morgan Kaufmann.
     \item Han, H., Wang, W.-Y., \& Mao, B.-H. (2005). Borderline-SMOTE: A New Over-Sampling Method in Imbalanced Data Sets Learning. \textit{Advances in Intelligent Computing (ICIC 2005)}, LNCS 3644, 878--887.
     \item Harris, Z. S. (1954). Distributional Structure. \textit{Word}, 10(2--3), 146--162.
@@ -1379,19 +1743,28 @@ print(scores.mean().round(3))
     \item He, H., Bai, Y., Garcia, E. A., \& Li, S. (2008). ADASYN: Adaptive Synthetic Sampling Approach for Imbalanced Learning. \textit{Proceedings of IJCNN 2008}, 1322--1328.
     \item Lemaître, G., Nogueira, F., \& Aridas, C. K. (2017). Imbalanced-learn: A Python Toolbox to Tackle the Curse of Imbalanced Datasets in Machine Learning. \textit{Journal of Machine Learning Research}, 18(17), 1--5.
     \item Liu, F. T., Ting, K. M., \& Zhou, Z.-H. (2008). Isolation Forest. \textit{Proceedings of the 8th IEEE International Conference on Data Mining (ICDM)}, 413--422.
+    \item Liu, Y. (H.) (2019). \textit{Python Machine Learning By Example} (2nd ed.). Packt Publishing.
     \item Luhn, H. P. (1957). A Statistical Approach to Mechanized Encoding and Searching of Literary Information. \textit{IBM Journal of Research and Development}, 1(4), 309--317.
+    \item Mitchell, T. M. (1997). \textit{Machine Learning}. McGraw-Hill.
     \item Pedregosa, F. et al. (2011). Scikit-learn: Machine Learning in Python. \textit{Journal of Machine Learning Research}, 12, 2825--2830.
     \item Pyle, D. (1999). \textit{Data Preparation for Data Mining}. Morgan Kaufmann.
+    \item Raschka, S., Liu, Y. (H.), \& Mirjalili, V. (2022). \textit{Machine Learning with PyTorch and Scikit-Learn}. Packt Publishing.
     \item Rubin, D. B. (1976). Inference and Missing Data. \textit{Biometrika}, 63(3), 581--592.
     \item Rubin, D. B. (1987). \textit{Multiple Imputation for Nonresponse in Surveys}. Wiley.
     \item Salton, G., Wong, A., \& Yang, C. S. (1975). A Vector Space Model for Automatic Indexing. \textit{Communications of the ACM}, 18(11), 613--620.
     \item Salton, G., \& Buckley, C. (1988). Term-weighting approaches in automatic text retrieval. \textit{Information Processing \& Management}, 24(5), 513--523.
+    \item Samuel, A. L. (1959). Some Studies in Machine Learning Using the Game of Checkers. \textit{IBM Journal of Research and Development}, 3(3), 210--229.
+    \item Sarkar, D., Bali, R., \& Sharma, T. (2018). \textit{Practical Machine Learning with Python: A Problem-Solver's Guide to Building Real-World Intelligent Systems}. Apress.
     \item Shiffler, R. E. (1988). Maximum Z Scores and Outliers. \textit{The American Statistician}, 42(1), 79--80.
     \item Spärck Jones, K. (1972). A statistical interpretation of term specificity and its application in retrieval. \textit{Journal of Documentation}, 28(1), 11--21.
     \item Stevens, S. S. (1946). On the Theory of Scales of Measurement. \textit{Science}, 103(2684), 677--680.
+    \item Strobl, C., Boulesteix, A.-L., Zeileis, A., \& Hothorn, T. (2007). Bias in random forest variable importance measures: Illustrations, sources and a solution. \textit{BMC Bioinformatics}, 8, 25.
     \item Suits, D. B. (1957). Use of Dummy Variables in Regression Equations. \textit{Journal of the American Statistical Association}, 52(280), 548--551.
+    \item Tibshirani, R. (1996). Regression Shrinkage and Selection via the Lasso. \textit{Journal of the Royal Statistical Society, Series B}, 58(1), 267--288.
     \item Troyanskaya, O., Cantor, M., Sherlock, G., Brown, P., Hastie, T., Tibshirani, R., Botstein, D., \& Altman, R. B. (2001). Missing value estimation methods for DNA microarrays. \textit{Bioinformatics}, 17(6), 520--525.
     \item Tukey, J. W. (1977). \textit{Exploratory Data Analysis}. Addison-Wesley.
     \item van Buuren, S., \& Groothuis-Oudshoorn, K. (2011). mice: Multivariate Imputation by Chained Equations in R. \textit{Journal of Statistical Software}, 45(3), 1--67.
     \item Wirth, R., \& Hipp, J. (2000). CRISP-DM: Towards a Standard Process Model for Data Mining. \textit{Proceedings of the 4th International Conference on the Practical Applications of Knowledge Discovery and Data Mining}.
+    \item Wolpert, D. H. (1996). The Lack of A Priori Distinctions Between Learning Algorithms. \textit{Neural Computation}, 8(7), 1341--1390.
+    \item Yeo, I.-K., \& Johnson, R. A. (2000). A new family of power transformations to improve normality or symmetry. \textit{Biometrika}, 87(4), 954--959.
 \end{enumerate}

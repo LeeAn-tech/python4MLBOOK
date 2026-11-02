@@ -13,6 +13,7 @@ Theo kế hoạch giảng dạy, chương này trình bày bốn thuật toán: 
 \begin{itemize}
     \item Phân biệt học có giám sát và không giám sát; nêu các họ thuật toán phân cụm chính.
     \item Tự chạy tay thuật toán K-Means và DBSCAN trên dữ liệu nhỏ.
+    \item Phân biệt phân cụm cứng và phân cụm mềm; tính tay một vòng lặp của Fuzzy C-Means.
     \item Đọc và cắt cây phân cấp (dendrogram).
     \item Chọn số cụm và đánh giá chất lượng phân cụm bằng phương pháp khuỷu tay và hệ số Silhouette.
 \end{itemize}
@@ -138,6 +139,92 @@ plt.show()
 \hinhchuachen{ch-clustering-elbow.png}{Đường cong inertia (khuỷu tay tại $K = 4$) và hệ số Silhouette theo số cụm.}{fig:elbow}
 
 \paragraph{Hạn chế của K-Means.} Phải chọn trước $K$; giả định cụm có dạng ``cầu'' và kích thước tương đương; nhạy với ngoại lai (trung bình bị kéo lệch); chỉ dùng được với khoảng cách Euclid (biến thể K-Medoids dùng được khoảng cách bất kỳ).
+
+% ---------------------------------------------------------
+\section{Phân cụm mềm: Fuzzy C-Means}
+\label{sec:fcm}
+% ---------------------------------------------------------
+
+K-Means là thuật toán \textbf{phân cụm cứng} (hard clustering): mỗi điểm thuộc về \textbf{đúng một} cụm. Trong thực tế, ranh giới giữa các nhóm thường không rõ ràng: một khách hàng có thể vừa giống nhóm ``tiết kiệm'' vừa giống nhóm ``mua sắm thường xuyên''; một điểm ảnh ở biên giữa hai mô trong ảnh y khoa mang đặc điểm của cả hai. \textbf{Phân cụm mềm} (soft clustering) gán cho mỗi điểm một \textbf{độ thuộc} $w_{ij} \in [0, 1]$ vào từng cụm $j$, với $\sum_{j} w_{ij} = 1$ (Raschka và cộng sự, 2022, Chương 10). Thuật toán tiêu biểu là \textbf{Fuzzy C-Means} (FCM), do Dunn (1973) đề xuất và Bezdek (1981) phát triển hoàn chỉnh trên nền lý thuyết tập mờ của Zadeh (1965).
+
+\begin{definition}[Hàm mục tiêu của Fuzzy C-Means]
+Với $k$ cụm và \textbf{hệ số mờ} $m > 1$ (thường chọn $m = 2$), FCM cực tiểu
+\begin{equation}
+    J_m = \sum_{i=1}^{n}\sum_{j=1}^{k} w_{ij}^{\,m}\,\big\|\mathbf{x}_i - \boldsymbol{\mu}_j\big\|^2,
+    \qquad \text{với } \sum_{j=1}^{k} w_{ij} = 1,\ \ w_{ij} \geq 0 .
+\end{equation}
+\end{definition}
+
+Giải bài toán tối ưu có ràng buộc bằng nhân tử Lagrange cho hai công thức cập nhật luân phiên:
+\begin{align}
+    w_{ij} &= \left[\sum_{c=1}^{k}\left(\frac{\|\mathbf{x}_i - \boldsymbol{\mu}_j\|}{\|\mathbf{x}_i - \boldsymbol{\mu}_c\|}\right)^{\frac{2}{m - 1}}\right]^{-1}, \label{eq:fcm-w}\\
+    \boldsymbol{\mu}_j &= \frac{\sum_{i=1}^{n} w_{ij}^{\,m}\,\mathbf{x}_i}{\sum_{i=1}^{n} w_{ij}^{\,m}} . \label{eq:fcm-mu}
+\end{align}
+Thuật toán giống K-Means: khởi tạo tâm, rồi lặp \textbf{bước cập nhật độ thuộc} (\ref{eq:fcm-w}) và \textbf{bước cập nhật tâm} (\ref{eq:fcm-mu}) đến khi tâm không còn thay đổi đáng kể. Tâm cụm là trung bình có trọng số $w_{ij}^m$ của \textbf{mọi} điểm, thay vì chỉ trung bình các điểm thuộc cụm. Hệ số $m$ điều khiển độ ``mờ'': khi $m \to 1$, độ thuộc tiến về 0 hoặc 1 và FCM trở thành K-Means; khi $m$ tăng, độ thuộc tiến về $1/k$ (mọi điểm thuộc đều mọi cụm).
+
+\begin{example}[Một vòng lặp Fuzzy C-Means]
+Bảy điểm trên trục số $1, 2, 3, 5{,}5, 8, 9, 10$ --- hai nhóm rõ ràng và một điểm $5{,}5$ nằm chính giữa. Chọn $k = 2$, $m = 2$, tâm khởi tạo $\mu_1 = 4$, $\mu_2 = 7$.
+\end{example}
+
+\noindent\textbf{Bước cập nhật độ thuộc.} Với $m = 2$, số mũ $\frac{2}{m-1} = 2$, nên với hai cụm: $w_{i1} = \dfrac{1}{1 + (d_{i1}/d_{i2})^2}$. Chẳng hạn điểm $x = 1$ có $d_{11} = 3$, $d_{12} = 6$, nên $w_{11} = \frac{1}{1 + 0{,}25} = 0{,}8$ và $w_{12} = 0{,}2$.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+$x_i$ & $d(x_i, \mu_1 = 4)$ & $d(x_i, \mu_2 = 7)$ & $w_{i1}$ & $w_{i2}$ \\
+\hline
+1 & 3 & 6 & 0,8000 & 0,2000 \\ \hline
+2 & 2 & 5 & 0,8621 & 0,1379 \\ \hline
+3 & 1 & 4 & 0,9412 & 0,0588 \\ \hline
+5,5 & 1,5 & 1,5 & \textbf{0,5000} & \textbf{0,5000} \\ \hline
+8 & 4 & 1 & 0,0588 & 0,9412 \\ \hline
+9 & 5 & 2 & 0,1379 & 0,8621 \\ \hline
+10 & 6 & 3 & 0,2000 & 0,8000 \\ \hline
+\end{tabular}
+\caption{Độ thuộc sau bước cập nhật đầu tiên ($m = 2$)}
+\label{tab:fcm}
+\end{table}
+
+\noindent\textbf{Bước cập nhật tâm.} Với $w_{i1}^2 = (0{,}64;\ 0{,}7432;\ 0{,}8858;\ 0{,}25;\ 0{,}0035;\ 0{,}0190;\ 0{,}04)$, tổng bằng $2{,}5815$:
+\begin{align*}
+    \textstyle\sum_i w_{i1}^2\,x_i &= 0{,}64 \cdot 1 + 0{,}7432 \cdot 2 + 0{,}8858 \cdot 3 + 0{,}25 \cdot 5{,}5 \\
+    &\quad + 0{,}0035 \cdot 8 + 0{,}0190 \cdot 9 + 0{,}04 \cdot 10 \approx 6{,}7577, \\
+    \mu_1 &= \frac{6{,}7577}{2{,}5815} \approx 2{,}6178 .
+\end{align*}
+Do dữ liệu đối xứng qua 5,5, $\mu_2 = 11 - \mu_1 \approx 8{,}3822$. Hàm mục tiêu giảm từ $J = 24{,}30$ ở vòng 1 xuống $10{,}20$ ở vòng 2, và thuật toán hội tụ về $\mu_1 \approx 2{,}2861$, $\mu_2 \approx 8{,}7139$. Khi hội tụ, các điểm $1, 2, 3$ có độ thuộc vào cụm 1 lần lượt là $0{,}973$; $0{,}998$; $0{,}985$, còn điểm $5{,}5$ giữ nguyên độ thuộc \textbf{$0{,}5 / 0{,}5$}.
+
+\paragraph{So sánh với K-Means.} Trên cùng dữ liệu, K-Means buộc phải xếp điểm $5{,}5$ vào một cụm, ở đây là cụm trái, nên tâm cụm trái bị kéo lệch thành $\frac{1 + 2 + 3 + 5{,}5}{4} = 2{,}875$, còn tâm cụm phải là 9. Lời giải xếp $5{,}5$ vào cụm phải có cùng tổng bình phương khoảng cách $13{,}1875$, nên lựa chọn của K-Means hoàn toàn tùy thuộc vào khởi tạo. FCM phản ánh trung thực sự mơ hồ này: điểm $5{,}5$ có độ thuộc như nhau vào hai cụm, và vì trọng số $w^m = 0{,}25$ của nó nhỏ, nó ảnh hưởng rất ít đến vị trí tâm.
+
+\begin{lstlisting}[caption={Cài đặt Fuzzy C-Means bằng NumPy và so sánh với K-Means}]
+import numpy as np
+from sklearn.cluster import KMeans
+
+def fuzzy_cmeans(X, centers, m=2.0, n_iter=100, tol=1e-6):
+    X = np.asarray(X, dtype=float).reshape(len(X), -1)
+    C = np.asarray(centers, dtype=float).reshape(len(centers), -1)
+    for _ in range(n_iter):
+        D = np.linalg.norm(X[:, None, :] - C[None, :, :], axis=2)   # (n, k)
+        D = np.fmax(D, 1e-12)                                       # tranh chia cho 0
+        W = 1.0 / ((D[:, :, None] / D[:, None, :]) ** (2 / (m - 1))).sum(axis=2)
+        Wm = W ** m
+        C_new = (Wm.T @ X) / Wm.sum(axis=0)[:, None]                # tam co trong so
+        converged = np.abs(C_new - C).max() < tol
+        C = C_new
+        if converged:
+            break
+    return C, W
+
+x = np.array([1, 2, 3, 5.5, 8, 9, 10])
+centers, W = fuzzy_cmeans(x, centers=[4, 7])
+print(centers.ravel().round(4))         # [2.2861 8.7139]
+print(W[3].round(4))                    # diem 5.5: [0.5 0.5]
+
+km = KMeans(n_clusters=2, n_init=10, random_state=0).fit(x.reshape(-1, 1))
+print(km.cluster_centers_.ravel(), km.labels_)   # [2.875 9.] [0 0 0 0 1 1 1]
+\end{lstlisting}
+
+Thư viện \texttt{scikit-fuzzy} cung cấp hàm \texttt{cmeans} hoàn chỉnh. Một cách tiếp cận phân cụm mềm khác, có nền tảng xác suất, là \textbf{mô hình hỗn hợp Gauss} (\texttt{GaussianMixture} trong scikit-learn), với phương thức \texttt{predict\_proba} trả về xác suất thuộc từng cụm.
 
 % ---------------------------------------------------------
 \section{Phân cụm phân cấp (Hierarchical Clustering)}
@@ -322,6 +409,7 @@ X2 = PCA(2).fit_transform(StandardScaler().fit_transform(customers.drop(columns=
 \begin{itemize}
     \item Phân cụm là học không giám sát, dựa trên khoảng cách nên bắt buộc tiền xử lý đúng.
     \item K-Means lặp hai bước gán -- cập nhật để cực tiểu WCSS; dùng K-Means++ và nhiều lần khởi tạo; chọn $K$ bằng elbow và Silhouette.
+    \item Fuzzy C-Means là phân cụm mềm: mỗi điểm có độ thuộc $w_{ij} \in [0, 1]$ vào từng cụm; tâm là trung bình có trọng số $w_{ij}^m$; hệ số mờ $m \to 1$ thì trở về K-Means.
     \item Phân cụm phân cấp xây dendrogram bằng cách gộp dần theo tiêu chí liên kết; cắt cây để lấy số cụm.
     \item DBSCAN tìm cụm theo mật độ, phân loại điểm lõi -- biên -- nhiễu, tìm được cụm hình dạng tùy ý.
     \item Mean-shift dịch chuyển điểm về đỉnh mật độ, không cần biết số cụm.
@@ -335,6 +423,7 @@ X2 = PCA(2).fit_transform(StandardScaler().fit_transform(customers.drop(columns=
     \item Cho 6 điểm 1 chiều: $2, 3, 8, 9, 10, 25$. Vẽ dendrogram với single linkage và complete linkage.
     \item Với 9 điểm của ví dụ DBSCAN, chạy lại với $\varepsilon = 3$, $\mathit{MinPts} = 3$. Lập bảng phân loại điểm như Bảng~\ref{tab:dbscan}.
     \item Sinh dữ liệu \texttt{make\_moons(n\_samples=300, noise=0.05)}, so sánh K-Means ($K = 2$) và DBSCAN. Giải thích sự khác biệt.
+    \item Với dữ liệu ví dụ Fuzzy C-Means, chạy lại hàm \texttt{fuzzy\_cmeans} với $m \in \{1{,}1;\ 2;\ 4\}$ và lập bảng độ thuộc của điểm $x = 3$ khi hội tụ. Giải thích vì sao $m \to 1$ cho kết quả gần K-Means.
     \item Lượng tử hóa màu: dùng K-Means với $K \in \{4, 16, 64\}$ để nén màu một bức ảnh (mỗi pixel là một điểm trong không gian RGB). So sánh ảnh kết quả.
     \item Phân cụm các căn nhà trong Ames Housing theo \texttt{Gr Liv Area}, \texttt{Overall Qual}, \texttt{Year Built} (đã chuẩn hóa). Mô tả đặc điểm và giá trung bình của từng cụm.
 \end{enumerate}
@@ -346,12 +435,16 @@ X2 = PCA(2).fit_transform(StandardScaler().fit_transform(customers.drop(columns=
 \begin{enumerate}
     \item Ankerst, M., Breunig, M. M., Kriegel, H.-P., \& Sander, J. (1999). OPTICS: Ordering Points To Identify the Clustering Structure. \textit{Proceedings of ACM SIGMOD '99}, 49--60.
     \item Arthur, D., \& Vassilvitskii, S. (2007). k-means++: The Advantages of Careful Seeding. \textit{Proceedings of SODA '07}, 1027--1035.
+    \item Bezdek, J. C. (1981). \textit{Pattern Recognition with Fuzzy Objective Function Algorithms}. Plenum Press.
     \item Comaniciu, D., \& Meer, P. (2002). Mean Shift: A Robust Approach Toward Feature Space Analysis. \textit{IEEE Transactions on Pattern Analysis and Machine Intelligence}, 24(5), 603--619.
+    \item Dunn, J. C. (1973). A Fuzzy Relative of the ISODATA Process and Its Use in Detecting Compact Well-Separated Clusters. \textit{Journal of Cybernetics}, 3(3), 32--57.
     \item Ester, M., Kriegel, H.-P., Sander, J., \& Xu, X. (1996). A Density-Based Algorithm for Discovering Clusters in Large Spatial Databases with Noise. \textit{Proceedings of KDD '96}, 226--231.
     \item Fukunaga, K., \& Hostetler, L. (1975). The estimation of the gradient of a density function, with applications in pattern recognition. \textit{IEEE Transactions on Information Theory}, 21(1), 32--40.
     \item Johnson, S. C. (1967). Hierarchical clustering schemes. \textit{Psychometrika}, 32(3), 241--254.
     \item Lloyd, S. P. (1982). Least squares quantization in PCM. \textit{IEEE Transactions on Information Theory}, 28(2), 129--137.
     \item MacQueen, J. (1967). Some methods for classification and analysis of multivariate observations. \textit{Proceedings of the Fifth Berkeley Symposium on Mathematical Statistics and Probability}, 1, 281--297.
+    \item Raschka, S., Liu, Y. (H.), \& Mirjalili, V. (2022). \textit{Machine Learning with PyTorch and Scikit-Learn}, Chương 10: Working with Unlabeled Data -- Clustering Analysis. Packt Publishing.
     \item Rousseeuw, P. J. (1987). Silhouettes: a graphical aid to the interpretation and validation of cluster analysis. \textit{Journal of Computational and Applied Mathematics}, 20, 53--65.
     \item Ward, J. H. (1963). Hierarchical Grouping to Optimize an Objective Function. \textit{Journal of the American Statistical Association}, 58(301), 236--244.
+    \item Zadeh, L. A. (1965). Fuzzy sets. \textit{Information and Control}, 8(3), 338--353.
 \end{enumerate}

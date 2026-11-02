@@ -14,6 +14,7 @@ Hồi quy (regression) là bài toán \textbf{học có giám sát} (supervised 
     \item Xây dựng mô hình hồi quy tuyến tính đơn biến, đa biến; tự tính tay nghiệm bình phương tối thiểu.
     \item Hiểu và cài đặt thuật toán Gradient Descent.
     \item Nhận biết quá khớp và áp dụng hồi quy đa thức, Ridge, Lasso.
+    \item Xử lý ngoại lai bằng hồi quy bền vững (RANSAC, Huber) và chẩn đoán mô hình bằng biểu đồ phần dư.
     \item Xây dựng mô hình dự báo chuỗi thời gian bằng đặc trưng trễ (lag features).
     \item Hoàn thiện mô hình dự đoán giá nhà trên bộ dữ liệu Ames Housing.
 \end{itemize}
@@ -275,6 +276,128 @@ Bậc $p$ quá thấp, mô hình không nắm bắt được xu hướng (\textb
 Ridge co các hệ số về gần 0 và có nghiệm đóng $\mathbf{w}^* = (\mathbf{X}^\top\mathbf{X} + \alpha\mathbf{I})^{-1}\mathbf{X}^\top\mathbf{y}$, luôn khả nghịch khi $\alpha > 0$ --- khắc phục đa cộng tuyến. Lasso có thể đưa nhiều hệ số về \textbf{đúng bằng 0}, tức tự động \textbf{chọn đặc trưng}. ElasticNet (Zou \& Hastie, 2005) kết hợp cả hai khoản phạt. Tham số $\alpha$ được chọn bằng kiểm định chéo (\texttt{RidgeCV}, \texttt{LassoCV}). Vì khoản phạt phụ thuộc độ lớn hệ số, \textbf{bắt buộc phải chuẩn hóa dữ liệu} trước khi dùng Ridge/Lasso.
 
 % ---------------------------------------------------------
+\section{Hồi quy bền vững và phân tích phần dư}
+\label{sec:robust-regression}
+% ---------------------------------------------------------
+
+Bình phương tối thiểu cực tiểu tổng \textbf{bình phương} phần dư, nên một điểm có phần dư bằng 10 đóng góp 100 đơn vị vào hàm mất mát --- gấp trăm lần một điểm có phần dư bằng 1. Vì vậy chỉ vài ngoại lai cũng đủ ``kéo lệch'' toàn bộ đường hồi quy. Nói theo ngôn ngữ thống kê, \textbf{điểm sụp đổ} (breakdown point) của OLS bằng 0: chỉ một điểm dữ liệu tồi tệ tùy ý cũng có thể làm ước lượng sai lệch tùy ý (Raschka và cộng sự, 2022, Chương 9).
+
+\begin{example}[Ngoại lai kéo lệch đường hồi quy]
+Mười điểm được sinh từ quan hệ $y \approx 2x + 1$ với $x = 0, 1, \dots, 9$ (có nhiễu nhỏ), cộng thêm ba điểm ngoại lai do lỗi nhập liệu $(7{,}5;\ 2{,}0)$, $(8{,}5;\ 1{,}0)$, $(9{,}5;\ 3{,}0)$. Dữ liệu của 13 điểm cho trong Bảng~\ref{tab:ransac-data}.
+\end{example}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|c|ccccccccccccc|}
+\hline
+$x$ & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 7,5 & 8,5 & 9,5 \\ \hline
+$y$ & 1,06 & 2,93 & 5,32 & 7,05 & 8,73 & 11,18 & 13,65 & 15,47 & 16,65 & 18,37 & \textbf{2,0} & \textbf{1,0} & \textbf{3,0} \\ \hline
+\end{tabular}
+\caption{Dữ liệu ví dụ hồi quy bền vững; ba cột cuối là ngoại lai}
+\label{tab:ransac-data}
+\end{table}
+
+Hồi quy OLS trên cả 13 điểm cho $\hat{y} = 4{,}205 + 0{,}734\,x$: hệ số góc bị kéo từ khoảng 2 xuống còn 0,73, tức ba điểm sai đã làm hỏng mô hình của mười điểm đúng.
+
+\subsection{RANSAC}
+
+RANSAC (RANdom SAmple Consensus) được Fischler và Bolles (1981) đề xuất cho thị giác máy tính, nơi dữ liệu đo đạc chứa rất nhiều điểm sai. Thay vì giảm trọng số ngoại lai, RANSAC \textbf{tìm và loại bỏ} chúng (Raschka và cộng sự, 2022, Chương 9):
+\begin{enumerate}
+    \item Chọn ngẫu nhiên một tập con nhỏ nhất đủ để khớp mô hình (với đường thẳng là 2 điểm), coi là các điểm ``trong'' (inlier) giả định, và khớp mô hình.
+    \item Tính phần dư của mọi điểm còn lại; điểm nào có $|y_i - \hat{y}_i| \leq t$ (ngưỡng do người dùng chọn) được thêm vào tập điểm trong --- gọi là \textbf{tập đồng thuận}.
+    \item Khớp lại mô hình trên toàn bộ tập điểm trong.
+    \item Đánh giá sai số của mô hình trên tập điểm trong.
+    \item Lặp lại một số lần cố định hoặc đến khi đạt ngưỡng hiệu năng; giữ mô hình có tập đồng thuận tốt nhất.
+\end{enumerate}
+
+\paragraph{Cần bao nhiêu lần lặp?} Gọi $\varepsilon$ là tỉ lệ ngoại lai, $s$ là kích thước tập con tối thiểu và $p$ là xác suất mong muốn có ít nhất một lần rút được tập con \textbf{toàn điểm trong}. Mỗi lần rút thành công với xác suất $(1 - \varepsilon)^s$, nên số lần lặp cần thiết là
+\begin{equation}
+    N = \frac{\ln(1 - p)}{\ln\big(1 - (1 - \varepsilon)^s\big)} .
+\end{equation}
+Với ví dụ trên, $\varepsilon = 3/13$, $s = 2$, $p = 0{,}99$: $(1 - \varepsilon)^2 = (10/13)^2 \approx 0{,}592$, nên $N = \ln 0{,}01 / \ln 0{,}408 \approx 5{,}14$, tức chỉ cần 6 lần lặp. Mặc định của scikit-learn là 100 lần lặp (\texttt{max\_trials}).
+
+Với ngưỡng $t = 1{,}5$, RANSAC xác định đúng ba điểm cuối là ngoại lai và cho $\hat{y} = 1{,}185 + 1{,}968\,x$ --- \textbf{trùng hoàn toàn} với OLS khi chỉ chạy trên mười điểm sạch.
+
+\subsection{Hàm mất mát Huber}
+
+Huber (1964) đề xuất một hàm mất mát lai: bậc hai với phần dư nhỏ, \textbf{tuyến tính} với phần dư lớn:
+\begin{equation}
+    L_\delta(r) = \begin{cases} \tfrac{1}{2}r^2 & |r| \leq \delta, \\[3pt] \delta\big(|r| - \tfrac{1}{2}\delta\big) & |r| > \delta. \end{cases}
+\end{equation}
+Vì phần tuyến tính tăng chậm hơn hẳn phần bậc hai, ảnh hưởng của mỗi ngoại lai bị \textbf{chặn}. Khác với RANSAC, Huber không loại điểm nào mà chỉ giảm ảnh hưởng của chúng. \texttt{HuberRegressor} (tham số \texttt{epsilon=1.35} mặc định) cho $\hat{y} = 1{,}392 + 1{,}863\,x$.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Phương pháp} & \textbf{Hệ số góc} & \textbf{Hệ số chặn} \\
+\hline
+Quan hệ sinh dữ liệu & 2 & 1 \\ \hline
+OLS trên 13 điểm (có ngoại lai) & 0,734 & 4,205 \\ \hline
+OLS trên 10 điểm sạch (tham chiếu) & 1,968 & 1,185 \\ \hline
+RANSAC ($t = 1{,}5$) & 1,968 & 1,185 \\ \hline
+Huber ($\varepsilon = 1{,}35$) & 1,863 & 1,392 \\ \hline
+\end{tabular}
+\caption{So sánh OLS và hai phương pháp hồi quy bền vững}
+\label{tab:robust}
+\end{table}
+
+\hinhchuachen{ch-regression-ransac.png}{Đường OLS bị ba ngoại lai kéo lệch, so với đường RANSAC (điểm trong và ngoại lai được tô màu khác nhau) và đường Huber.}{fig:ransac}
+
+\begin{lstlisting}[caption={OLS, RANSAC và Huber trên dữ liệu có ngoại lai}]
+import numpy as np
+from sklearn.linear_model import LinearRegression, RANSACRegressor, HuberRegressor
+
+rng = np.random.default_rng(0)
+x = np.arange(10, dtype=float)
+y = 2 * x + 1 + rng.normal(0, 0.5, 10)
+x = np.r_[x, 7.5, 8.5, 9.5]                 # them 3 ngoai lai
+y = np.r_[y, 2.0, 1.0, 3.0]
+X = x.reshape(-1, 1)
+
+ols = LinearRegression().fit(X, y)
+ransac = RANSACRegressor(LinearRegression(), residual_threshold=1.5,
+                         random_state=0).fit(X, y)
+huber = HuberRegressor().fit(X, y)
+print(ols.coef_, ols.intercept_)                                  # [0.734] 4.205
+print(ransac.estimator_.coef_, ransac.estimator_.intercept_)      # [1.968] 1.185
+print(np.where(~ransac.inlier_mask_)[0])                          # [10 11 12]
+print(huber.coef_, huber.intercept_)                              # [1.863] 1.392
+\end{lstlisting}
+
+\noindent\textit{Lưu ý thực hành.} Ngưỡng $t$ phụ thuộc thang đo của $y$; nếu không chỉ định, scikit-learn dùng độ lệch tuyệt đối trung vị (MAD) của $y$. RANSAC có tính ngẫu nhiên nên cần cố định \texttt{random\_state}. Cả hai phương pháp đều không thay thế được việc \textbf{tìm hiểu nguyên nhân} của ngoại lai (Chương~\ref{chap:preprocessing}): ngoại lai do lỗi nhập liệu thì nên sửa hoặc loại, còn ngoại lai là hiện tượng thật thì có thể chính là điều cần nghiên cứu.
+
+\subsection{Phân tích phần dư}
+
+Với nhiều đặc trưng, không thể vẽ đường hồi quy trong không gian nhiều chiều, nhưng luôn vẽ được \textbf{biểu đồ phần dư}: trục hoành là giá trị dự đoán $\hat{y}_i$, trục tung là phần dư $e_i = y_i - \hat{y}_i$ (Raschka và cộng sự, 2022, Chương 9). Với một mô hình tốt, các điểm phân tán \textbf{ngẫu nhiên} quanh đường $e = 0$ với độ rộng không đổi. Mọi \textbf{khuôn mẫu} trong biểu đồ đều là thông tin mà mô hình chưa nắm bắt được:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{3.6cm}|p{4.2cm}|p{5cm}|}
+\hline
+\textbf{Khuôn mẫu} & \textbf{Chẩn đoán} & \textbf{Cách xử lý} \\
+\hline
+Hình cong (chữ U) & Quan hệ phi tuyến chưa được mô hình hóa & Thêm đặc trưng đa thức, biến đổi đặc trưng, dùng mô hình phi tuyến \\ \hline
+Hình phễu (độ rộng tăng theo $\hat{y}$) & Phương sai sai số thay đổi (heteroscedasticity) & Biến đổi logarit biến mục tiêu, như với giá nhà Ames \\ \hline
+Vài điểm nằm xa đường 0 & Ngoại lai, điểm có ảnh hưởng lớn & Kiểm tra dữ liệu, dùng hồi quy bền vững \\ \hline
+Khuôn mẫu theo thứ tự thời gian & Tự tương quan của sai số & Thêm đặc trưng trễ, dùng mô hình chuỗi thời gian \\ \hline
+\end{tabular}
+\caption{Đọc biểu đồ phần dư}
+\label{tab:residual-patterns}
+\end{table}
+
+\hinhchuachen{ch-regression-residual-patterns.png}{Bốn dạng biểu đồ phần dư điển hình: ngẫu nhiên (tốt), hình cong, hình phễu và có ngoại lai.}{fig:residual-patterns}
+
+\begin{lstlisting}[caption={Vẽ biểu đồ phần dư bằng scikit-learn}]
+from sklearn.metrics import PredictionErrorDisplay
+
+y_pred = model.predict(X_test)
+PredictionErrorDisplay.from_predictions(y_test, y_pred, kind="residual_vs_predicted")
+PredictionErrorDisplay.from_predictions(y_test, y_pred, kind="actual_vs_predicted")
+\end{lstlisting}
+
+% ---------------------------------------------------------
 \section{Hồi quy cho chuỗi thời gian}
 % ---------------------------------------------------------
 
@@ -362,6 +485,7 @@ price_pred = np.exp(pipe.predict(X_test[:5]))
     \item Hồi quy tuyến tính có nghiệm đóng $w_1 = S_{xy}/S_{xx}$, $w_0 = \bar{y} - w_1\bar{x}$; dạng đa biến $\mathbf{w}^* = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}$.
     \item Gradient Descent cập nhật tham số ngược hướng gradient; tốc độ học và chuẩn hóa dữ liệu quyết định tốc độ hội tụ.
     \item Hồi quy đa thức tăng độ linh hoạt nhưng dễ quá khớp; Ridge và Lasso kiểm soát độ phức tạp, Lasso còn chọn đặc trưng.
+    \item OLS có điểm sụp đổ bằng 0. RANSAC tìm và loại ngoại lai bằng tập đồng thuận, cần $N = \ln(1 - p)/\ln(1 - (1 - \varepsilon)^s)$ lần lặp; mất mát Huber chặn ảnh hưởng của phần dư lớn. Biểu đồ phần dư chẩn đoán quan hệ phi tuyến, phương sai thay đổi, ngoại lai và tự tương quan.
     \item Với chuỗi thời gian: dùng đặc trưng trễ, chia dữ liệu theo thời gian, không xáo trộn.
 \end{itemize}
 
@@ -374,6 +498,8 @@ price_pred = np.exp(pipe.predict(X_test[:5]))
     \item Chạy Gradient Descent cho bài 1 với $\eta \in \{0{,}01;\ 0{,}05;\ 0{,}2\}$. Vẽ giá trị hàm mất mát theo số bước và nhận xét.
     \item Sinh dữ liệu $y = \sin(x) + \text{nhiễu}$ với 20 điểm. Khớp đa thức bậc 1, 3, 9, 15 và so sánh sai số trên tập huấn luyện và tập kiểm tra.
     \item Trên Ames Housing, dùng \texttt{LassoCV} và liệt kê 10 đặc trưng có hệ số lớn nhất (theo trị tuyệt đối). Bao nhiêu hệ số bị đưa về 0?
+    \item Với ví dụ RANSAC (Bảng~\ref{tab:ransac-data}), chạy lại với ngưỡng $t \in \{0{,}5;\ 1{,}5;\ 5;\ 15\}$. Ngưỡng nào quá chặt (loại cả điểm đúng), ngưỡng nào quá lỏng (giữ cả ngoại lai)? Tính số lần lặp $N$ cần thiết khi tỉ lệ ngoại lai là 50\% và $p = 0{,}999$.
+    \item Theo Raschka và cộng sự (2022, Chương 9), khớp \texttt{SalePrice} theo \texttt{Gr Liv Area} của Ames Housing bằng OLS và RANSAC; vẽ các điểm trong, ngoại lai và hai đường hồi quy. Sau đó vẽ biểu đồ phần dư của mô hình đa biến ở mục nghiên cứu tình huống và chẩn đoán theo Bảng~\ref{tab:residual-patterns}.
     \item Vì sao không được dùng \texttt{train\_test\_split(shuffle=True)} cho chuỗi thời gian? Viết lại ví dụ dự báo doanh số với \texttt{TimeSeriesSplit}.
 \end{enumerate}
 
@@ -384,11 +510,15 @@ price_pred = np.exp(pipe.predict(X_test[:5]))
 \begin{enumerate}
     \item Box, G. E. P., \& Jenkins, G. M. (1970). \textit{Time Series Analysis: Forecasting and Control}. Holden-Day.
     \item Cauchy, A.-L. (1847). Méthode générale pour la résolution des systèmes d'équations simultanées. \textit{Comptes Rendus de l'Académie des Sciences}, 25, 536--538.
+    \item Fischler, M. A., \& Bolles, R. C. (1981). Random Sample Consensus: A Paradigm for Model Fitting with Applications to Image Analysis and Automated Cartography. \textit{Communications of the ACM}, 24(6), 381--395.
     \item Galton, F. (1886). Regression towards mediocrity in hereditary stature. \textit{Journal of the Anthropological Institute}, 15, 246--263.
     \item Gauss, C. F. (1809). \textit{Theoria Motus Corporum Coelestium}. Hamburg: Perthes \& Besser.
     \item Hastie, T., Tibshirani, R., \& Friedman, J. (2009). \textit{The Elements of Statistical Learning} (2nd ed.), Chương 3. Springer.
     \item Hoerl, A. E., \& Kennard, R. W. (1970). Ridge Regression: Biased Estimation for Nonorthogonal Problems. \textit{Technometrics}, 12(1), 55--67.
+    \item Huber, P. J. (1964). Robust Estimation of a Location Parameter. \textit{The Annals of Mathematical Statistics}, 35(1), 73--101.
     \item Legendre, A.-M. (1805). \textit{Nouvelles méthodes pour la détermination des orbites des comètes}. Paris: Firmin Didot.
+    \item Liu, Y. (H.) (2019). \textit{Python Machine Learning By Example} (2nd ed.), Chương 9: Stock Price Prediction with Regression Algorithms. Packt Publishing.
+    \item Raschka, S., Liu, Y. (H.), \& Mirjalili, V. (2022). \textit{Machine Learning with PyTorch and Scikit-Learn}, Chương 9: Predicting Continuous Target Variables with Regression Analysis. Packt Publishing.
     \item Tibshirani, R. (1996). Regression Shrinkage and Selection via the Lasso. \textit{Journal of the Royal Statistical Society, Series B}, 58(1), 267--288.
     \item Zou, H., \& Hastie, T. (2005). Regularization and variable selection via the elastic net. \textit{Journal of the Royal Statistical Society, Series B}, 67(2), 301--320.
 \end{enumerate}

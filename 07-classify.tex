@@ -11,6 +11,7 @@ Phân lớp (classification) là bài toán học có giám sát trong đó đ�
 \begin{itemize}
     \item Trình bày ý tưởng, lịch sử và giả định của năm họ thuật toán phân lớp kinh điển.
     \item Tự tính tay một bước dự đoán của KNN (bỏ phiếu đều, có trọng số, và KNN cho hồi quy), Naive Bayes, Logistic Regression và một lần chia nút của cây quyết định.
+    \item Suy ra hàm mất mát logistic từ nguyên lý hợp lý cực đại, tính tay một bước Gradient Descent và giải thích vai trò của tham số chính quy hóa $C$.
     \item Cài đặt và so sánh các thuật toán bằng scikit-learn trên dữ liệu thực.
     \item Lựa chọn thuật toán và bước tiền xử lý phù hợp cho từng loại dữ liệu.
 \end{itemize}
@@ -257,6 +258,74 @@ $\sigma(z)$ & 0.1192 & 0.5 & 0.7311 & 0.8808 \\ \hline
 \end{equation}
 Hàm này lồi, không có nghiệm đóng, nên được giải bằng Gradient Descent hoặc các phương pháp tối ưu bậc hai (thuật toán \texttt{lbfgs} mặc định của scikit-learn). Gradient có dạng rất gọn: $\nabla_{\mathbf{w}} J = \frac{1}{n}\sum_i (\hat{p}_i - y_i)\,\mathbf{x}_i$ --- giống hệt hồi quy tuyến tính, chỉ thay $\hat{y}$ bằng $\hat{p}$.
 
+\subsection{Suy ra hàm mất mát từ nguyên lý hợp lý cực đại}
+
+Vì sao lại là entropy chéo mà không phải bình phương sai số như hồi quy tuyến tính? Câu trả lời đến từ \textbf{ước lượng hợp lý cực đại} (Maximum Likelihood Estimation -- MLE) của Fisher (Raschka và cộng sự, 2022, Chương 3). Với mỗi mẫu, mô hình cho xác suất $\hat{p}_i = P(y_i = 1 \mid \mathbf{x}_i)$, nên xác suất quan sát được đúng nhãn $y_i \in \{0, 1\}$ viết gọn thành $\hat{p}_i^{\,y_i}(1 - \hat{p}_i)^{1 - y_i}$ (bằng $\hat{p}_i$ khi $y_i = 1$ và bằng $1 - \hat{p}_i$ khi $y_i = 0$). Giả sử các mẫu độc lập, \textbf{hàm hợp lý} của toàn bộ dữ liệu là
+\begin{equation}
+    \mathcal{L}(\mathbf{w}, b) = \prod_{i=1}^{n} \hat{p}_i^{\,y_i}\,(1 - \hat{p}_i)^{1 - y_i} .
+\end{equation}
+Cực đại $\mathcal{L}$ tương đương cực đại $\ln\mathcal{L}$ (logarit đơn điệu tăng và biến tích thành tổng, tránh tràn số khi nhân nhiều xác suất nhỏ), và tương đương \textbf{cực tiểu} $-\frac{1}{n}\ln\mathcal{L}$ --- chính là hàm $J$ ở trên. Đạo hàm theo $w_j$ dùng tính chất $\sigma'(z) = \sigma(z)(1 - \sigma(z))$:
+\begin{equation}
+    \frac{\partial J}{\partial w_j} = \frac{1}{n}\sum_{i=1}^{n}(\hat{p}_i - y_i)\,x_{ij}, \qquad
+    \frac{\partial J}{\partial b} = \frac{1}{n}\sum_{i=1}^{n}(\hat{p}_i - y_i).
+\end{equation}
+
+\begin{example}[Một bước Gradient Descent cho hồi quy logistic]
+Bốn mẫu một chiều $x = (1, 2, 3, 4)$ với nhãn $y = (0, 0, 1, 1)$; khởi tạo $w = 0$, $b = 0$, tốc độ học $\eta = 1$.
+\begin{itemize}
+    \item Lan truyền xuôi: $z_i = 0$ nên $\hat{p}_i = \sigma(0) = 0{,}5$ với mọi $i$; mất mát $J = -\ln 0{,}5 = \ln 2 \approx 0{,}6931$.
+    \item Gradient: $\frac{\partial J}{\partial w} = \frac{1}{4}\big[0{,}5 \cdot 1 + 0{,}5 \cdot 2 + (-0{,}5) \cdot 3 + (-0{,}5) \cdot 4\big] = \frac{-2}{4} = -0{,}5$, còn $\frac{\partial J}{\partial b} = \frac{1}{4}(0{,}5 + 0{,}5 - 0{,}5 - 0{,}5) = 0$.
+    \item Cập nhật: $w \leftarrow 0 - 1 \times (-0{,}5) = 0{,}5$, $b \leftarrow 0$.
+    \item Sau một bước: $\hat{p} = \sigma(0{,}5 x) = (0{,}6225;\ 0{,}7311;\ 0{,}8176;\ 0{,}8808)$ và $J$ giảm còn $0{,}6539$.
+\end{itemize}
+Xác suất của hai mẫu lớp 1 đã tăng như mong muốn; xác suất của hai mẫu lớp 0 cũng tăng vì $b$ chưa kịp điều chỉnh --- các bước tiếp theo sẽ đẩy $b$ về giá trị âm để tách hai lớp.
+\end{example}
+
+Điểm đáng chú ý: gradient của hồi quy logistic có \textbf{cùng dạng} với gradient của hồi quy tuyến tính và của Adaline (Chương~\ref{chap:neural-network}), chỉ khác ở chỗ $\hat{p}_i$ đi qua hàm sigmoid. Raschka và cộng sự (2022) tận dụng điều này để biến bản cài đặt Adaline thành hồi quy logistic chỉ bằng cách thay hàm kích hoạt và hàm mất mát.
+
+\subsection{Chính quy hóa và tham số $C$}
+
+Khi dữ liệu tách được tuyến tính, cực đại hợp lý đẩy $\|\mathbf{w}\| \to \infty$ (sigmoid tiến tới hàm bước để xác suất tiến tới đúng 0 và 1), khiến mô hình quá tự tin và quá khớp. scikit-learn mặc định thêm khoản phạt L2, với $C$ là \textbf{nghịch đảo} của độ mạnh chính quy hóa:
+\begin{equation}
+    \min_{\mathbf{w}, b}\ \ \frac{1}{2}\|\mathbf{w}\|_2^2 + C\sum_{i=1}^{n}\Big[-y_i\ln\hat{p}_i - (1 - y_i)\ln(1 - \hat{p}_i)\Big].
+\end{equation}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|}
+\hline
+$C$ & $\|\mathbf{w}\|_2$ & \textbf{Accuracy train} & \textbf{Accuracy test} \\
+\hline
+0,001 & 0,287 & 0,899 & 0,881 \\ \hline
+0,01 & 0,813 & 0,953 & 0,951 \\ \hline
+0,1 & 1,787 & 0,988 & 0,958 \\ \hline
+1 & 3,594 & 0,991 & 0,958 \\ \hline
+100 & 23,754 & 0,998 & 0,951 \\ \hline
+\end{tabular}
+\caption{Ảnh hưởng của $C$ với hồi quy logistic trên \texttt{load\_breast\_cancer} (30 đặc trưng đã chuẩn hóa; chia 75/25 phân tầng, \texttt{random\_state=0})}
+\label{tab:logreg-C}
+\end{table}
+
+Bảng~\ref{tab:logreg-C} cho thấy đúng bức tranh bias -- variance (Chương~\ref{chap:validation}): $C$ quá nhỏ làm hệ số bị co mạnh và mô hình thiếu khớp (độ chính xác thấp trên cả hai tập); $C$ quá lớn làm chuẩn của $\mathbf{w}$ phình to gấp gần 7 lần, độ chính xác train tăng nhưng test giảm --- dấu hiệu quá khớp. Giá trị $C$ tốt được chọn bằng kiểm định chéo (\texttt{LogisticRegressionCV} hoặc \texttt{GridSearchCV}). Muốn phạt L1 để có hệ số thưa (lựa chọn đặc trưng, Chương~\ref{chap:preprocessing}), dùng \texttt{l1\_ratio=1.0} với \texttt{solver="saga"}.
+
+\begin{lstlisting}[caption={Đường chính quy hóa của hồi quy logistic}]
+import numpy as np
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+
+Xb, yb = load_breast_cancer(return_X_y=True)
+Xb_tr, Xb_te, yb_tr, yb_te = train_test_split(Xb, yb, test_size=0.25,
+                                              stratify=yb, random_state=0)
+for C in [0.001, 0.01, 0.1, 1, 100]:
+    m = make_pipeline(StandardScaler(), LogisticRegression(C=C, max_iter=5000))
+    m.fit(Xb_tr, yb_tr)
+    print(C, np.linalg.norm(m[-1].coef_).round(3),
+          round(m.score(Xb_tr, yb_tr), 3), round(m.score(Xb_te, yb_te), 3))
+\end{lstlisting}
+
 \paragraph{Diễn giải.} $\ln\frac{p}{1-p} = \mathbf{w}^\top\mathbf{x} + b$: mỗi khi $x_j$ tăng 1 đơn vị, \textit{odds} (tỉ số $p/(1-p)$) được nhân với $e^{w_j}$. Đây là lý do hồi quy logistic được ưa chuộng trong y khoa và tài chính, nơi cần giải thích mô hình.
 
 \paragraph{Đa lớp.} Với $K$ lớp, dùng hàm \textbf{softmax}: $P(y = k \mid \mathbf{x}) = \frac{e^{z_k}}{\sum_{j} e^{z_j}}$ với $z_k = \mathbf{w}_k^\top\mathbf{x} + b_k$. Tham số \texttt{C} trong scikit-learn là nghịch đảo của mức chính quy hóa L2 (giống Ridge): $C$ nhỏ $\Rightarrow$ chính quy hóa mạnh.
@@ -445,6 +514,8 @@ Các chỉ số đánh giá như ma trận nhầm lẫn, precision, recall, F1 v
     \item Dudani, S. A. (1976). The Distance-Weighted k-Nearest-Neighbor Rule. \textit{IEEE Transactions on Systems, Man, and Cybernetics}, SMC-6(4), 325--327.
     \item Fisher, R. A. (1936). The use of multiple measurements in taxonomic problems. \textit{Annals of Eugenics}, 7(2), 179--188.
     \item Fix, E., \& Hodges, J. L. (1951). \textit{Discriminatory Analysis. Nonparametric Discrimination: Consistency Properties}. USAF School of Aviation Medicine, Randolph Field, Texas.
+    \item Liu, Y. (H.) (2019). \textit{Python Machine Learning By Example} (2nd ed.), Chương 4--5 (Naive Bayes, SVM) và Chương 7 (Logistic Regression). Packt Publishing.
     \item Maron, M. E. (1961). Automatic Indexing: An Experimental Inquiry. \textit{Journal of the ACM}, 8(3), 404--417.
     \item Quinlan, J. R. (1986). Induction of decision trees. \textit{Machine Learning}, 1(1), 81--106.
+    \item Raschka, S., Liu, Y. (H.), \& Mirjalili, V. (2022). \textit{Machine Learning with PyTorch and Scikit-Learn}, Chương 3: A Tour of Machine Learning Classifiers Using Scikit-Learn. Packt Publishing.
 \end{enumerate}

@@ -12,7 +12,7 @@ Các chương trước đã giới thiệu hàng chục mô hình, mỗi mô hì
     \item Giải thích lỗi tổng quát hóa, quá khớp, dưới khớp và đánh đổi bias -- variance.
     \item Thiết kế đúng việc chia dữ liệu: train / validation / test, k-fold, stratified, time series split.
     \item Tính tay và diễn giải các độ đo phân lớp (ma trận nhầm lẫn, precision, recall, F1, ROC -- AUC) và hồi quy (MAE, MSE, RMSE, $R^2$).
-    \item Tìm siêu tham số bằng \texttt{GridSearchCV}, \texttt{RandomizedSearchCV} và tránh rò rỉ dữ liệu.
+    \item Tìm siêu tham số bằng \texttt{GridSearchCV}, \texttt{RandomizedSearchCV}, phương pháp chia đôi liên tiếp (successive halving), và tránh rò rỉ dữ liệu.
 \end{itemize}
 
 % ---------------------------------------------------------
@@ -278,6 +278,28 @@ print(rand.best_params_)
 
 \hinhchuachen{ch-validation-grid-heatmap.png}{Bản đồ nhiệt điểm F1 kiểm định chéo theo \texttt{C} và \texttt{gamma} của SVM.}{fig:grid-heatmap}
 
+\paragraph{Chia đôi liên tiếp (successive halving).} Grid search và random search dành cùng một lượng tài nguyên cho mọi ứng viên, kể cả những ứng viên tồi lộ rõ ngay từ đầu. Phương pháp \textbf{chia đôi liên tiếp} (Jamieson \& Talwalkar, 2016; nền tảng của Hyperband -- Li và cộng sự, 2018) phân bổ tài nguyên thích nghi, giống một giải đấu loại trực tiếp (Raschka và cộng sự, 2022, Chương 6):
+\begin{enumerate}
+    \item Đánh giá \textbf{rất nhiều} ứng viên với tài nguyên \textbf{nhỏ}, chẳng hạn chỉ dùng một ít mẫu huấn luyện.
+    \item Giữ lại $1/\eta$ ứng viên tốt nhất (\texttt{factor}, thường $\eta = 3$), nhân tài nguyên lên $\eta$ lần.
+    \item Lặp lại đến khi còn một ứng viên hoặc dùng hết tài nguyên.
+\end{enumerate}
+Với 81 ứng viên và $\eta = 3$: các vòng có $81 \to 27 \to 9 \to 3 \to 1$ ứng viên, với tài nguyên $r \to 3r \to 9r \to 27r \to 81r$. Tổng chi phí là $5 \times 81r = 405r$, so với $81 \times 81r = 6561r$ nếu đánh giá mọi ứng viên với tài nguyên đầy đủ --- rẻ hơn khoảng 16 lần. Giả định ngầm của phương pháp là thứ hạng của các ứng viên khi có ít tài nguyên phản ánh đúng thứ hạng khi có đủ tài nguyên; điều này không phải lúc nào cũng đúng, nhất là khi tài nguyên ban đầu quá nhỏ.
+
+\begin{lstlisting}[caption={Tìm siêu tham số bằng HalvingRandomSearchCV}]
+from sklearn.experimental import enable_halving_search_cv  # noqa: F401 (tinh nang thu nghiem)
+from sklearn.model_selection import HalvingRandomSearchCV
+
+halving = HalvingRandomSearchCV(pipe, {"svc__C": loguniform(1e-2, 1e3),
+                                       "svc__gamma": loguniform(1e-4, 1e0)},
+                                factor=3, resource="n_samples", scoring="f1",
+                                random_state=0, n_jobs=-1)
+halving.fit(X_tmp, y_tmp)
+print(halving.n_candidates_)    # [22, 8, 3]   so ung vien moi vong
+print(halving.n_resources_)     # [20, 60, 180] so mau huan luyen moi vong
+print(halving.best_params_, round(halving.score(X_test, y_test), 4))   # F1 test ~0.986
+\end{lstlisting}
+
 \paragraph{Kiểm định chéo lồng nhau.} \texttt{best\_score\_} của GridSearchCV là ước lượng \textbf{lạc quan}, vì chính nó đã được dùng để chọn siêu tham số (Cawley \& Talbot, 2010). Để ước lượng khách quan khi không có tập test riêng, dùng \textbf{nested CV}: vòng ngoài đánh giá, vòng trong tìm siêu tham số.
 \begin{lstlisting}[caption={Nested cross-validation}]
 outer = cross_val_score(GridSearchCV(pipe, param_grid, cv=3),
@@ -324,6 +346,7 @@ ValidationCurveDisplay.from_estimator(DecisionTreeClassifier(random_state=0), X,
     \item Mục tiêu là lỗi tổng quát hóa; lỗi huấn luyện luôn lạc quan. Cân bằng bias và variance.
     \item Chia train / validation / test; tập test chỉ dùng một lần. Kiểm định chéo k-fold cho ước lượng ổn định hơn; chọn bộ chia phù hợp (stratified, group, time series).
     \item Phân lớp: ma trận nhầm lẫn, precision, recall, F1, ROC -- AUC; hồi quy: MAE, MSE, RMSE, $R^2$.
+    \item Chia đôi liên tiếp (successive halving) loại dần ứng viên kém khi tài nguyên còn nhỏ, rẻ hơn grid search nhiều lần.
     \item Tìm siêu tham số bằng Grid/Random search trên pipeline; dùng nested CV để có ước lượng khách quan.
 \end{itemize}
 
@@ -351,7 +374,12 @@ ValidationCurveDisplay.from_estimator(DecisionTreeClassifier(random_state=0), X,
     \item Geman, S., Bienenstock, E., \& Doursat, R. (1992). Neural Networks and the Bias/Variance Dilemma. \textit{Neural Computation}, 4(1), 1--58.
     \item Hanley, J. A., \& McNeil, B. J. (1982). The meaning and use of the area under a receiver operating characteristic (ROC) curve. \textit{Radiology}, 143(1), 29--36.
     \item Hastie, T., Tibshirani, R., \& Friedman, J. (2009). \textit{The Elements of Statistical Learning} (2nd ed.), Chapter 7. Springer.
+    \item Jamieson, K., \& Talwalkar, A. (2016). Non-stochastic Best Arm Identification and Hyperparameter Optimization. \textit{Proceedings of AISTATS 2016}, 240--248.
     \item Kohavi, R. (1995). A Study of Cross-Validation and Bootstrap for Accuracy Estimation and Model Selection. \textit{Proceedings of IJCAI '95}, 1137--1143.
+    \item Li, L., Jamieson, K., DeSalvo, G., Rostamizadeh, A., \& Talwalkar, A. (2018). Hyperband: A Novel Bandit-Based Approach to Hyperparameter Optimization. \textit{Journal of Machine Learning Research}, 18(185), 1--52.
+    \item Liu, Y. (H.) (2019). \textit{Python Machine Learning By Example} (2nd ed.), Chương 10: Machine Learning Best Practices. Packt Publishing.
+    \item Raschka, S., Liu, Y. (H.), \& Mirjalili, V. (2022). \textit{Machine Learning with PyTorch and Scikit-Learn}, Chương 6: Learning Best Practices for Model Evaluation and Hyperparameter Tuning. Packt Publishing.
     \item Saito, T., \& Rehmsmeier, M. (2015). The Precision-Recall Plot Is More Informative than the ROC Plot When Evaluating Binary Classifiers on Imbalanced Datasets. \textit{PLoS ONE}, 10(3), e0118432.
+    \item Sarkar, D., Bali, R., \& Sharma, T. (2018). \textit{Practical Machine Learning with Python}, Chương 5: Building, Tuning, and Deploying Models. Apress.
     \item Stone, M. (1974). Cross-Validatory Choice and Assessment of Statistical Predictions. \textit{Journal of the Royal Statistical Society: Series B}, 36(2), 111--147.
 \end{enumerate}
