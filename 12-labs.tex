@@ -1,0 +1,448 @@
+% =========================================================
+% CHUONG: THUC HANH TONG HOP (LABS)
+% Nguon: cac notebook trong thu muc baitap/
+%   Lab01.ipynb, BTTL.ipynb, Reduce.ipynb, Untitled0.ipynb
+% =========================================================
+
+\chapter{Thực hành tổng hợp \\ (Labs)}
+\label{chap:labs}
+
+Các chương trước trình bày từng thuật toán riêng lẻ. Chương này đặt chúng vào \textbf{quy trình làm việc thực tế} thông qua bốn bài thực hành được xây dựng từ các notebook của lớp học (thư mục \texttt{baitap/}). Mỗi bài gồm: mục tiêu, dữ liệu, các bước thực hiện kèm mã nguồn, kết quả thu được khi chạy notebook, và phần \textbf{nhận xét của giảng viên} --- nơi chỉ ra những lỗi thường gặp và những bài học phương pháp luận mà con số kết quả không tự nói ra.
+
+\noindent Sau khi hoàn thành chương này, người học có khả năng:
+\begin{itemize}
+    \item Thực hiện trọn vẹn một quy trình học máy: đọc dữ liệu, tiền xử lý, khảo sát tương quan, huấn luyện nhiều mô hình, tinh chỉnh siêu tham số và đánh giá.
+    \item Đọc kết quả một cách phản biện: nhận ra quá khớp, nhận ra khi dữ liệu không chứa thông tin dự đoán, nhận ra rò rỉ dữ liệu trong chuỗi thời gian.
+    \item Tìm và sửa lỗi lập trình tinh vi trong cài đặt thủ công SVD/PCA.
+    \item Luôn so sánh mô hình với một \textbf{mô hình cơ sở} (baseline) đơn giản.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|p{6.2cm}|p{4.2cm}|}
+\hline
+\textbf{Notebook} & \textbf{Nội dung} & \textbf{Liên hệ} \\
+\hline
+\texttt{Lab01.ipynb} & Hồi quy giá nhà Ames Housing (Lab 1) & Chương~\ref{chap:regression}, \ref{chap:ensemble} \\ \hline
+\texttt{BTTL.ipynb} & Dự đoán điểm tín dụng ngân hàng (Lab 2) & Chương~\ref{chap:validation} \\ \hline
+\texttt{Reduce.ipynb} & Nội suy, RobustScaler, SVD, PCA tự cài đặt (Lab 3) & Chương~\ref{chap:preprocessing}, \ref{chap:reduce-dimension} \\ \hline
+\texttt{Untitled0.ipynb} & Dự báo giá cổ phiếu VNM (Lab 4) & Chương~\ref{chap:regression} \\ \hline
+\texttt{KMeans}, \texttt{DBScanEx} & Ví dụ phân cụm & Đã dùng ở Chương~\ref{chap:clustering} \\ \hline
+\texttt{PCAExample}, \texttt{SVDEXample} & Ví dụ giảm chiều & Đã dùng ở Chương~\ref{chap:reduce-dimension} \\ \hline
+\texttt{TFIDF} & Vector hóa văn bản & Đã dùng ở Chương~\ref{chap:preprocessing} \\ \hline
+\end{tabular}
+\caption{Các notebook trong thư mục \texttt{baitap/} và vị trí sử dụng trong giáo trình}
+\end{table}
+
+\paragraph{Chuẩn bị môi trường.} Các bài thực hành cần thêm hai thư viện ngoài bộ cài đặt chuẩn: \texttt{mlxtend} (vẽ ma trận tương quan, ma trận biểu đồ phân tán) và \texttt{yfinance} (tải dữ liệu chứng khoán):
+\begin{lstlisting}[language=bash, caption={Cài đặt thư viện cho các bài thực hành}]
+pip install scikit-learn pandas matplotlib seaborn mlxtend openpyxl yfinance
+\end{lstlisting}
+
+% =========================================================
+\section{Lab 1 -- Hồi quy giá nhà Ames Housing}
+\label{sec:lab-ames}
+% =========================================================
+
+\paragraph{Mục tiêu.} Dự đoán giá bán \texttt{SalePrice} từ năm đặc trưng: chất lượng tổng thể (\texttt{Overall Qual}, thang 1--10), tình trạng (\texttt{Overall Cond}), diện tích sàn ở (\texttt{Gr Liv Area}), diện tích tầng hầm (\texttt{Total Bsmt SF}) và có điều hòa trung tâm hay không (\texttt{Central Air}, Y/N). So sánh hồi quy tuyến tính, hồi quy đa thức và các mô hình cây.
+
+\subsection{Đọc dữ liệu và tiền xử lý}
+
+\begin{lstlisting}[caption={Lab 1 -- đọc và tiền xử lý dữ liệu}]
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
+
+cols = ["Overall Qual", "Overall Cond", "Gr Liv Area",
+        "Central Air", "Total Bsmt SF", "SalePrice"]
+df = pd.read_csv("AmesHousing.txt", usecols=cols, sep="\t")
+
+# Central Air chi co 2 gia tri Y/N -> ma hoa 0/1
+df["Central Air"] = LabelEncoder().fit_transform(df["Central Air"])
+
+print(df.isna().sum())          # Total Bsmt SF thieu 1 gia tri
+df = df.dropna()                # bo 1 dong: 2930 -> 2929 dong
+\end{lstlisting}
+
+Tham số \texttt{usecols} giúp chỉ đọc những cột cần thiết. Vì \texttt{Central Air} chỉ có hai giá trị, \texttt{LabelEncoder} cho kết quả tương đương mã hóa nhị phân và không tạo thứ tự giả (xem Chương~\ref{chap:preprocessing}). Chỉ một dòng bị thiếu trên 2930 dòng nên xóa dòng là chấp nhận được.
+
+\subsection{Khảo sát tương quan}
+
+\begin{lstlisting}[caption={Lab 1 -- ma trận tương quan và ma trận biểu đồ phân tán}]
+import matplotlib.pyplot as plt
+from mlxtend.plotting import heatmap, scatterplotmatrix
+
+cols_con = ["Overall Qual", "Overall Cond", "Gr Liv Area", "Total Bsmt SF", "SalePrice"]
+heatmap(df[cols_con].corr().values, row_names=cols_con, column_names=cols_con)
+plt.show()
+scatterplotmatrix(df[cols_con].values, names=cols_con, figsize=(20, 10))
+plt.show()
+\end{lstlisting}
+
+\hinhchuachen{ch-labs-ames-heatmap.png}{Ma trận hệ số tương quan Pearson giữa các biến số của Ames Housing (kết quả chạy \texttt{Lab01.ipynb}).}{fig:lab-ames-heatmap}
+
+\hinhchuachen{ch-labs-ames-scatter.png}{Ma trận biểu đồ phân tán: đường chéo là histogram của từng biến, các ô còn lại là biểu đồ phân tán từng cặp biến.}{fig:lab-ames-scatter}
+
+Ma trận tương quan cho thấy \texttt{SalePrice} tương quan mạnh với \texttt{Overall Qual} ($r = 0{,}80$), \texttt{Gr Liv Area} ($0{,}71$) và \texttt{Total Bsmt SF} ($0{,}63$), nhưng gần như không tương quan với \texttt{Overall Cond} ($-0{,}10$). Các đặc trưng cũng tương quan với nhau (chẳng hạn \texttt{Overall Qual} và \texttt{Gr Liv Area}: $0{,}57$) --- dấu hiệu đa cộng tuyến ở mức vừa phải. Ma trận biểu đồ phân tán còn cho thấy quan hệ giữa giá và diện tích có dạng ``quạt'' (phương sai tăng theo giá trị), và một vài căn diện tích rất lớn nhưng giá thấp --- chính là các ngoại lai đã bàn ở Chương~\ref{chap:preprocessing}.
+
+\subsection{Huấn luyện và so sánh mô hình}
+
+\begin{lstlisting}[caption={Lab 1 -- huấn luyện các mô hình}]
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import (RandomForestRegressor, AdaBoostRegressor,
+                              HistGradientBoostingRegressor)
+
+X = df.drop(columns="SalePrice")
+y = df["SalePrice"]
+X_train, X_test, y_train, y_test = train_test_split(X, y)   # 2196 / 733 dong
+
+lg = LinearRegression().fit(X_train, y_train)
+print(lg.score(X_train, y_train), lg.score(X_test, y_test))  # R^2 train, test
+
+pf = PolynomialFeatures(degree=2)                 # them x_i^2 va x_i*x_j
+X_train_pf = pf.fit_transform(X_train)
+X_test_pf = pf.transform(X_test)                  # chi transform tap test
+lg2 = LinearRegression().fit(X_train_pf, y_train)
+
+dt = DecisionTreeRegressor().fit(X_train, y_train)
+grid = GridSearchCV(DecisionTreeRegressor(), param_grid={
+    "max_depth": [5, 6, 7],
+    "min_samples_split": [2, 3, 4],
+    "min_samples_leaf": [1, 2, 3, 4]})
+grid.fit(X_train, y_train)
+print(grid.best_score_, grid.best_params_)
+
+rf = RandomForestRegressor().fit(X_train, y_train)
+ada = AdaBoostRegressor().fit(X_train, y_train)
+hist = HistGradientBoostingRegressor().fit(X_train, y_train)
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|l|}
+\hline
+\textbf{Mô hình} & \textbf{$R^2$ train} & \textbf{$R^2$ test} & \textbf{Nhận định} \\
+\hline
+Hồi quy tuyến tính & 0,758 & 0,782 & Thiếu khớp nhẹ \\ \hline
+Hồi quy đa thức bậc 2 & 0,848 & 0,850 & Cải thiện rõ, không quá khớp \\ \hline
+Cây quyết định (mặc định) & 0,995 & 0,769 & \textbf{Quá khớp} nặng \\ \hline
+Cây quyết định (đã tinh chỉnh) & 0,877 & 0,823 & Khoảng cách train/test thu hẹp \\ \hline
+Random Forest (mặc định) & 0,974 & \textbf{0,853} & Tốt nhất trên tập test \\ \hline
+AdaBoost (mặc định) & 0,824 & 0,779 & Kém nhất nhóm cây \\ \hline
+HistGradientBoosting (mặc định) & 0,903 & 0,839 & Tốt, nhanh \\ \hline
+\end{tabular}
+\caption{Kết quả Lab 1 khi chạy \texttt{Lab01.ipynb}; các con số thay đổi nhẹ giữa các lần chạy vì chia dữ liệu ngẫu nhiên}
+\label{tab:lab-ames-r2}
+\end{table}
+
+Bảng~\ref{tab:lab-ames-r2} minh họa trọn vẹn đánh đổi bias -- variance (Chương~\ref{chap:validation}): mô hình tuyến tính quá đơn giản; thêm đặc trưng bậc hai giúp nắm bắt quan hệ phi tuyến (ví dụ tương tác \texttt{Overall Qual} $\times$ \texttt{Gr Liv Area}); cây quyết định không giới hạn độ sâu học thuộc tập huấn luyện ($R^2 = 0{,}995$) nhưng tổng quát kém; giới hạn độ sâu bằng \texttt{GridSearchCV} hoặc lấy trung bình nhiều cây (Random Forest) khắc phục được điều đó.
+
+\paragraph{Sai số trên tập kiểm tra.} Notebook tính MSE của bốn mô hình cây: Random Forest $9{,}77 \times 10^8$, HistGradientBoosting $1{,}07 \times 10^9$, Decision Tree $1{,}09 \times 10^9$, AdaBoost $1{,}47 \times 10^9$. Lấy căn bậc hai để đưa về đơn vị USD: RMSE lần lượt khoảng \textbf{31\,250}, \textbf{32\,720}, \textbf{33\,050} và \textbf{38\,330} USD --- dễ diễn giải hơn nhiều so với MSE.
+
+\subsection{Mức độ quan trọng của đặc trưng}
+
+\hinhchuachen{ch-labs-ames-coef.png}{Hệ số hồi quy tuyến tính được vẽ như ``mức độ quan trọng'' --- một cách diễn giải \textbf{dễ gây hiểu nhầm} (xem nhận xét bên dưới).}{fig:lab-ames-coef}
+
+\hinhchuachen{ch-labs-ames-rf-importance.png}{Mức độ quan trọng của đặc trưng theo Random Forest (\texttt{feature\_importances\_}): \texttt{Overall Qual} chiếm khoảng 65\%.}{fig:lab-ames-rf-imp}
+
+Hồi quy tuyến tính cho hệ số lớn nhất ở \texttt{Overall Qual} ($\approx 27\,512$) và \texttt{Central Air} ($\approx 13\,066$), trong khi \texttt{Gr Liv Area} chỉ có hệ số $\approx 50$. Random Forest lại xếp hạng: \texttt{Overall Qual} (0,650), \texttt{Gr Liv Area} (0,203), \texttt{Total Bsmt SF} (0,121), \texttt{Overall Cond} (0,019), \texttt{Central Air} (0,006). Hai bảng xếp hạng mâu thuẫn ở \texttt{Central Air} --- lý do được giải thích ngay dưới đây.
+
+\subsection{Nhận xét của giảng viên}
+
+\begin{enumerate}
+    \item \textbf{Hệ số hồi quy không phải là mức độ quan trọng.} Hệ số phụ thuộc \textbf{đơn vị đo}: \texttt{Gr Liv Area} tính bằng ft$^2$ (hàng nghìn) nên hệ số 50 USD/ft$^2$ nhân với độ lệch chuẩn khoảng 500 ft$^2$ cho ảnh hưởng $\approx 25\,000$ USD --- ngang với \texttt{Overall Qual}. \texttt{Central Air} có hệ số lớn chỉ vì biến nhị phân thay đổi ``một đơn vị'' là thay đổi toàn bộ. Muốn so sánh, phải chuẩn hóa đặc trưng bằng \texttt{StandardScaler} trước khi đọc hệ số, hoặc dùng \texttt{permutation\_importance} (Chương~\ref{chap:ensemble}).
+    \item \textbf{Lỗi ghi nhãn độ đo.} Ô đánh giá cuối của \texttt{Lab01.ipynb} gán \texttt{mean\_squared\_error} cho cả cột \texttt{mean\_absolute\_error} --- hai cột vì thế giống hệt nhau. Notebook \texttt{BTTL.ipynb} đã sửa đúng lỗi này. Bài học: luôn kiểm tra lại một bảng kết quả có hai cột trùng nhau.
+    \item \textbf{Dùng sai tham số tìm được.} Lưới tìm kiếm cho cây quyết định trả về \texttt{min\_samples\_split} bằng 3, nhưng mô hình huấn luyện lại dùng 4. Tệ hơn, lưới thứ hai được chạy cho \textbf{Random Forest}, nhưng tham số tìm được lại đem dùng cho \textbf{Decision Tree}. Cách an toàn là dùng trực tiếp \texttt{grid.best\_estimator\_} (đã được huấn luyện lại trên toàn bộ tập train), hoặc \texttt{Model(**grid.best\_params\_)} như \texttt{BTTL.ipynb} đã làm.
+    \item \textbf{Không cố định \texttt{random\_state}.} \texttt{train\_test\_split}, \texttt{RandomForestRegressor}\ldots{} đều ngẫu nhiên; mỗi lần chạy cho kết quả khác. Hãy đặt \texttt{random\_state=42} để kết quả tái lập được, và đánh giá bằng kiểm định chéo thay vì một lần chia duy nhất.
+    \item \textbf{Đánh giá mô hình trên tập test nhiều lần.} So sánh bảy mô hình trên cùng một tập test rồi chọn mô hình tốt nhất khiến tập test trở thành tập validation (Chương~\ref{chap:validation}). Nên chọn mô hình bằng kiểm định chéo trên tập train và chỉ dùng tập test một lần ở cuối.
+    \item \textbf{Biến mục tiêu lệch phải.} Giá nhà lệch phải và sai số tăng theo giá; dự đoán $\log(\text{SalePrice})$ thường cho mô hình tuyến tính tốt hơn (xem nghiên cứu tình huống ở Chương~\ref{chap:preprocessing}).
+\end{enumerate}
+
+\begin{lstlisting}[caption={Lab 1 -- phiên bản đã sửa: tái lập được, dùng đúng tham số, đủ ba độ đo}]
+import numpy as np
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.inspection import permutation_importance
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+
+grid = GridSearchCV(RandomForestRegressor(random_state=42), param_grid={
+    "max_depth": [7, 8, 9], "min_samples_leaf": [1, 2, 3, 4]}, cv=5)
+grid.fit(X_train, y_train)
+best = grid.best_estimator_                         # dung dung mo hinh vua tim
+
+models = {"LinearRegression": LinearRegression().fit(X_train, y_train),
+          "RandomForest (tuned)": best,
+          "HistGB": HistGradientBoostingRegressor(random_state=42).fit(X_train, y_train)}
+rows = []
+for name, m in models.items():
+    p = m.predict(X_test)
+    rows.append({"model": name,
+                 "MAE": mean_absolute_error(y_test, p),
+                 "RMSE": np.sqrt(mean_squared_error(y_test, p)),
+                 "R2": r2_score(y_test, p)})
+print(pd.DataFrame(rows).round(3))
+
+imp = permutation_importance(best, X_test, y_test, n_repeats=10, random_state=42)
+print(pd.Series(imp.importances_mean, index=X.columns).sort_values())
+\end{lstlisting}
+
+% =========================================================
+\section{Lab 2 -- Dự đoán điểm tín dụng: khi dữ liệu không có thông tin}
+\label{sec:lab-bank}
+% =========================================================
+
+\paragraph{Mục tiêu.} Áp dụng đúng quy trình của Lab 1 cho tệp \texttt{Banking.xlsx}: dự đoán điểm tín dụng (\texttt{Credit score}) từ giới tính (\texttt{gender}) và số tiền đầu tư hằng tháng (\texttt{Amountinvestedmonthly}). Bài này được đưa vào giáo trình chính vì nó \textbf{thất bại} --- và thất bại theo cách rất đáng học.
+
+\begin{lstlisting}[caption={Lab 2 -- đọc dữ liệu từ Excel và chạy cùng quy trình}]
+cols = ["gender", "Amountinvestedmonthly", "Credit score"]
+df = pd.read_excel("Banking.xlsx", usecols=cols)    # can thu vien openpyxl
+df["gender"] = LabelEncoder().fit_transform(df["gender"])
+print(df.isna().sum())        # Credit score thieu 4, Amountinvestedmonthly thieu 331
+df = df.dropna()              # con 6708 dong
+
+X = df.drop(columns="Credit score")
+y = df["Credit score"]
+X_train, X_test, y_train, y_test = train_test_split(X, y)   # 5031 / 1677 dong
+\end{lstlisting}
+
+\hinhchuachen{ch-labs-bank-heatmap.png}{Ma trận tương quan của Lab 2: \texttt{Credit score} gần như không tương quan với cả hai đặc trưng ($r \approx 0{,}00$ và $0{,}03$).}{fig:lab-bank-heatmap}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Mô hình} & \textbf{$R^2$ train} & \textbf{$R^2$ test} \\
+\hline
+Hồi quy tuyến tính & 0,001 & 0,001 \\ \hline
+Hồi quy đa thức bậc 2 & 0,001 & 0,000 \\ \hline
+Cây quyết định (mặc định) & \textbf{0,957} & $\mathbf{-0{,}881}$ \\ \hline
+Cây quyết định (đã tinh chỉnh) & 0,015 & $-0{,}032$ \\ \hline
+Random Forest (mặc định) & 0,770 & $-0{,}297$ \\ \hline
+Random Forest (đã tinh chỉnh) & 0,053 & $-0{,}007$ \\ \hline
+AdaBoost & $-0{,}141$ & $-0{,}138$ \\ \hline
+HistGradientBoosting & 0,062 & $-0{,}023$ \\ \hline
+\end{tabular}
+\caption{Kết quả Lab 2 khi chạy \texttt{BTTL.ipynb}. Sai số trên tập test: MAE $\approx 39$ điểm, MSE $\approx 2100$ (RMSE $\approx 46$ điểm) với cả bốn mô hình cây.}
+\label{tab:lab-bank-r2}
+\end{table}
+
+\subsection{Nhận xét của giảng viên}
+
+\begin{enumerate}
+    \item \textbf{$R^2 \approx 0$ là kết luận, không phải lỗi.} Với hồi quy tuyến tính, $R^2$ không thể vượt xa bình phương tương quan của các đặc trưng với biến mục tiêu; ở đây $0{,}03^2 \approx 0{,}001$ --- đúng như kết quả. Hai đặc trưng này \textbf{không chứa thông tin} về điểm tín dụng. Không thuật toán nào, dù phức tạp đến đâu, ``nặn'' ra được thông tin không có trong dữ liệu --- đó chính là nguyên lý ``rác vào, rác ra'' ở Chương~\ref{chap:preprocessing}.
+    \item \textbf{$R^2$ âm nghĩa là thua mô hình đoán trung bình.} Mọi $R^2$ test âm trong Bảng~\ref{tab:lab-bank-r2} cho biết mô hình còn tệ hơn việc luôn dự đoán $\bar{y}$. Hãy luôn bắt đầu bằng \texttt{DummyRegressor} (chiến lược \texttt{"mean"}) làm mô hình cơ sở; một mô hình chỉ có giá trị khi thắng được mô hình cơ sở.
+    \item \textbf{Quá khớp trên nhiễu.} Cây quyết định mặc định đạt $R^2 = 0{,}957$ trên tập train nhưng $-0{,}881$ trên tập test: nó đã học thuộc \textbf{nhiễu}. Tinh chỉnh siêu tham số kéo cả hai về gần 0 --- tức là mô hình ``thừa nhận'' không học được gì, một kết quả trung thực hơn.
+    \item \textbf{Dữ liệu cá nhân nhạy cảm.} Tệp \texttt{Banking.xlsx} chứa họ tên, email và số an sinh xã hội (SSN) của khách hàng. Dù chỉ đọc ba cột, việc lưu trữ và chia sẻ tệp chứa thông tin định danh cá nhân phải tuân thủ quy định bảo vệ dữ liệu (ví dụ Nghị định 13/2023/NĐ-CP của Việt Nam, GDPR của châu Âu). Trước khi đưa dữ liệu vào lớp học hay kho mã nguồn, hãy xóa hoặc ẩn danh các cột định danh.
+    \item \textbf{Đạo đức khi dùng giới tính làm đặc trưng.} Dùng giới tính để chấm điểm tín dụng là phân biệt đối xử và bị cấm ở nhiều quốc gia (chẳng hạn Đạo luật Cơ hội Tín dụng Bình đẳng -- ECOA của Hoa Kỳ). Một mô hình tín dụng thực tế phải được kiểm tra \textbf{tính công bằng} (fairness) giữa các nhóm, không chỉ độ chính xác (Barocas, Hardt \& Narayanan, 2023).
+    \item \textbf{Xóa dòng có thể làm lệch mẫu.} 331 dòng thiếu \texttt{Amountinvestedmonthly} bị xóa mà không kiểm tra cơ chế thiếu. Nếu những khách hàng không khai báo đầu tư có đặc điểm riêng (MNAR), mẫu còn lại sẽ bị lệch --- hãy cân nhắc các bộ điền ở mục~\ref{sec:missing}.
+\end{enumerate}
+
+\begin{lstlisting}[caption={Lab 2 -- so sánh với mô hình cơ sở}]
+from sklearn.dummy import DummyRegressor
+from sklearn.model_selection import cross_val_score
+
+for name, m in {"Dummy (mean)": DummyRegressor(strategy="mean"),
+                "LinearRegression": LinearRegression(),
+                "RandomForest": RandomForestRegressor(max_depth=7, random_state=42)}.items():
+    s = cross_val_score(m, X, y, cv=5, scoring="neg_mean_absolute_error")
+    print(f"{name:18s} MAE = {-s.mean():.2f}")
+# Neu MAE cua cac mo hinh khong nho hon ro rang so voi Dummy -> dac trung vo dung
+\end{lstlisting}
+
+% =========================================================
+\section{Lab 3 -- Nội suy, RobustScaler và tự cài đặt SVD, PCA}
+\label{sec:lab-reduce}
+% =========================================================
+
+\paragraph{Mục tiêu.} Kiểm chứng bằng tay các phép biến đổi đã học, và quan trọng hơn: học cách \textbf{phát hiện lỗi} khi tự cài đặt thuật toán bằng cách đối chiếu với thư viện.
+
+\subsection{Nội suy tuyến tính giá trị thiếu}
+
+Với dữ liệu có \textbf{thứ tự} (chuỗi thời gian, chuỗi đo liên tiếp), điền giá trị thiếu bằng trung bình cả cột (mục~\ref{sec:missing}) bỏ phí thông tin về vị trí. \textbf{Nội suy tuyến tính} nối thẳng hai giá trị đã biết ở hai bên khoảng trống:
+\[
+    x_t = x_a + \frac{t - a}{b - a}\,(x_b - x_a), \qquad a < t < b .
+\]
+
+\begin{example}[Nội suy tuyến tính]
+Chuỗi $(75, 74, ?, 84, 86, ?, ?, 95)$. Ô thứ 3 nằm giữa 74 và 84: $\frac{74 + 84}{2} = 79$. Hai ô thứ 6, 7 nằm giữa 86 và 95, bước tăng $\frac{95 - 86}{3} = 3$: điền 89 và 92.
+\end{example}
+
+\begin{lstlisting}[caption={Nội suy bằng pandas}]
+import numpy as np
+import pandas as pd
+
+s = pd.Series([75, 74, np.nan, 84, 86, np.nan, np.nan, 95])
+print(s.interpolate().tolist())   # [75.0, 74.0, 79.0, 84.0, 86.0, 89.0, 92.0, 95.0]
+\end{lstlisting}
+
+\subsection{RobustScaler tính tay}
+
+Với $x = (3, 7, 1, 6, 8, 4, 2, 5, 9, 11)$, sắp xếp được $(1, 2, 3, 4, 5, 6, 7, 8, 9, 11)$. NumPy tính tứ phân vị bằng nội suy tuyến tính tại vị trí $(n - 1)q$: $Q_1$ ở vị trí $9 \times 0{,}25 = 2{,}25$ nên $Q_1 = 3 + 0{,}25 \times (4 - 3) = 3{,}25$; tương tự $Q_3 = 7{,}75$; trung vị $= \frac{5 + 6}{2} = 5{,}5$. Công thức của RobustScaler cho
+\[
+    x' = \frac{x - \text{median}}{Q_3 - Q_1} = \frac{x - 5{,}5}{4{,}5},
+\]
+chẳng hạn $x = 3 \mapsto -0{,}556$ và $x = 11 \mapsto 1{,}222$ --- trùng khớp với kết quả của \texttt{RobustScaler}. Trung bình của $x$ là $5{,}6$, gần trung vị vì dữ liệu này không có ngoại lai.
+
+\subsection{Tự cài đặt SVD: một lỗi chỉ số tinh vi}
+
+Notebook tính SVD rút gọn cho $\mathbf{X} = \begin{pmatrix} 3 & 2 & 7 \\ 1 & 4 & 6 \end{pmatrix}$ qua trị riêng của $\mathbf{X}^\top\mathbf{X}$ (mục SVD ở Chương~\ref{chap:reduce-dimension}):
+\[
+    \mathbf{X}^\top\mathbf{X} = \begin{pmatrix} 10 & 10 & 27 \\ 10 & 20 & 38 \\ 27 & 38 & 85 \end{pmatrix},
+    \qquad \lambda \approx (110{,}69;\ 4{,}31;\ 0),
+    \qquad \sigma = \sqrt{\lambda} \approx (10{,}52;\ 2{,}08).
+\]
+Các giá trị suy biến khớp với \texttt{TruncatedSVD}, nhưng tọa độ chiếu thì \textbf{không}. Nguyên nhân nằm ở một dòng lệnh:
+
+\begin{lstlisting}[caption={Lỗi sắp xếp vector riêng theo dòng thay vì theo cột}]
+M = X.T @ X
+eigv, eigvec = np.linalg.eigh(M)          # vector rieng nam o CAC COT
+orders = np.argsort(eigv)[::-1]
+
+sigma = eigvec[orders][:, :2]             # SAI: sap xep lai cac DONG
+sigma = eigvec[:, orders][:, :2]          # DUNG: sap xep lai cac COT
+reduce = X @ sigma
+\end{lstlisting}
+
+\texttt{np.linalg.eigh} trả về vector riêng theo \textbf{cột}; \texttt{eigvec[orders]} hoán vị các \textbf{dòng}, tạo ra một ma trận không còn là các vector riêng. Kết quả sai là $\begin{pmatrix} -4{,}76 & 3{,}28 \\ -5{,}95 & 0{,}82 \end{pmatrix}$; kết quả đúng là $\begin{pmatrix} -7{,}75 & 1{,}40 \\ -7{,}12 & -1{,}53 \end{pmatrix}$, trùng với \texttt{TruncatedSVD} (sai khác về dấu là bình thường, xem Chương~\ref{chap:reduce-dimension}).
+
+\subsection{Tự cài đặt PCA: hai lỗi chồng lên nhau}
+
+Với cùng ma trận $\mathbf{X}$, trung bình cột $\bar{\mathbf{x}} = (2;\ 3;\ 6{,}5)$ và dữ liệu đã chuẩn hóa tâm là $\pm(1;\ -1;\ 0{,}5)$. Ma trận hiệp phương sai (chia $n - 1 = 1$) có đúng một trị riêng khác 0 là $\lambda_1 = 4{,}5$, vector riêng $\mathbf{w}_1 = \left(\tfrac{2}{3};\ -\tfrac{2}{3};\ \tfrac{1}{3}\right)$, và tọa độ chiếu $z = \pm 1{,}5$ --- đúng như \texttt{PCA(n\_components=1)}.
+
+Notebook lại cho $z = (6{,}43;\ 6{,}54)$ do hai lỗi:
+\begin{enumerate}
+    \item Lặp lại lỗi sắp xếp dòng \texttt{eigenvectors[orders]} như ở mục trên.
+    \item Chiếu \textbf{dữ liệu gốc} \texttt{X} thay vì dữ liệu đã chuẩn hóa tâm \texttt{M}. PCA phải chiếu $\mathbf{X} - \bar{\mathbf{x}}$.
+\end{enumerate}
+Ngoài ra notebook chia ma trận hiệp phương sai cho $n = 2$ (được $\lambda = 2{,}25$), trong khi scikit-learn chia cho $n - 1$ (được \texttt{explained\_variance\_} $= 4{,}5$). Đây không phải lỗi, nhưng cần biết để đối chiếu đúng.
+
+\begin{lstlisting}[caption={PCA tự cài đặt -- phiên bản đúng}]
+X = np.array([[3, 2, 7], [1, 4, 6]], dtype=float)
+M = X - X.mean(axis=0)                     # 1) chuan hoa tam
+S = M.T @ M / (X.shape[0] - 1)             # 2) chia n - 1 nhu scikit-learn
+eigenvalues, eigenvectors = np.linalg.eigh(S)
+orders = np.argsort(eigenvalues)[::-1]
+W = eigenvectors[:, orders[:1]]            # 3) chon theo COT
+print(eigenvalues[orders][:1])             # [4.5]
+print(M @ W)                               # [[ 1.5] [-1.5]]  (co the doi dau)
+\end{lstlisting}
+
+\paragraph{Bài học.} Khi tự cài đặt một thuật toán, \textbf{luôn đối chiếu với thư viện} trên một ví dụ nhỏ. Giá trị suy biến đúng không chứng minh được vector đúng; chỉ khi \textit{toàn bộ} đầu ra khớp (sai khác dấu được chấp nhận) mới có thể tin cài đặt của mình.
+
+% =========================================================
+\section{Lab 4 -- Dự báo giá cổ phiếu VNM: ảo ảnh $R^2 = 0{,}998$}
+\label{sec:lab-vnm}
+% =========================================================
+
+\paragraph{Mục tiêu.} Dự báo giá đóng cửa ngày mai của cổ phiếu Vinamilk (mã \texttt{VNM}, sàn HOSE) từ giá đóng cửa của 7 phiên gần nhất, bằng hồi quy tuyến tính. Đây là cách biến bài toán chuỗi thời gian thành bài toán hồi quy bằng \textbf{đặc trưng trễ} (lag features) đã giới thiệu ở Chương~\ref{chap:regression}.
+
+\begin{lstlisting}[caption={Lab 4 -- tải dữ liệu và tạo cửa sổ trượt 7 phiên}]
+import yfinance as yf
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+
+df = yf.Ticker("VNM.VN").history(period="20y")   # can ket noi Internet
+close = df["Close"].values
+
+window_size = 7
+n = len(close) - window_size
+data = {f"x{i}": close[i: n + i] for i in range(window_size)}   # 7 phien truoc
+data["y"] = close[window_size:]                                  # phien ke tiep
+df2 = pd.DataFrame(data)
+
+X, y = df2.drop(columns="y"), df2["y"]
+X_train, X_test, y_train, y_test = train_test_split(X, y)        # !!! xao tron
+lg = LinearRegression().fit(X_train, y_train)
+print(lg.score(X_train, y_train), lg.score(X_test, y_test))      # ~0.998  ~0.998
+\end{lstlisting}
+
+\hinhchuachen{ch-labs-vnm-close.png}{Giá đóng cửa (đã điều chỉnh) của cổ phiếu VNM theo thời gian, tải bằng \texttt{yfinance}.}{fig:lab-vnm}
+
+Mô hình đạt $R^2 \approx 0{,}998$ trên cả tập train lẫn tập test. Một kết quả ``quá đẹp để là thật'' --- và đúng là không thật.
+
+\subsection{Nhận xét của giảng viên}
+
+\paragraph{1. Rò rỉ dữ liệu do xáo trộn chuỗi thời gian.} \texttt{train\_test\_split} mặc định \textbf{xáo trộn} các dòng, nên tập test gồm những ngày nằm xen giữa các ngày huấn luyện. Mô hình được ``nhìn thấy'' giá của ngày hôm trước \textit{và} ngày hôm sau một điểm test --- điều không thể có khi dự báo thật. Với chuỗi thời gian phải chia theo thứ tự: huấn luyện trên quá khứ, kiểm tra trên tương lai (\texttt{shuffle=False} hoặc \texttt{TimeSeriesSplit}).
+
+\paragraph{2. Phải so sánh với mô hình cơ sở ngây thơ.} Mô hình ``giá ngày mai bằng giá hôm nay'' (naive forecast) không cần học gì cả. Chúng tôi chạy lại notebook với dữ liệu VNM từ 03/04/2012 đến 02/11/2026 (3773 phiên) và chia theo thời gian, 75\% đầu để huấn luyện:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|}
+\hline
+\textbf{Cách đánh giá} & \textbf{$R^2$ trên tập test} \\
+\hline
+Hồi quy tuyến tính, chia \textbf{xáo trộn} (như notebook) & 0,998 \\ \hline
+Hồi quy tuyến tính, chia \textbf{theo thời gian} & 0,947 \\ \hline
+Mô hình ngây thơ: $\hat{y}_{t+1} = y_t$ & 0,947 \\ \hline
+Hồi quy tuyến tính dự báo \textbf{tỉ suất sinh lời} ngày mai & $-0{,}001$ \\ \hline
+\end{tabular}
+\caption{Lab 4 đánh giá lại (dữ liệu tải ngày 02/11/2026; con số thay đổi theo thời điểm tải)}
+\label{tab:lab-vnm}
+\end{table}
+
+Khi chia đúng cách, mô hình chỉ ngang bằng mô hình ngây thơ. Hệ số hồi quy giải thích vì sao: trọng số của phiên gần nhất là $0{,}988$, sáu phiên còn lại gần 0 --- mô hình đã tự ``phát hiện'' ra rằng dự báo tốt nhất là \textit{lấy giá hôm nay}.
+
+\paragraph{3. $R^2$ cao trên giá là chỉ số gây hiểu nhầm.} Giá cổ phiếu là chuỗi có xu hướng, giá hôm nay đã gần bằng giá hôm qua, nên bất kỳ mô hình nào ``chép lại'' giá gần nhất cũng có $R^2$ rất cao. Đại lượng có ý nghĩa đầu tư là \textbf{tỉ suất sinh lời} $r_t = (y_t - y_{t-1})/y_{t-1}$. Dự báo $r_{t+1}$ từ 7 tỉ suất trước đó cho $R^2 \approx 0$: các biến động giá trong quá khứ gần như không chứa thông tin về biến động ngày mai --- phù hợp với \textbf{giả thuyết thị trường hiệu quả} dạng yếu (Fama, 1970).
+
+\begin{lstlisting}[caption={Lab 4 -- đánh giá đúng: chia theo thời gian và so sánh với mô hình ngây thơ}]
+import numpy as np
+from sklearn.metrics import r2_score
+
+cut = int(0.75 * len(df2))                       # 75% dau = qua khu
+X_tr, X_te = X.iloc[:cut], X.iloc[cut:]
+y_tr, y_te = y.iloc[:cut], y.iloc[cut:]
+
+lg = LinearRegression().fit(X_tr, y_tr)
+print("R2 hoi quy  :", lg.score(X_te, y_te))
+print("R2 ngay tho :", r2_score(y_te, X_te["x6"]))   # x6 = gia phien gan nhat
+print("He so       :", lg.coef_.round(3))
+
+# Du bao ti suat sinh loi thay vi gia
+ret = pd.Series(close).pct_change().dropna().values
+m = len(ret) - window_size
+Xr = np.column_stack([ret[i: m + i] for i in range(window_size)])
+yr = ret[window_size:]
+c = int(0.75 * len(yr))
+print("R2 loi suat :", LinearRegression().fit(Xr[:c], yr[:c]).score(Xr[c:], yr[c:]))
+\end{lstlisting}
+
+\paragraph{4. Một số lưu ý khác.} Cột \texttt{Close} của \texttt{yfinance} là giá đã điều chỉnh theo cổ tức và chia tách cổ phiếu, nên giá năm 2012 thấp hơn giá giao dịch thực tế khi đó. Dữ liệu tải về thay đổi theo ngày chạy, vì vậy kết quả của mỗi người sẽ khác nhau đôi chút; hãy lưu dữ liệu ra tệp CSV để tái lập được thí nghiệm.
+
+% ---------------------------------------------------------
+\section{Tóm tắt chương}
+% ---------------------------------------------------------
+\begin{itemize}
+    \item Lab 1: đa thức bậc 2 và Random Forest cho $R^2 \approx 0{,}85$ trên Ames Housing; cây không giới hạn độ sâu quá khớp. Hệ số hồi quy chưa chuẩn hóa không phải là mức độ quan trọng; dùng đúng \texttt{best\_estimator\_}; cố định \texttt{random\_state}.
+    \item Lab 2: khi đặc trưng không tương quan với mục tiêu, mọi mô hình đều thất bại; $R^2$ âm nghĩa là thua mô hình đoán trung bình. Luôn có mô hình cơ sở; chú ý dữ liệu cá nhân và tính công bằng.
+    \item Lab 3: nội suy tuyến tính cho dữ liệu có thứ tự; khi tự cài đặt SVD/PCA, vector riêng nằm theo \textbf{cột}, PCA phải chuẩn hóa tâm, và luôn đối chiếu với thư viện.
+    \item Lab 4: xáo trộn chuỗi thời gian gây rò rỉ dữ liệu; $R^2$ cao trên giá chỉ phản ánh tính liên tục của chuỗi; mô hình phải thắng được dự báo ngây thơ mới có giá trị.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Bài tập}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item (Lab 1) Chạy lại Lab 1 với 5 lần chia dữ liệu khác nhau (\texttt{random\_state} = 0--4). Báo cáo trung bình và độ lệch chuẩn của $R^2$ test cho từng mô hình. Thứ hạng các mô hình có ổn định không?
+    \item (Lab 1) Thay \texttt{SalePrice} bằng $\log(\text{SalePrice})$, chuẩn hóa đặc trưng bằng \texttt{StandardScaler}, rồi so sánh hệ số hồi quy với mức độ quan trọng hoán vị (\texttt{permutation\_\allowbreak importance}) của Random Forest.
+    \item (Lab 1) Bổ sung các cột \texttt{Neighborhood} (One Hot), \texttt{Year Built}, \texttt{Garage Cars} vào pipeline ở Chương~\ref{chap:preprocessing}. $R^2$ cải thiện bao nhiêu?
+    \item (Lab 2) Thay hai đặc trưng hiện tại bằng các cột khác của \texttt{Banking.xlsx} (sau khi đã loại bỏ họ tên, email, SSN). Dùng \texttt{DummyRegressor} làm mô hình cơ sở; đặc trưng nào thực sự có ích?
+    \item (Lab 3) Viết hàm \texttt{my\_pca(X, k)} trả về tọa độ chiếu và tỉ lệ phương sai giải thích; kiểm tra trên tập \texttt{load\_iris} rằng kết quả trùng với \texttt{PCA(k)} (sai khác dấu từng cột).
+    \item (Lab 4) Đánh giá mô hình VNM bằng \texttt{TimeSeriesSplit(n\_splits=5)} với các cửa sổ 3, 7, 14, 30 phiên. Lần nào thắng được mô hình ngây thơ? Lặp lại với một mã cổ phiếu khác.
+\end{enumerate}
+
+% ---------------------------------------------------------
+\section*{Tài liệu tham khảo của chương}
+\addcontentsline{toc}{section}{Tài liệu tham khảo của chương}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Barocas, S., Hardt, M., \& Narayanan, A. (2023). \textit{Fairness and Machine Learning: Limitations and Opportunities}. MIT Press.
+    \item Breiman, L. (2001). Random Forests. \textit{Machine Learning}, 45(1), 5--32.
+    \item De Cock, D. (2011). Ames, Iowa: Alternative to the Boston Housing Data as an End of Semester Regression Project. \textit{Journal of Statistics Education}, 19(3).
+    \item Fama, E. F. (1970). Efficient Capital Markets: A Review of Theory and Empirical Work. \textit{The Journal of Finance}, 25(2), 383--417.
+    \item Hyndman, R. J., \& Athanasopoulos, G. (2021). \textit{Forecasting: Principles and Practice} (3rd ed.). OTexts.
+    \item Raschka, S. (2018). MLxtend: Providing machine learning and data science utilities and extensions to Python's scientific computing stack. \textit{Journal of Open Source Software}, 3(24), 638.
+\end{enumerate}
