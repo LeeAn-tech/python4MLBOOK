@@ -259,7 +259,7 @@ for ax, k in zip(axes, [5, 20, 50, 512]):
 plt.show()
 \end{lstlisting}
 
-\hinhchuachen{ch-reduce-svd-image.png}{Ảnh tái tạo từ $k = 5, 20, 50$ giá trị suy biến lớn nhất so với ảnh gốc.}{fig:svd-image}
+\hinhchuachen{ch-reduce-svd-image.png}{Ảnh tái tạo từ $k = 5, 20, 50$ giá trị suy biến lớn nhất so với ảnh gốc (ảnh mẫu \texttt{astronaut} của scikit-image, $512 \times 512$ điểm ảnh).}{fig:svd-image}
 
 Với ma trận thưa như kết quả TF-IDF, scikit-learn cung cấp \texttt{TruncatedSVD}: tính trực tiếp $k$ thành phần đầu mà không cần trừ trung bình (trừ trung bình sẽ phá vỡ tính thưa). Áp dụng lên ma trận văn bản -- từ, kỹ thuật này được gọi là \textbf{Phân tích ngữ nghĩa tiềm ẩn} (Latent Semantic Analysis -- LSA, Deerwester và cộng sự, 1990): mỗi thành phần tương ứng một ``chủ đề''.
 

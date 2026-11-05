@@ -44,7 +44,7 @@ Quá khớp (overfitting) & Rất thấp & Cao & Thêm dữ liệu, điều chu�
 \end{equation}
 Mô hình đơn giản có bias cao, mô hình phức tạp có variance cao; điểm tối ưu nằm ở giữa.
 
-\hinhchuachen{ch-validation-bias-variance.png}{Lỗi huấn luyện và lỗi kiểm tra theo độ phức tạp của mô hình: vùng dưới khớp, vùng tối ưu và vùng quá khớp.}{fig:bias-variance}
+\hinhchuachen{ch-validation-bias-variance.png}{Lỗi huấn luyện và lỗi kiểm tra theo độ phức tạp của mô hình: vùng dưới khớp, vùng tối ưu và vùng quá khớp. Hồi quy đa thức trên 30 điểm mô phỏng ($y = \sin$ cộng nhiễu), lấy trung vị của 300 lần lặp.}{fig:bias-variance}
 
 % ---------------------------------------------------------
 \section{Chiến lược chia dữ liệu}
@@ -276,7 +276,7 @@ rand.fit(X_tmp, y_tmp)
 print(rand.best_params_)
 \end{lstlisting}
 
-\hinhchuachen{ch-validation-grid-heatmap.png}{Bản đồ nhiệt điểm F1 kiểm định chéo theo \texttt{C} và \texttt{gamma} của SVM.}{fig:grid-heatmap}
+\hinhchuachen{ch-validation-grid-heatmap.png}{Bản đồ nhiệt điểm F1 kiểm định chéo theo \texttt{C} và \texttt{gamma} của SVM. Ô viền cam là tổ hợp tốt nhất ($C = 10$, \texttt{gamma} = 0,01).}{fig:grid-heatmap}
 
 \paragraph{Chia đôi liên tiếp (successive halving).} Grid search và random search dành cùng một lượng tài nguyên cho mọi ứng viên, kể cả những ứng viên tồi lộ rõ ngay từ đầu. Phương pháp \textbf{chia đôi liên tiếp} (Jamieson \& Talwalkar, 2016; nền tảng của Hyperband -- Li và cộng sự, 2018) phân bổ tài nguyên thích nghi, giống một giải đấu loại trực tiếp (Raschka và cộng sự, 2022, Chương 6):
 \begin{enumerate}
@@ -325,7 +325,7 @@ ValidationCurveDisplay.from_estimator(DecisionTreeClassifier(random_state=0), X,
                                       param_range=range(1, 15), cv=5)
 \end{lstlisting}
 
-\hinhchuachen{ch-validation-curves.png}{Trái: learning curve; phải: validation curve theo \texttt{max\_depth} của cây quyết định.}{fig:val-curves}
+\hinhchuachen{ch-validation-curves.png}{Trái: learning curve; phải: validation curve theo \texttt{max\_depth} của cây quyết định. Vùng tô là $\pm 1$ độ lệch chuẩn giữa các fold.}{fig:val-curves}
 
 % ---------------------------------------------------------
 \section{Những sai lầm thường gặp}

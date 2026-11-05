@@ -261,7 +261,7 @@ Softmax & $\frac{e^{z_k}}{\sum_j e^{z_j}}$ & --- & Lớp đầu ra phân lớp n
 \caption{Các hàm kích hoạt phổ biến}
 \end{table}
 
-\hinhchuachen{ch-nn-activations.png}{Đồ thị các hàm kích hoạt sigmoid, tanh, ReLU và Leaky ReLU.}{fig:activations}
+\hinhchuachen{ch-nn-activations.png}{Đồ thị các hàm kích hoạt sigmoid, tanh, ReLU và Leaky ReLU (vẽ với hệ số 0,1 thay vì 0,01 để dễ quan sát).}{fig:activations}
 
 \subsection{Hàm mất mát và lớp đầu ra}
 
@@ -363,7 +363,7 @@ Tốc độ học $\eta$ là siêu tham số quan trọng nhất: quá lớn th�
     \item Tăng cường dữ liệu (data augmentation) với ảnh, âm thanh.
 \end{itemize}
 
-\hinhchuachen{ch-nn-loss-curve.png}{Đường cong mất mát huấn luyện và kiểm định theo epoch; điểm dừng sớm tại nơi lỗi kiểm định nhỏ nhất.}{fig:loss-curve}
+\hinhchuachen{ch-nn-loss-curve.png}{Đường cong mất mát huấn luyện và kiểm định theo epoch; điểm dừng sớm tại nơi lỗi kiểm định nhỏ nhất. Mạng hai lớp ẩn 128 và 64 nơ-ron trên 25\% tập \texttt{digits}, có khoảng 10\% nhãn huấn luyện bị gán lại ngẫu nhiên để hiện tượng quá khớp rõ hơn.}{fig:loss-curve}
 
 % ---------------------------------------------------------
 \section{MLP với scikit-learn}

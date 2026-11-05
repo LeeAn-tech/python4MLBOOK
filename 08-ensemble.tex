@@ -209,7 +209,7 @@ print("XGBoost:", xgb.score(X_test, y_test), "so cay:", xgb.best_iteration)
 \textbf{Lưu ý:} Ví dụ trên dùng tập kiểm tra để dừng sớm cho gọn. Trong thực tế cần tách thêm một \textbf{tập kiểm định} (validation) riêng; dùng tập kiểm tra để chọn số cây là một dạng rò rỉ dữ liệu (xem chương Đánh giá mô hình).
 \end{quote}
 
-\hinhchuachen{ch-ensemble-boosting-curve.png}{Sai số trên tập huấn luyện và tập kiểm định theo số cây của Gradient Boosting; điểm dừng sớm (early stopping) là nơi sai số kiểm định nhỏ nhất.}{fig:boost-curve}
+\hinhchuachen{ch-ensemble-boosting-curve.png}{Sai số trên tập huấn luyện và tập kiểm định theo số cây của Gradient Boosting; điểm dừng sớm (early stopping) là nơi sai số kiểm định nhỏ nhất. Dùng cùng siêu tham số với đoạn code trên nhưng tăng lên 1500 cây; tập kiểm định được tách riêng từ tập huấn luyện.}{fig:boost-curve}
 
 % ---------------------------------------------------------
 \section{Voting và Stacking}

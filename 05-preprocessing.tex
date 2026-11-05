@@ -1006,9 +1006,9 @@ $d_3$ & 1.4055 & 1 & 1.4055 & 1.4055 & 2.0986 & 0 & 0 & 0 & 1 \\ \hline
 \label{tab:tfidf}
 \end{table}
 
-\hinhchuachen{ch-preprocessing-tfidf-excel.png}{Tính TF-IDF trên bảng tính: ma trận đếm, $\mathrm{df}(t)$, $\mathrm{idf}(t,D)$ làm trơn, ma trận TF-IDF và ma trận chuẩn hóa L2.}{fig:tfidf-excel}
+\hinhchuachen{ch-preprocessing-tfidf-excel.png}{Tính TF-IDF trên bảng tính (ảnh chụp từ tệp \texttt{Cluster.xlsx}). Phần trên: ma trận đếm, $\mathrm{df}(t)$, $\mathrm{idf}(t,D)$ làm trơn và ma trận TF-IDF. Phần dưới: chuẩn hóa L2 ma trận đếm --- bình phương từng phần tử, rồi chia mỗi dòng cho căn của tổng bình phương.}{fig:tfidf-excel}
 
-\hinhchuachen{ch-preprocessing-tfidf-nosmooth.png}{Ma trận TF-IDF với IDF không làm trơn (giá trị 1,40547 và 2,09861) --- khớp với kết quả \texttt{smooth\_idf=False} của scikit-learn.}{fig:tfidf-nosmooth}
+\hinhchuachen{ch-preprocessing-tfidf-nosmooth.png}{Ma trận TF-IDF với IDF không làm trơn (giá trị 1,405465 và 2,098612) --- khớp với kết quả \texttt{smooth\_idf=False} của scikit-learn. Các ô đánh dấu là những từ có $\mathrm{df}$ lớn nhất (\textit{are}, \textit{the}) và nhỏ nhất (\textit{friends}, \textit{outside}).}{fig:tfidf-nosmooth}
 
 \paragraph{Chuẩn hóa L2 và độ tương đồng cosine.} Mặc định \texttt{TfidfVectorizer} còn chuẩn hóa L2 từng hàng. Áp dụng cho ma trận làm trơn ở Bảng~\ref{tab:tfidf}:
 
@@ -1168,7 +1168,7 @@ for scaler in [MinMaxScaler(), MaxAbsScaler(),
 # RobustScaler   [-1.  -0.5  0.   0.5  6. ]
 \end{lstlisting}
 
-\hinhchuachen{ch-preprocessing-scalers.png}{Phân phối của một đặc trưng trước và sau khi áp dụng bốn bộ chuẩn hóa (gợi ý: vẽ histogram hoặc boxplot bằng matplotlib).}{fig:scalers}
+\hinhchuachen{ch-preprocessing-scalers.png}{Năm giá trị của cột $x = (2, 4, 6, 8, 30)$ trước và sau khi áp dụng bốn bộ chuẩn hóa (số liệu của Bảng~\ref{tab:scalers}).}{fig:scalers}
 
 \begin{table}[H]
 \centering
@@ -1474,7 +1474,7 @@ Lớp thiểu số gồm $P_1(2, 3)$, $P_2(4, 4)$, $P_3(3, 6)$; chọn $k = 2$. 
 Điểm mới nằm trên đoạn $P_1P_2$, bên trong vùng của lớp thiểu số, và không trùng với mẫu nào đã có.
 \end{example}
 
-\hinhchuachen{ch-preprocessing-smote.png}{SMOTE sinh mẫu tổng hợp trên đoạn thẳng nối các mẫu thiểu số với láng giềng cùng lớp.}{fig:smote}
+\hinhchuachen{ch-preprocessing-smote.png}{SMOTE sinh mẫu tổng hợp trên đoạn thẳng nối các mẫu thiểu số với láng giềng cùng lớp. Trái: ví dụ tính tay; phải: dữ liệu 90/10 của đoạn code bên dưới, chiếu lên hai đặc trưng có điểm F cao nhất.}{fig:smote}
 
 SMOTE được cài đặt trong thư viện \texttt{imbalanced-learn} (Lemaître, Nogueira \& Aridas, 2017), cài bằng lệnh \texttt{pip install imbalanced-learn}. Các biến thể đáng chú ý: \textbf{Borderline-SMOTE} (Han và cộng sự, 2005) chỉ sinh mẫu gần biên quyết định; \textbf{ADASYN} (He và cộng sự, 2008) sinh nhiều mẫu hơn ở vùng khó học; \textbf{SMOTE-NC} xử lý dữ liệu có cột định danh.
 
@@ -1608,7 +1608,7 @@ print(df["Exter Qual"].value_counts())
 print(df[["Lot Area", "Gr Liv Area", "SalePrice"]].describe())
 \end{lstlisting}
 
-\hinhchuachen{ch-preprocessing-ames-outliers.png}{Biểu đồ phân tán \texttt{Gr Liv Area} -- \texttt{SalePrice} của Ames Housing; các điểm bên phải ngưỡng 4000 ft$^2$ là ngoại lai.}{fig:ames-outliers}
+\hinhchuachen{ch-preprocessing-ames-outliers.png}{Biểu đồ phân tán \texttt{Gr Liv Area} -- \texttt{SalePrice} của Ames Housing; các điểm bên phải ngưỡng 4000 ft$^2$ là ngoại lai. Trong đó 3 căn giá thấp là giao dịch bán từng phần (\texttt{Sale Condition} = Partial).}{fig:ames-outliers}
 
 \subsection{Xây dựng quy trình tiền xử lý hoàn chỉnh}
 
