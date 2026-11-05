@@ -1,0 +1,408 @@
+% =========================================================
+% CHUONG: MANG NO-RON NHAN TAO (NEURAL NETWORK)
+% =========================================================
+
+\chapter{Mạng nơ-ron nhân tạo \\ (Neural Network)}
+\label{chap:neural-network}
+
+Mạng nơ-ron nhân tạo là họ mô hình đứng sau hầu hết thành tựu nổi bật của trí tuệ nhân tạo hiện đại: nhận dạng ảnh, dịch máy, nhận dạng giọng nói và các mô hình ngôn ngữ lớn. Chương cuối này trình bày nền tảng của mạng nơ-ron: từ perceptron đơn lẻ đến mạng nhiều lớp (Multilayer Perceptron -- MLP), thuật toán lan truyền ngược, các kỹ thuật huấn luyện, và cách cài đặt bằng scikit-learn cùng một thư viện học sâu.
+
+\noindent Sau khi học xong chương này, người học có khả năng:
+\begin{itemize}
+    \item Trình bày lịch sử phát triển của mạng nơ-ron và lý do của các ``mùa đông AI''.
+    \item Tính tay đầu ra của perceptron và giải thích vì sao perceptron không học được XOR.
+    \item Tính tay một bước lan truyền xuôi và lan truyền ngược trên mạng nhỏ.
+    \item Huấn luyện \texttt{MLPClassifier}/\texttt{MLPRegressor} và một mạng Keras đơn giản, lựa chọn hàm kích hoạt, hàm mất mát, bộ tối ưu và kỹ thuật điều chuẩn.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Lịch sử phát triển}
+% ---------------------------------------------------------
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|p{11.5cm}|}
+\hline
+\textbf{Năm} & \textbf{Sự kiện} \\
+\hline
+1943 & McCulloch và Pitts đề xuất mô hình toán học đầu tiên của nơ-ron sinh học: nơ-ron ngưỡng với đầu vào nhị phân. \\ \hline
+1949 & Donald Hebb nêu quy tắc học ``các nơ-ron cùng kích hoạt thì liên kết mạnh lên''. \\ \hline
+1958 & Frank Rosenblatt công bố \textbf{Perceptron} --- mô hình nơ-ron đầu tiên có thuật toán học trọng số từ dữ liệu, cài đặt trên phần cứng Mark I. \\ \hline
+1969 & Minsky và Papert (sách \textit{Perceptrons}) chứng minh perceptron một lớp không biểu diễn được hàm XOR $\Rightarrow$ ``mùa đông AI'' thứ nhất. \\ \hline
+1986 & Rumelhart, Hinton và Williams phổ biến thuật toán \textbf{lan truyền ngược} (backpropagation) cho mạng nhiều lớp (ý tưởng đã có từ Linnainmaa 1970, Werbos 1974). \\ \hline
+1989 & Cybenko, Hornik chứng minh \textbf{định lý xấp xỉ vạn năng}. LeCun áp dụng mạng tích chập (CNN) nhận dạng chữ số viết tay. \\ \hline
+1997 & Hochreiter và Schmidhuber đề xuất LSTM cho dữ liệu chuỗi. \\ \hline
+2006 & Hinton và cộng sự huấn luyện mạng sâu bằng tiền huấn luyện từng lớp --- khởi đầu thuật ngữ ``deep learning''. \\ \hline
+2012 & AlexNet (Krizhevsky, Sutskever, Hinton) thắng ImageNet với cách biệt lớn nhờ GPU, ReLU, Dropout. \\ \hline
+2017 & Vaswani và cộng sự giới thiệu kiến trúc \textbf{Transformer} (``Attention Is All You Need''), nền tảng của các mô hình ngôn ngữ lớn. \\ \hline
+2018 & Bengio, Hinton, LeCun nhận giải Turing cho những đóng góp về học sâu. \\ \hline
+\end{tabular}
+\caption{Các mốc lịch sử của mạng nơ-ron}
+\end{table}
+
+% ---------------------------------------------------------
+\section{Perceptron}
+% ---------------------------------------------------------
+
+\begin{definition}[Perceptron]
+Perceptron nhận vector đầu vào $\mathbf{x} \in \mathbb{R}^d$, tính tổng có trọng số rồi đưa qua hàm bước:
+\begin{equation}
+    \hat{y} = \operatorname{step}(\mathbf{w}^{\top}\mathbf{x} + b), \qquad \operatorname{step}(z) = \begin{cases} 1 & z \geq 0 \\ 0 & z < 0 \end{cases}
+\end{equation}
+\end{definition}
+
+\noindent\textbf{Quy tắc học của Rosenblatt:} với mỗi mẫu bị phân lớp sai, cập nhật
+\begin{equation}
+    \mathbf{w} \leftarrow \mathbf{w} + \eta\,(y - \hat{y})\,\mathbf{x}, \qquad b \leftarrow b + \eta\,(y - \hat{y}).
+\end{equation}
+\textbf{Định lý hội tụ perceptron} (Novikoff, 1962): nếu dữ liệu \textbf{tách được tuyến tính}, thuật toán dừng sau hữu hạn bước cập nhật.
+
+\hinhchuachen{ch-nn-perceptron.png}{Cấu trúc perceptron: đầu vào, trọng số, tổng có trọng số, hàm kích hoạt và đầu ra.}{fig:perceptron}
+
+\begin{example}[Perceptron cho hàm AND]
+Chọn $\mathbf{w} = (1, 1)$, $b = -1{,}5$:
+\end{example}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+$x_1$ & $x_2$ & $z = x_1 + x_2 - 1{,}5$ & $\hat{y}$ & AND & XOR \\
+\hline
+0 & 0 & $-1{,}5$ & 0 & 0 & 0 \\ \hline
+0 & 1 & $-0{,}5$ & 0 & 0 & 1 \\ \hline
+1 & 0 & $-0{,}5$ & 0 & 0 & 1 \\ \hline
+1 & 1 & $0{,}5$ & 1 & 1 & 0 \\ \hline
+\end{tabular}
+\caption{Perceptron biểu diễn hàm AND}
+\label{tab:and}
+\end{table}
+
+Đường thẳng $x_1 + x_2 = 1{,}5$ tách điểm $(1, 1)$ khỏi ba điểm còn lại. Nhưng với \textbf{XOR}, hai điểm lớp 1 là $(0, 1)$, $(1, 0)$ nằm trên một đường chéo và hai điểm lớp 0 nằm trên đường chéo kia: \textbf{không đường thẳng nào} tách được. Thật vậy, giả sử tồn tại $\mathbf{w}, b$: từ $(0, 0) \mapsto 0$ có $b < 0$; từ $(0, 1), (1, 0) \mapsto 1$ có $w_2 + b \geq 0$, $w_1 + b \geq 0$, cộng lại được $w_1 + w_2 + b \geq -b > 0$, mâu thuẫn với $(1, 1) \mapsto 0$. Lời giải: thêm một \textbf{lớp ẩn} --- XOR $= $ AND(OR, NAND).
+
+\begin{lstlisting}[caption={Cài đặt perceptron từ đầu}]
+import numpy as np
+
+class Perceptron:
+    def __init__(self, lr=1.0, epochs=10):
+        self.lr, self.epochs = lr, epochs
+
+    def fit(self, X, y):
+        self.w = np.zeros(X.shape[1]); self.b = 0.0
+        for _ in range(self.epochs):
+            errors = 0
+            for xi, yi in zip(X, y):
+                update = self.lr * (yi - self.predict(xi))
+                self.w += update * xi
+                self.b += update
+                errors += int(update != 0)
+            if errors == 0:          # hoi tu
+                break
+        return self
+
+    def predict(self, X):
+        return (np.dot(X, self.w) + self.b >= 0).astype(int)
+
+X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+p_and = Perceptron().fit(X, np.array([0, 0, 0, 1]))
+print(p_and.w, p_and.b, p_and.predict(X))   # hoc dung AND
+p_xor = Perceptron(epochs=100).fit(X, np.array([0, 1, 1, 0]))
+print(p_xor.predict(X))                     # khong bao gio dung ca 4
+\end{lstlisting}
+
+% ---------------------------------------------------------
+\section{Mạng nơ-ron nhiều lớp (MLP)}
+% ---------------------------------------------------------
+
+\subsection{Kiến trúc}
+
+MLP gồm \textbf{lớp đầu vào}, một hoặc nhiều \textbf{lớp ẩn} và \textbf{lớp đầu ra}; mỗi nơ-ron nối với mọi nơ-ron ở lớp kế tiếp (lớp kết nối đầy đủ -- dense). Với lớp thứ $l$:
+\begin{equation}
+    \mathbf{z}^{(l)} = \mathbf{W}^{(l)}\mathbf{a}^{(l-1)} + \mathbf{b}^{(l)}, \qquad \mathbf{a}^{(l)} = g^{(l)}\big(\mathbf{z}^{(l)}\big), \qquad \mathbf{a}^{(0)} = \mathbf{x}.
+\end{equation}
+Hàm kích hoạt $g$ phải \textbf{phi tuyến}: nếu không, nhiều lớp tuyến tính chồng lên nhau vẫn chỉ là một phép biến đổi tuyến tính.
+
+\hinhchuachen{ch-nn-mlp.png}{Mạng MLP với lớp đầu vào, hai lớp ẩn và lớp đầu ra.}{fig:mlp}
+
+\begin{theorem}[Xấp xỉ vạn năng -- Cybenko 1989, Hornik 1991]
+Mạng một lớp ẩn với đủ nhiều nơ-ron và hàm kích hoạt phi tuyến (không phải đa thức) có thể xấp xỉ mọi hàm liên tục trên tập compact với độ chính xác tùy ý.
+\end{theorem}
+Định lý chỉ khẳng định \textbf{tồn tại}, không nói cách tìm trọng số hay cần bao nhiêu nơ-ron. Trong thực tế, mạng \textbf{sâu} thường biểu diễn hiệu quả hơn mạng rộng một lớp.
+
+\subsection{Hàm kích hoạt}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|p{4.8cm}|}
+\hline
+\textbf{Hàm} & \textbf{Công thức} & \textbf{Đạo hàm} & \textbf{Ghi chú} \\
+\hline
+Sigmoid & $\sigma(z) = \frac{1}{1 + e^{-z}}$ & $\sigma(1 - \sigma)$ & Đầu ra $(0, 1)$; bão hòa $\Rightarrow$ triệt tiêu gradient \\[4pt] \hline
+Tanh & $\tanh z$ & $1 - \tanh^2 z$ & Đầu ra $(-1, 1)$, tâm 0 \\[4pt] \hline
+ReLU & $\max(0, z)$ & $\mathbb{1}[z > 0]$ & Mặc định cho lớp ẩn (Nair \& Hinton, 2010); nhanh \\[4pt] \hline
+Leaky ReLU & $\max(0{,}01z, z)$ & $1$ hoặc $0{,}01$ & Tránh nơ-ron ``chết'' \\[4pt] \hline
+Softmax & $\frac{e^{z_k}}{\sum_j e^{z_j}}$ & --- & Lớp đầu ra phân lớp nhiều lớp \\[4pt] \hline
+\end{tabular}
+\caption{Các hàm kích hoạt phổ biến}
+\end{table}
+
+\hinhchuachen{ch-nn-activations.png}{Đồ thị các hàm kích hoạt sigmoid, tanh, ReLU và Leaky ReLU.}{fig:activations}
+
+\subsection{Hàm mất mát và lớp đầu ra}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Bài toán} & \textbf{Lớp đầu ra} & \textbf{Hàm mất mát} \\
+\hline
+Hồi quy & 1 nơ-ron, tuyến tính & MSE \\ \hline
+Phân lớp nhị phân & 1 nơ-ron, sigmoid & Binary cross-entropy \\ \hline
+Phân lớp $K$ lớp & $K$ nơ-ron, softmax & Categorical cross-entropy $-\sum_k y_k \log \hat{y}_k$ \\ \hline
+\end{tabular}
+\caption{Ghép cặp lớp đầu ra và hàm mất mát}
+\end{table}
+
+% ---------------------------------------------------------
+\section{Lan truyền ngược (Backpropagation)}
+% ---------------------------------------------------------
+
+Huấn luyện mạng là cực tiểu hàm mất mát $L$ theo mọi trọng số bằng gradient descent (Chương~\ref{chap:regression}). Lan truyền ngược là cách tính \textbf{mọi} đạo hàm riêng $\partial L / \partial w$ hiệu quả bằng \textbf{quy tắc dây chuyền}, đi từ lớp đầu ra về lớp đầu vào và tái sử dụng kết quả trung gian. Chi phí chỉ cỡ một lần lan truyền xuôi. Định nghĩa sai số tại lớp $l$ là $\boldsymbol{\delta}^{(l)} = \partial L / \partial \mathbf{z}^{(l)}$:
+\begin{align}
+    \boldsymbol{\delta}^{(L)} &= \nabla_{\mathbf{a}^{(L)}} L \odot g'\big(\mathbf{z}^{(L)}\big), \\
+    \boldsymbol{\delta}^{(l)} &= \big(\mathbf{W}^{(l+1)}\big)^{\top}\boldsymbol{\delta}^{(l+1)} \odot g'\big(\mathbf{z}^{(l)}\big), \\
+    \frac{\partial L}{\partial \mathbf{W}^{(l)}} &= \boldsymbol{\delta}^{(l)}\big(\mathbf{a}^{(l-1)}\big)^{\top}, \qquad
+    \frac{\partial L}{\partial \mathbf{b}^{(l)}} = \boldsymbol{\delta}^{(l)} .
+\end{align}
+
+\begin{example}[Tính tay một bước lan truyền xuôi và ngược]
+Mạng 2--2--1, mọi nơ-ron dùng sigmoid, mất mát $L = \frac{1}{2}(t - o)^2$. Đầu vào $\mathbf{x} = (1;\ 0{,}5)$, nhãn $t = 1$,
+\[
+    \mathbf{W}^{(1)} = \begin{pmatrix} 0{,}1 & 0{,}2 \\ 0{,}3 & 0{,}4 \end{pmatrix}, \quad \mathbf{b}^{(1)} = \begin{pmatrix} 0{,}1 \\ 0{,}1 \end{pmatrix}, \quad
+    \mathbf{w}^{(2)} = (0{,}5;\ 0{,}6), \quad b^{(2)} = 0{,}1, \quad \eta = 0{,}5 .
+\]
+\end{example}
+
+\noindent\textbf{Lan truyền xuôi:}
+\begin{align*}
+    z_1 &= 0{,}1 \cdot 1 + 0{,}2 \cdot 0{,}5 + 0{,}1 = 0{,}3, & h_1 &= \sigma(0{,}3) = 0{,}5744, \\
+    z_2 &= 0{,}3 \cdot 1 + 0{,}4 \cdot 0{,}5 + 0{,}1 = 0{,}6, & h_2 &= \sigma(0{,}6) = 0{,}6457, \\
+    z_o &= 0{,}5 \cdot 0{,}5744 + 0{,}6 \cdot 0{,}6457 + 0{,}1 = 0{,}7746, & o &= \sigma(0{,}7746) = 0{,}6845,
+\end{align*}
+mất mát $L = \frac{1}{2}(1 - 0{,}6845)^2 = 0{,}0498$.
+
+\noindent\textbf{Lan truyền ngược:}
+\begin{align*}
+    \delta_o &= (o - t)\,o(1 - o) = (-0{,}3155)(0{,}6845)(0{,}3155) = -0{,}0681, \\
+    \frac{\partial L}{\partial \mathbf{w}^{(2)}} &= \delta_o\,\mathbf{h} = (-0{,}0391;\ -0{,}0440), \\
+    \delta_{h_1} &= \delta_o \cdot 0{,}5 \cdot h_1(1 - h_1) = -0{,}0083, \qquad
+    \delta_{h_2} = \delta_o \cdot 0{,}6 \cdot h_2(1 - h_2) = -0{,}0094, \\
+    \frac{\partial L}{\partial \mathbf{W}^{(1)}} &= \boldsymbol{\delta}_h\,\mathbf{x}^{\top} = \begin{pmatrix} -0{,}0083 & -0{,}0042 \\ -0{,}0094 & -0{,}0047 \end{pmatrix}.
+\end{align*}
+
+\noindent\textbf{Cập nhật:} $\mathbf{w}^{(2)} \leftarrow (0{,}5;\ 0{,}6) - 0{,}5 \times (-0{,}0391;\ -0{,}0440) = (0{,}5196;\ 0{,}6220)$. Gradient âm nên trọng số tăng, đẩy $o$ lên gần nhãn $t = 1$. Chú ý gradient ở lớp ẩn nhỏ hơn lớp ra khoảng 8 lần, vì mỗi lần nhân với $\sigma' \leq 0{,}25$ --- đây chính là hiện tượng \textbf{triệt tiêu gradient} khiến mạng sâu dùng sigmoid khó huấn luyện, và là lý do ReLU được ưa chuộng.
+
+\begin{lstlisting}[caption={Kiểm tra ví dụ lan truyền ngược bằng NumPy}]
+sigmoid = lambda z: 1 / (1 + np.exp(-z))
+x = np.array([1.0, 0.5]); t = 1.0
+W1 = np.array([[0.1, 0.2], [0.3, 0.4]]); b1 = np.array([0.1, 0.1])
+w2 = np.array([0.5, 0.6]); b2 = 0.1; lr = 0.5
+
+# Lan truyen xuoi
+h = sigmoid(W1 @ x + b1)            # [0.5744 0.6457]
+o = sigmoid(w2 @ h + b2)            # 0.6845
+loss = 0.5 * (t - o) ** 2           # 0.0498
+
+# Lan truyen nguoc
+d_o = (o - t) * o * (1 - o)         # -0.0681
+d_h = d_o * w2 * h * (1 - h)        # [-0.0083 -0.0094]
+w2 -= lr * d_o * h;  b2 -= lr * d_o
+W1 -= lr * np.outer(d_h, x);  b1 -= lr * d_h
+print(w2)                           # [0.5196 0.622 ]
+\end{lstlisting}
+
+% ---------------------------------------------------------
+\section{Huấn luyện mạng nơ-ron trong thực tế}
+% ---------------------------------------------------------
+
+\subsection{Bộ tối ưu}
+\begin{itemize}
+    \item \textbf{SGD theo lô nhỏ} (mini-batch): mỗi bước dùng 32--256 mẫu; một \textbf{epoch} là một lượt duyệt hết dữ liệu.
+    \item \textbf{Momentum}: cộng dồn hướng các bước trước, giúp vượt vùng phẳng và giảm dao động.
+    \item \textbf{Adam} (Kingma \& Ba, 2015): tốc độ học thích nghi cho từng tham số; lựa chọn mặc định tốt (\texttt{solver="adam"} trong scikit-learn).
+\end{itemize}
+Tốc độ học $\eta$ là siêu tham số quan trọng nhất: quá lớn thì phân kỳ, quá nhỏ thì hội tụ chậm.
+
+\subsection{Khởi tạo và chuẩn hóa}
+\begin{itemize}
+    \item Không khởi tạo mọi trọng số bằng 0 (các nơ-ron sẽ học giống hệt nhau). Dùng khởi tạo Xavier/Glorot (2010) cho sigmoid/tanh, He (2015) cho ReLU.
+    \item \textbf{Chuẩn hóa đầu vào} (\texttt{StandardScaler}) là bắt buộc --- mạng nơ-ron rất nhạy với thang đo.
+    \item \textbf{Batch Normalization} (Ioffe \& Szegedy, 2015) chuẩn hóa đầu ra các lớp ẩn, giúp huấn luyện nhanh và ổn định.
+\end{itemize}
+
+\subsection{Chống quá khớp}
+\begin{itemize}
+    \item \textbf{Điều chuẩn L2} (weight decay): tham số \texttt{alpha} trong \texttt{MLPClassifier}.
+    \item \textbf{Dropout} (Srivastava và cộng sự, 2014): mỗi bước huấn luyện tắt ngẫu nhiên một tỉ lệ nơ-ron.
+    \item \textbf{Dừng sớm} (early stopping): theo dõi lỗi validation, dừng khi không còn cải thiện.
+    \item Tăng cường dữ liệu (data augmentation) với ảnh, âm thanh.
+\end{itemize}
+
+\hinhchuachen{ch-nn-loss-curve.png}{Đường cong mất mát huấn luyện và kiểm định theo epoch; điểm dừng sớm tại nơi lỗi kiểm định nhỏ nhất.}{fig:loss-curve}
+
+% ---------------------------------------------------------
+\section{MLP với scikit-learn}
+% ---------------------------------------------------------
+
+\begin{lstlisting}[caption={MLPClassifier giải bài toán XOR}]
+from sklearn.neural_network import MLPClassifier
+
+X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]]); y = np.array([0, 1, 1, 0])
+mlp = MLPClassifier(hidden_layer_sizes=(4,), activation="tanh",
+                    solver="lbfgs", random_state=1, max_iter=1000)
+mlp.fit(X, y)
+print(mlp.predict(X))     # [0 1 1 0] -- mot lop an du de hoc XOR
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Phân lớp chữ số viết tay với MLPClassifier}]
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report
+import matplotlib.pyplot as plt
+
+X, y = load_digits(return_X_y=True)
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2,
+                                          stratify=y, random_state=42)
+pipe = make_pipeline(
+    StandardScaler(),
+    MLPClassifier(hidden_layer_sizes=(128, 64), activation="relu",
+                  solver="adam", alpha=1e-4, learning_rate_init=1e-3,
+                  batch_size=64, max_iter=300, early_stopping=True,
+                  random_state=42))
+pipe.fit(X_tr, y_tr)
+print(classification_report(y_te, pipe.predict(X_te), digits=4))
+
+mlp = pipe[-1]
+plt.plot(mlp.loss_curve_, label="train loss")
+plt.plot(mlp.validation_scores_, label="validation accuracy")
+plt.legend(); plt.xlabel("epoch"); plt.show()
+
+# Tim sieu tham so (Chuong Validation)
+grid = GridSearchCV(pipe, {"mlpclassifier__hidden_layer_sizes": [(64,), (128, 64)],
+                           "mlpclassifier__alpha": [1e-4, 1e-2, 1]}, cv=3, n_jobs=-1)
+grid.fit(X_tr, y_tr); print(grid.best_params_, grid.score(X_te, y_te))
+\end{lstlisting}
+
+\begin{lstlisting}[caption={MLPRegressor dự đoán giá nhà Ames}]
+from sklearn.neural_network import MLPRegressor
+from sklearn.compose import TransformedTargetRegressor
+
+# preprocess: ColumnTransformer da xay dung o Chuong Tien xu ly du lieu
+reg = make_pipeline(preprocess,
+                    MLPRegressor(hidden_layer_sizes=(64, 32), alpha=1e-3,
+                                 early_stopping=True, max_iter=1000, random_state=0))
+model = TransformedTargetRegressor(regressor=reg, func=np.log1p, inverse_func=np.expm1)
+model.fit(X_train, y_train)
+\end{lstlisting}
+
+\noindent\textit{Giới hạn:} \texttt{MLPClassifier} chỉ chạy trên CPU và chỉ hỗ trợ lớp dense --- phù hợp dữ liệu dạng bảng cỡ vừa và mục đích học tập. Với ảnh, văn bản, âm thanh và mạng sâu, cần các thư viện học sâu chuyên dụng.
+
+% ---------------------------------------------------------
+\section{Giới thiệu thư viện học sâu}
+% ---------------------------------------------------------
+
+\textbf{TensorFlow/Keras} (Google, 2015) và \textbf{PyTorch} (Meta, 2016) là hai thư viện phổ biến nhất. Cả hai cung cấp tensor chạy trên GPU, \textbf{tự động tính đạo hàm} (automatic differentiation --- tổng quát hóa của lan truyền ngược) và các lớp dựng sẵn: Dense, Conv2D (CNN cho ảnh), LSTM/GRU (dữ liệu chuỗi), Attention/Transformer (văn bản).
+
+\begin{lstlisting}[caption={Cùng bài toán digits với Keras}]
+import keras
+from keras import layers
+
+scaler = StandardScaler().fit(X_tr)
+model = keras.Sequential([
+    keras.Input(shape=(64,)),
+    layers.Dense(128, activation="relu"),
+    layers.Dropout(0.2),
+    layers.Dense(64, activation="relu"),
+    layers.Dense(10, activation="softmax"),
+])
+model.compile(optimizer=keras.optimizers.Adam(1e-3),
+              loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+model.summary()
+stop = keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True)
+history = model.fit(scaler.transform(X_tr), y_tr, epochs=50, batch_size=64,
+                    validation_split=0.1, callbacks=[stop])
+print(model.evaluate(scaler.transform(X_te), y_te))
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Vòng lặp huấn luyện tối giản với PyTorch}]
+import torch
+from torch import nn
+
+net = nn.Sequential(nn.Linear(64, 128), nn.ReLU(), nn.Linear(128, 10))
+opt = torch.optim.Adam(net.parameters(), lr=1e-3)
+loss_fn = nn.CrossEntropyLoss()
+Xt = torch.tensor(scaler.transform(X_tr), dtype=torch.float32)
+yt = torch.tensor(y_tr)
+for epoch in range(100):
+    opt.zero_grad()
+    loss = loss_fn(net(Xt), yt)    # lan truyen xuoi
+    loss.backward()                # lan truyen nguoc (autograd)
+    opt.step()                     # cap nhat trong so
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{3.2cm}|p{4.8cm}|p{4.8cm}|}
+\hline
+\textbf{Loại dữ liệu} & \textbf{Kiến trúc phù hợp} & \textbf{Ví dụ ứng dụng} \\
+\hline
+Dạng bảng & MLP; thường thua Gradient Boosting (Chương~\ref{chap:ensemble}) & Dự đoán giá, rủi ro tín dụng \\ \hline
+Ảnh & CNN, Vision Transformer & Phân loại ảnh, phát hiện đối tượng \\ \hline
+Chuỗi, văn bản & RNN/LSTM, Transformer & Dịch máy, phân tích cảm xúc, LLM \\ \hline
+\end{tabular}
+\caption{Lựa chọn kiến trúc theo loại dữ liệu}
+\end{table}
+
+% ---------------------------------------------------------
+\section{Tóm tắt chương}
+% ---------------------------------------------------------
+\begin{itemize}
+    \item Perceptron là bộ phân lớp tuyến tính, không học được XOR; thêm lớp ẩn với hàm kích hoạt phi tuyến cho MLP có khả năng xấp xỉ vạn năng.
+    \item Lan truyền xuôi tính đầu ra; lan truyền ngược dùng quy tắc dây chuyền tính gradient cho mọi trọng số; cập nhật bằng SGD/Adam.
+    \item ReLU cho lớp ẩn; sigmoid/softmax cho lớp ra phân lớp; ghép đúng với cross-entropy.
+    \item Chuẩn hóa đầu vào, khởi tạo hợp lý, điều chuẩn L2, Dropout và dừng sớm là các kỹ thuật thiết yếu.
+    \item scikit-learn cho MLP cơ bản; Keras/PyTorch cho học sâu trên GPU.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Bài tập}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Tìm trọng số perceptron cho hàm OR và NAND. Ghép chúng với perceptron AND (Bảng~\ref{tab:and}) thành mạng hai lớp biểu diễn XOR; kiểm tra trên cả 4 đầu vào.
+    \item Chạy lại ví dụ lan truyền ngược thêm 100 bước. Vẽ mất mát theo số bước. Lặp lại với hàm kích hoạt ReLU ở lớp ẩn.
+    \item Chứng minh $\sigma'(z) = \sigma(z)(1 - \sigma(z))$ và $\sigma'(z) \leq 0{,}25$. Ước lượng độ lớn gradient ở lớp đầu tiên của mạng 10 lớp sigmoid.
+    \item Với softmax và cross-entropy, chứng minh $\partial L / \partial z_k = \hat{y}_k - y_k$.
+    \item Huấn luyện \texttt{MLPClassifier} trên tập \texttt{digits} có và không có \texttt{StandardScaler}. So sánh độ chính xác và số vòng lặp.
+    \item So sánh \texttt{MLPRegressor}, Ridge và Gradient Boosting trên Ames Housing bằng RMSE kiểm định chéo 5-fold.
+\end{enumerate}
+
+% ---------------------------------------------------------
+\section*{Tài liệu tham khảo của chương}
+\addcontentsline{toc}{section}{Tài liệu tham khảo của chương}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Cybenko, G. (1989). Approximation by superpositions of a sigmoidal function. \textit{Mathematics of Control, Signals and Systems}, 2(4), 303--314.
+    \item Glorot, X., \& Bengio, Y. (2010). Understanding the difficulty of training deep feedforward neural networks. \textit{Proceedings of AISTATS 2010}, 249--256.
+    \item Goodfellow, I., Bengio, Y., \& Courville, A. (2016). \textit{Deep Learning}. MIT Press.
+    \item Hornik, K. (1991). Approximation capabilities of multilayer feedforward networks. \textit{Neural Networks}, 4(2), 251--257.
+    \item Kingma, D. P., \& Ba, J. (2015). Adam: A Method for Stochastic Optimization. \textit{ICLR 2015}.
+    \item LeCun, Y., Bengio, Y., \& Hinton, G. (2015). Deep learning. \textit{Nature}, 521, 436--444.
+    \item McCulloch, W. S., \& Pitts, W. (1943). A logical calculus of the ideas immanent in nervous activity. \textit{Bulletin of Mathematical Biophysics}, 5, 115--133.
+    \item Minsky, M., \& Papert, S. (1969). \textit{Perceptrons}. MIT Press.
+    \item Rosenblatt, F. (1958). The perceptron: A probabilistic model for information storage and organization in the brain. \textit{Psychological Review}, 65(6), 386--408.
+    \item Rumelhart, D. E., Hinton, G. E., \& Williams, R. J. (1986). Learning representations by back-propagating errors. \textit{Nature}, 323, 533--536.
+    \item Srivastava, N., Hinton, G., Krizhevsky, A., Sutskever, I., \& Salakhutdinov, R. (2014). Dropout: A Simple Way to Prevent Neural Networks from Overfitting. \textit{Journal of Machine Learning Research}, 15, 1929--1958.
+    \item Vaswani, A., et al. (2017). Attention Is All You Need. \textit{Advances in Neural Information Processing Systems 30}.
+\end{enumerate}

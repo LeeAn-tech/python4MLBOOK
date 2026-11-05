@@ -1,0 +1,450 @@
+% =========================================================
+% CHUONG: PHAN LOP (CLASSIFICATION)
+% =========================================================
+
+\chapter{Phân lớp \\ (Classification)}
+\label{chap:classify}
+
+Phân lớp (classification) là bài toán học có giám sát trong đó đầu ra là một \textbf{nhãn rời rạc}: thư rác hay không, khối u lành hay ác tính, khách hàng có rời bỏ dịch vụ hay không, chữ số viết tay là 0 hay 9\ldots{} Nếu chỉ có hai nhãn ta có \textbf{phân lớp nhị phân}; nhiều hơn hai nhãn là \textbf{phân lớp đa lớp}. Theo kế hoạch giảng dạy, chương này trình bày các thuật toán nền tảng: \textbf{KNN, Naive Bayes, Logistic Regression, Decision Tree, SVM}; các phương pháp kết hợp (Random Forest, AdaBoost, XGBoost) được trình bày ở chương kế tiếp.
+
+\noindent Sau khi học xong chương này, người học có khả năng:
+\begin{itemize}
+    \item Trình bày ý tưởng, lịch sử và giả định của năm họ thuật toán phân lớp kinh điển.
+    \item Tự tính tay một bước dự đoán của KNN (bỏ phiếu đều, có trọng số, và KNN cho hồi quy), Naive Bayes, Logistic Regression và một lần chia nút của cây quyết định.
+    \item Cài đặt và so sánh các thuật toán bằng scikit-learn trên dữ liệu thực.
+    \item Lựa chọn thuật toán và bước tiền xử lý phù hợp cho từng loại dữ liệu.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Bài toán phân lớp}
+% ---------------------------------------------------------
+
+\begin{definition}[Bài toán phân lớp]
+Cho tập huấn luyện $\{(\mathbf{x}_i, y_i)\}_{i=1}^{n}$ với $\mathbf{x}_i \in \mathbb{R}^d$ và $y_i \in \{1, \dots, K\}$. Cần học hàm $f: \mathbb{R}^d \to \{1, \dots, K\}$ sao cho $f(\mathbf{x})$ dự đoán đúng nhãn của các điểm \textbf{chưa từng thấy}. Nhiều thuật toán còn ước lượng xác suất $P(y = k \mid \mathbf{x})$ và chọn nhãn có xác suất lớn nhất.
+\end{definition}
+
+Về mặt hình học, bộ phân lớp chia không gian đặc trưng thành các vùng; ranh giới giữa các vùng gọi là \textbf{biên quyết định} (decision boundary). Các thuật toán khác nhau tạo ra biên có hình dạng khác nhau: tuyến tính (Logistic Regression, SVM tuyến tính), các đoạn song song trục (Decision Tree), hay biên phức tạp tùy dữ liệu (KNN, SVM với nhân).
+
+\hinhchuachen{ch-classify-boundaries.png}{Biên quyết định của KNN, Logistic Regression, Decision Tree và SVM (nhân RBF) trên cùng một tập dữ liệu hai chiều.}{fig:boundaries}
+
+Xuyên suốt chương, ta minh họa bằng bộ dữ liệu \textbf{Iris} do Ronald Fisher công bố năm 1936: 150 bông hoa thuộc 3 loài (\textit{setosa}, \textit{versicolor}, \textit{virginica}), mỗi bông có 4 đặc trưng: chiều dài, chiều rộng của đài hoa và cánh hoa (cm).
+
+\begin{lstlisting}[caption={Chuẩn bị dữ liệu Iris}]
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+
+iris = load_iris()
+X, y = iris.data, iris.target
+print(X.shape, iris.target_names)   # (150, 4) ['setosa' 'versicolor' 'virginica']
+
+# stratify=y: giu nguyen ti le cac lop trong tap train va test
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=42, stratify=y)
+\end{lstlisting}
+
+% ---------------------------------------------------------
+\section{K láng giềng gần nhất (KNN)}
+% ---------------------------------------------------------
+
+KNN (K-Nearest Neighbors) được Evelyn Fix và Joseph Hodges đề xuất năm 1951 trong một báo cáo cho Không quân Hoa Kỳ; năm 1967, Cover và Hart chứng minh rằng khi số mẫu tiến ra vô cùng, sai số của luật 1-NN không vượt quá \textbf{hai lần} sai số Bayes tối ưu. KNN là thuật toán \textbf{lười} (lazy learning): không học tham số nào, chỉ ghi nhớ dữ liệu và trì hoãn mọi tính toán đến lúc dự đoán.
+
+\begin{definition}[Thuật toán KNN]
+Để phân lớp điểm mới $\mathbf{q}$:
+\begin{enumerate}
+    \item Tính khoảng cách từ $\mathbf{q}$ đến mọi điểm huấn luyện, thường dùng khoảng cách Euclid $d(\mathbf{q}, \mathbf{x}) = \sqrt{\sum_j (q_j - x_j)^2}$.
+    \item Chọn $K$ điểm gần nhất.
+    \item Gán nhãn chiếm đa số trong $K$ điểm đó (có thể bỏ phiếu có trọng số $1/d$).
+\end{enumerate}
+\end{definition}
+
+\begin{example}[Tính tay KNN phân lớp]
+Cho 5 mẫu huấn luyện có hai đặc trưng $x_1, x_2$ và nhãn $y \in \{0, 1\}$ (Bảng~\ref{tab:knn-class}). Dự đoán nhãn của mẫu mới $\mathbf{q} = (2, 4)$ với khoảng cách Euclid $d = \sqrt{(x_1 - 2)^2 + (x_2 - 4)^2}$.
+\end{example}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+\textbf{STT} & $x_1$ & $x_2$ & $y$ & \textbf{Khoảng cách đến $\mathbf{q} = (2, 4)$} & \textbf{Thứ hạng} \\
+\hline
+1 & 7 & 6 & 0 & $\sqrt{5^2 + 2^2} = \sqrt{29} \approx 5{,}385$ & 4 \\ \hline
+2 & 2 & 4 & 1 & $\sqrt{0^2 + 0^2} = 0$ & 1 \\ \hline
+3 & 1 & 5 & 1 & $\sqrt{1^2 + 1^2} = \sqrt{2} \approx 1{,}414$ & 2 \\ \hline
+4 & 3 & 9 & 1 & $\sqrt{1^2 + 5^2} = \sqrt{26} \approx 5{,}099$ & 3 \\ \hline
+5 & 8 & 7 & 0 & $\sqrt{6^2 + 3^2} = \sqrt{45} \approx 6{,}708$ & 5 \\ \hline
+\end{tabular}
+\caption{Dữ liệu huấn luyện và khoảng cách đến điểm cần dự đoán}
+\label{tab:knn-class}
+\end{table}
+
+Với $K = 3$: ba mẫu gần nhất là 2, 3, 4, đều có nhãn 1 $\Rightarrow$ $\hat{y} = 1$. Với $K = 4$: thêm mẫu 1 (nhãn 0), kết quả bỏ phiếu $3 : 1$, vẫn dự đoán $\hat{y} = 1$.
+
+\subsection{KNN có trọng số}
+
+Bỏ phiếu đều coi láng giềng gần nhất và láng giềng thứ $K$ như nhau, dù một điểm có thể rất gần còn điểm kia khá xa. Dudani (1976) đề xuất \textbf{bỏ phiếu có trọng số}: láng giềng càng gần, lá phiếu càng nặng. Trọng số phổ biến nhất là nghịch đảo khoảng cách:
+\begin{equation}
+    w_i = \frac{1}{d(\mathbf{q}, \mathbf{x}_i) + \varepsilon}, \qquad
+    \hat{y} = \arg\max_{c} \sum_{i \in N_K(\mathbf{q}),\ y_i = c} w_i,
+\end{equation}
+trong đó $\varepsilon$ là một số rất nhỏ (ví dụ $10^{-5}$) để tránh chia cho 0 khi $\mathbf{q}$ trùng với một điểm huấn luyện.
+
+\begin{example}[Trọng số khi điểm cần dự đoán trùng một mẫu]
+Tiếp ví dụ trên với $K = 4$ và $\varepsilon = 10^{-5}$:
+\[
+    w_2 = \frac{1}{0 + 10^{-5}} = 100\,000, \qquad
+    w_3 = \frac{1}{1{,}414} \approx 0{,}707,
+\]
+\[
+    w_4 = \frac{1}{5{,}099} \approx 0{,}196, \qquad
+    w_1 = \frac{1}{5{,}385} \approx 0{,}186.
+\]
+Tổng trọng số của lớp 1 là $100\,000 + 0{,}707 + 0{,}196 \approx 100\,000{,}9$, của lớp 0 là $0{,}186$. Chuẩn hóa về tỉ lệ: lớp 0 chiếm $\frac{0{,}186}{100\,001{,}09} \approx 1{,}86 \times 10^{-6} \approx 0$, lớp 1 chiếm $\approx 1$. Mẫu trùng khớp gần như quyết định toàn bộ kết quả. Chú ý $\frac{1}{0 + 10^{-5}} = 10^5$ chứ không phải 1 --- một nhầm lẫn hay gặp khi tính tay. Trong scikit-learn, nếu có láng giềng cách đúng 0 thì \texttt{weights="distance"} chỉ tính các láng giềng đó.
+\end{example}
+
+\begin{example}[Trọng số phá thế hòa phiếu]
+Cũng với dữ liệu ở Bảng~\ref{tab:knn-class}, xét $\mathbf{q} = (5, 6)$ và $K = 4$. Khoảng cách đến các mẫu 1, 5, 2, 4 lần lượt là $2$; $\sqrt{10} \approx 3{,}162$; $\sqrt{13} \approx 3{,}606$; $\sqrt{13} \approx 3{,}606$ (mẫu 3 xa nhất, $\sqrt{17} \approx 4{,}123$). Bỏ phiếu đều cho kết quả \textbf{hòa $2 : 2$}: mẫu 1, 5 nhãn 0; mẫu 2, 4 nhãn 1. Với trọng số $1/d$:
+\[
+    W_0 = \frac{1}{2} + \frac{1}{3{,}162} \approx 0{,}816, \qquad
+    W_1 = \frac{1}{3{,}606} + \frac{1}{3{,}606} \approx 0{,}555
+    \ \Rightarrow\ \hat{y} = 0 .
+\]
+Khi hòa phiếu, scikit-learn với \texttt{weights="uniform"} chọn lớp có nhãn nhỏ hơn --- một quy ước tùy ý; trọng số khoảng cách cho lời giải có cơ sở hơn. Đây là lý do khi $K$ chẵn (dễ hòa phiếu) nên dùng KNN có trọng số.
+\end{example}
+
+\subsection{KNN cho bài toán hồi quy}
+
+KNN dùng được cho cả hồi quy: thay vì bỏ phiếu, ta lấy \textbf{trung bình} (hoặc trung bình có trọng số) \textbf{giá trị mục tiêu} của $K$ láng giềng:
+\begin{equation}
+    \hat{y} = \frac{1}{K}\sum_{i \in N_K(\mathbf{q})} y_i
+    \qquad\text{hoặc}\qquad
+    \hat{y} = \frac{\sum_{i \in N_K(\mathbf{q})} w_i\, y_i}{\sum_{i \in N_K(\mathbf{q})} w_i}, \quad w_i = \frac{1}{d(\mathbf{q}, \mathbf{x}_i)}.
+\end{equation}
+
+\begin{example}[Tính tay KNN hồi quy với $K = 4$]
+Cùng 5 mẫu như Bảng~\ref{tab:knn-class} nhưng $y$ là số thực. Dự đoán cho $\mathbf{q} = (3, 4)$.
+\end{example}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+\textbf{STT} & $x_1$ & $x_2$ & $y$ & $d(\mathbf{q}, \mathbf{x}_i)$ & $w_i = 1/d$ \\
+\hline
+1 & 7 & 6 & 7,3 & $\sqrt{4^2 + 2^2} \approx 4{,}472$ & 0,224 \\ \hline
+2 & 2 & 4 & 5,4 & $\sqrt{1^2 + 0^2} = 1$ & 1 \\ \hline
+3 & 1 & 5 & 4,2 & $\sqrt{2^2 + 1^2} \approx 2{,}236$ & 0,447 \\ \hline
+4 & 3 & 9 & 5,1 & $\sqrt{0^2 + 5^2} = 5$ & 0,2 \\ \hline
+5 & 8 & 7 & 9,6 & $\sqrt{5^2 + 3^2} \approx 5{,}831$ & (không thuộc $K = 4$) \\ \hline
+\end{tabular}
+\caption{KNN hồi quy: khoảng cách và trọng số đến $\mathbf{q} = (3, 4)$}
+\label{tab:knn-reg}
+\end{table}
+
+Bốn láng giềng gần nhất là mẫu 2, 3, 1, 4.
+\begin{itemize}
+    \item Trung bình đều: $\hat{y} = \dfrac{5{,}4 + 4{,}2 + 7{,}3 + 5{,}1}{4} = \dfrac{22}{4} = 5{,}5$.
+    \item Trung bình có trọng số: $\hat{y} = \dfrac{5{,}4 \times 1 + 4{,}2 \times 0{,}447 + 7{,}3 \times 0{,}224 + 5{,}1 \times 0{,}2}{1 + 0{,}447 + 0{,}224 + 0{,}2} \approx 5{,}31$.
+\end{itemize}
+Lưu ý: phép trung bình lấy trên \textbf{giá trị mục tiêu} $y_i$ của các láng giềng, không phải trên khoảng cách. Đây cũng chính là cơ chế của KNN Imputer ở mục~\ref{sec:missing}: cột cần điền đóng vai trò $y$.
+
+\paragraph{Lưu ý thực hành.}
+\begin{itemize}
+    \item KNN dựa hoàn toàn vào khoảng cách nên \textbf{bắt buộc chuẩn hóa dữ liệu} và \textbf{mã hóa One Hot} cho biến định danh (Chương~\ref{chap:preprocessing}).
+    \item $K$ nhỏ: biên quyết định gồ ghề, nhạy với nhiễu; $K$ lớn: biên mượt nhưng có thể thiếu khớp. Với bài toán hai lớp nên chọn $K$ lẻ để tránh hòa phiếu.
+    \item Chi phí dự đoán lớn với dữ liệu nhiều mẫu; chất lượng giảm mạnh khi số chiều cao (\textit{lời nguyền số chiều}, xem chương Giảm chiều dữ liệu).
+\end{itemize}
+
+\begin{lstlisting}[caption={KNN với scikit-learn}]
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+
+knn = make_pipeline(StandardScaler(), KNeighborsClassifier(n_neighbors=5))
+knn.fit(X_train, y_train)
+print("Accuracy:", knn.score(X_test, y_test))
+
+# Cac vi du tinh tay o tren
+import numpy as np
+from sklearn.neighbors import KNeighborsRegressor
+
+X5 = np.array([[7, 6], [2, 4], [1, 5], [3, 9], [8, 7]])
+y5 = np.array([0, 1, 1, 1, 0])
+print(KNeighborsClassifier(3).fit(X5, y5).predict([[2, 4]]))          # [1]
+knn_w = KNeighborsClassifier(4, weights="distance").fit(X5, y5)
+print(knn_w.predict_proba([[5, 6]]).round(4))                         # [[0.5954 0.4046]]
+
+y_reg = np.array([7.3, 5.4, 4.2, 5.1, 9.6])
+for w in ["uniform", "distance"]:
+    reg = KNeighborsRegressor(4, weights=w).fit(X5, y_reg)
+    print(w, reg.predict([[3, 4]]).round(4))                          # 5.5 ; 5.3082
+\end{lstlisting}
+
+% ---------------------------------------------------------
+\section{Naive Bayes}
+% ---------------------------------------------------------
+
+Định lý Bayes do mục sư Thomas Bayes đề xuất và được công bố sau khi ông mất (1763), sau đó Pierre-Simon Laplace phát triển độc lập và tổng quát hóa. Năm 1961, Maron dùng mô hình Bayes ``ngây thơ'' để phân loại tài liệu tự động; đến cuối thập niên 1990, Naive Bayes trở thành phương pháp lọc thư rác kinh điển.
+
+\begin{definition}[Bộ phân lớp Naive Bayes]
+Theo định lý Bayes:
+\begin{equation}
+    P(y \mid \mathbf{x}) = \frac{P(y)\, P(\mathbf{x} \mid y)}{P(\mathbf{x})} \propto P(y)\, P(\mathbf{x} \mid y).
+\end{equation}
+Giả định ``ngây thơ'' (naive): các đặc trưng \textbf{độc lập có điều kiện} khi biết lớp, nên $P(\mathbf{x} \mid y) = \prod_{j=1}^{d} P(x_j \mid y)$. Nhãn dự đoán là
+\begin{equation}
+    \hat{y} = \arg\max_{k} \; P(y = k) \prod_{j=1}^{d} P(x_j \mid y = k).
+\end{equation}
+\end{definition}
+
+\begin{example}[Lọc thư rác]
+Một hộp thư có 6 email: 3 spam, 3 không spam (ham). Từ ``free'' xuất hiện trong 2/3 email spam và 1/3 email ham; từ ``meeting'' xuất hiện trong 1/3 email spam và 2/3 email ham. Phân lớp một email \textbf{có} ``free'' và \textbf{không có} ``meeting'':
+\begin{align*}
+    \text{Spam}: \quad & P(\text{spam}) \cdot P(\text{free} \mid \text{spam}) \cdot P(\neg\text{meeting} \mid \text{spam}) = \tfrac{1}{2} \cdot \tfrac{2}{3} \cdot \tfrac{2}{3} = 0{,}2222, \\
+    \text{Ham}: \quad & P(\text{ham}) \cdot P(\text{free} \mid \text{ham}) \cdot P(\neg\text{meeting} \mid \text{ham}) = \tfrac{1}{2} \cdot \tfrac{1}{3} \cdot \tfrac{1}{3} = 0{,}0556.
+\end{align*}
+Chuẩn hóa: $P(\text{spam} \mid \mathbf{x}) = 0{,}2222 / (0{,}2222 + 0{,}0556) = 0{,}8$. Email được dự đoán là \textbf{spam} với xác suất 80\%.
+\end{example}
+
+\paragraph{Các biến thể.} \texttt{GaussianNB} (đặc trưng liên tục, giả định phân phối chuẩn trong mỗi lớp), \texttt{MultinomialNB} (đặc trưng đếm --- rất hợp với ma trận Count/TF-IDF ở Chương~\ref{chap:preprocessing}), \texttt{BernoulliNB} (đặc trưng nhị phân có/không). Để tránh xác suất bằng 0 khi một từ chưa từng xuất hiện trong một lớp, dùng \textbf{làm trơn Laplace}: $P(x_j \mid y) = \frac{\text{đếm} + \alpha}{\text{tổng} + \alpha \cdot |V|}$ (tham số \texttt{alpha}).
+
+\begin{lstlisting}[caption={Naive Bayes cho phân loại văn bản kết hợp TF-IDF}]
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB, GaussianNB
+from sklearn.pipeline import make_pipeline
+
+texts = ["free money now", "win a free prize", "free offer today",
+         "meeting at noon", "project meeting notes", "lunch meeting free"]
+labels = ["spam", "spam", "spam", "ham", "ham", "ham"]
+
+spam_filter = make_pipeline(TfidfVectorizer(), MultinomialNB(alpha=1.0))
+spam_filter.fit(texts, labels)
+print(spam_filter.predict(["free prize money", "notes from the meeting"]))
+print(spam_filter.predict_proba(["free prize money"]).round(3))
+
+# Du lieu so lien tuc: GaussianNB
+print(GaussianNB().fit(X_train, y_train).score(X_test, y_test))
+\end{lstlisting}
+
+Dù giả định độc lập hiếm khi đúng, Naive Bayes thường cho kết quả tốt bất ngờ với văn bản, huấn luyện cực nhanh và cần ít dữ liệu. Nhược điểm: xác suất ước lượng thường bị ``quá tự tin'' (gần 0 hoặc 1).
+
+% ---------------------------------------------------------
+\section{Hồi quy logistic (Logistic Regression)}
+% ---------------------------------------------------------
+
+Hàm logistic được nhà toán học Bỉ Pierre-François Verhulst dùng từ thập niên 1830--1840 để mô tả tăng trưởng dân số. Năm 1958, David Cox đề xuất mô hình hồi quy logistic cho biến đầu ra nhị phân. Dù tên gọi có chữ ``hồi quy'', đây là \textbf{thuật toán phân lớp}.
+
+\begin{definition}[Hồi quy logistic nhị phân]
+Mô hình ước lượng xác suất thuộc lớp dương:
+\begin{equation}
+    P(y = 1 \mid \mathbf{x}) = \sigma(\mathbf{w}^\top\mathbf{x} + b), \qquad \sigma(z) = \frac{1}{1 + e^{-z}},
+\end{equation}
+và dự đoán $\hat{y} = 1$ khi xác suất $\geq 0{,}5$, tức khi $\mathbf{w}^\top\mathbf{x} + b \geq 0$. Do đó biên quyết định là một \textbf{siêu phẳng}.
+\end{definition}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+$z$ & $-2$ & 0 & 1 & 2 \\ \hline
+$\sigma(z)$ & 0.1192 & 0.5 & 0.7311 & 0.8808 \\ \hline
+\end{tabular}
+\caption{Một số giá trị của hàm sigmoid}
+\end{table}
+
+\paragraph{Hàm mất mát.} Tham số được tìm bằng cách cực tiểu \textbf{entropy chéo} (log loss), tương đương cực đại hợp lý:
+\begin{equation}
+    J(\mathbf{w}, b) = -\frac{1}{n}\sum_{i=1}^{n}\Big[y_i \ln \hat{p}_i + (1 - y_i)\ln(1 - \hat{p}_i)\Big], \qquad \hat{p}_i = \sigma(\mathbf{w}^\top\mathbf{x}_i + b).
+\end{equation}
+Hàm này lồi, không có nghiệm đóng, nên được giải bằng Gradient Descent hoặc các phương pháp tối ưu bậc hai (thuật toán \texttt{lbfgs} mặc định của scikit-learn). Gradient có dạng rất gọn: $\nabla_{\mathbf{w}} J = \frac{1}{n}\sum_i (\hat{p}_i - y_i)\,\mathbf{x}_i$ --- giống hệt hồi quy tuyến tính, chỉ thay $\hat{y}$ bằng $\hat{p}$.
+
+\paragraph{Diễn giải.} $\ln\frac{p}{1-p} = \mathbf{w}^\top\mathbf{x} + b$: mỗi khi $x_j$ tăng 1 đơn vị, \textit{odds} (tỉ số $p/(1-p)$) được nhân với $e^{w_j}$. Đây là lý do hồi quy logistic được ưa chuộng trong y khoa và tài chính, nơi cần giải thích mô hình.
+
+\paragraph{Đa lớp.} Với $K$ lớp, dùng hàm \textbf{softmax}: $P(y = k \mid \mathbf{x}) = \frac{e^{z_k}}{\sum_{j} e^{z_j}}$ với $z_k = \mathbf{w}_k^\top\mathbf{x} + b_k$. Tham số \texttt{C} trong scikit-learn là nghịch đảo của mức chính quy hóa L2 (giống Ridge): $C$ nhỏ $\Rightarrow$ chính quy hóa mạnh.
+
+\begin{lstlisting}[caption={Logistic Regression với scikit-learn}]
+from sklearn.linear_model import LogisticRegression
+
+logreg = make_pipeline(StandardScaler(), LogisticRegression(C=1.0, max_iter=1000))
+logreg.fit(X_train, y_train)
+print("Accuracy:", logreg.score(X_test, y_test))
+print(logreg.predict_proba(X_test[:3]).round(3))   # xac suat 3 lop
+print(logreg[-1].coef_.round(2))                   # he so cho tung lop
+\end{lstlisting}
+
+\hinhchuachen{ch-classify-sigmoid.png}{Đồ thị hàm sigmoid $\sigma(z)$ và ngưỡng quyết định 0,5.}{fig:sigmoid}
+
+% ---------------------------------------------------------
+\section{Cây quyết định (Decision Tree)}
+% ---------------------------------------------------------
+
+Cây quyết định mô phỏng cách con người ra quyết định bằng chuỗi câu hỏi ``nếu -- thì''. Hai dòng thuật toán kinh điển: \textbf{CART} (Classification and Regression Trees) của Breiman, Friedman, Olshen và Stone (1984), và \textbf{ID3} (1986) cùng hậu duệ C4.5 (1993) của Ross Quinlan. scikit-learn cài đặt phiên bản tối ưu của CART.
+
+\subsection{Độ đo độ hỗn tạp}
+
+Tại mỗi nút có tỉ lệ các lớp $p_1, \dots, p_K$, độ ``hỗn tạp'' (impurity) được đo bằng:
+\begin{align}
+    \text{Gini (CART)}: \quad & G = 1 - \sum_{k=1}^{K} p_k^2, \\
+    \text{Entropy (ID3/C4.5)}: \quad & H = -\sum_{k=1}^{K} p_k \log_2 p_k .
+\end{align}
+Nút ``thuần'' (chỉ một lớp) có $G = H = 0$; với hai lớp cân bằng, $G = 0{,}5$ và $H = 1$. Thuật toán chọn câu hỏi chia nút làm \textbf{giảm độ hỗn tạp nhiều nhất}, tính theo trung bình có trọng số của các nút con. Với entropy, mức giảm này gọi là \textbf{độ lợi thông tin} (Information Gain):
+\begin{equation}
+    \mathrm{IG} = H(\text{cha}) - \sum_{c \in \text{con}} \frac{n_c}{n} H(c).
+\end{equation}
+
+\begin{example}[Tính một lần chia nút]
+Nút cha có 10 mẫu: 6 ``Có'', 4 ``Không''. Một câu hỏi chia thành nút trái 4 mẫu (4 Có, 0 Không) và nút phải 6 mẫu (2 Có, 4 Không).
+\begin{itemize}
+    \item Gini cha: $1 - (0{,}6^2 + 0{,}4^2) = 0{,}48$.
+    \item Gini trái: $0$; Gini phải: $1 - \big((2/6)^2 + (4/6)^2\big) = 0{,}4444$.
+    \item Gini sau chia: $0{,}4 \times 0 + 0{,}6 \times 0{,}4444 = 0{,}2667$ $\Rightarrow$ giảm $0{,}2133$.
+    \item Entropy cha: $0{,}9710$; entropy phải: $0{,}9183$; $\mathrm{IG} = 0{,}9710 - 0{,}6 \times 0{,}9183 = 0{,}4200$.
+\end{itemize}
+Thuật toán thử mọi đặc trưng và mọi ngưỡng, rồi chọn phép chia có mức giảm lớn nhất.
+\end{example}
+
+\paragraph{Kiểm soát quá khớp.} Cây phát triển hết cỡ sẽ có lá thuần, khớp hoàn hảo dữ liệu huấn luyện nhưng tổng quát kém. Các tham số giới hạn: \texttt{max\_depth}, \texttt{min\_samples\_split}, \texttt{min\_samples\_leaf}, hoặc cắt tỉa sau bằng \texttt{ccp\_alpha}.
+
+\paragraph{Ưu điểm.} Dễ diễn giải, vẽ được; không cần chuẩn hóa dữ liệu; xử lý được quan hệ phi tuyến và tương tác. \textbf{Nhược điểm:} không ổn định (đổi dữ liệu một chút, cây thay đổi nhiều), dễ quá khớp --- được khắc phục bởi Random Forest ở chương sau.
+
+\begin{lstlisting}[caption={Cây quyết định và trực quan hóa}]
+from sklearn.tree import DecisionTreeClassifier, export_text, plot_tree
+import matplotlib.pyplot as plt
+
+tree = DecisionTreeClassifier(criterion="gini", max_depth=3, random_state=42)
+tree.fit(X_train, y_train)
+print("Accuracy:", tree.score(X_test, y_test))
+print(export_text(tree, feature_names=iris.feature_names))
+
+plt.figure(figsize=(12, 6))
+plot_tree(tree, feature_names=iris.feature_names,
+          class_names=iris.target_names, filled=True)
+plt.show()
+\end{lstlisting}
+
+\hinhchuachen{ch-classify-tree.png}{Cây quyết định độ sâu 3 trên dữ liệu Iris (kết quả của \texttt{plot\_tree}).}{fig:tree}
+
+% ---------------------------------------------------------
+\section{Máy vector hỗ trợ (SVM)}
+% ---------------------------------------------------------
+
+Ý tưởng siêu phẳng lề cực đại được Vladimir Vapnik và Alexey Chervonenkis phát triển tại Liên Xô từ thập niên 1960. Năm 1992, Boser, Guyon và Vapnik kết hợp với \textbf{thủ thuật nhân} (kernel trick) để tạo biên phi tuyến; năm 1995, Cortes và Vapnik đề xuất phiên bản \textbf{lề mềm} (soft margin) dùng phổ biến đến ngày nay.
+
+\subsection{Lề cực đại}
+
+Với dữ liệu hai lớp $y_i \in \{-1, +1\}$ tách được tuyến tính, có vô số siêu phẳng $\mathbf{w}^\top\mathbf{x} + b = 0$ phân tách hai lớp. SVM chọn siêu phẳng có \textbf{lề} (khoảng cách đến điểm gần nhất của mỗi lớp) lớn nhất. Độ rộng lề bằng $2/\|\mathbf{w}\|$, nên bài toán là:
+\begin{equation}
+    \min_{\mathbf{w}, b} \frac{1}{2}\|\mathbf{w}\|^2 \quad \text{với} \quad y_i(\mathbf{w}^\top\mathbf{x}_i + b) \geq 1, \;\forall i.
+\end{equation}
+Các điểm nằm đúng trên biên của lề gọi là \textbf{vector hỗ trợ} (support vectors); chỉ chúng quyết định siêu phẳng --- bỏ các điểm khác đi, kết quả không đổi.
+
+\subsection{Lề mềm và tham số C}
+
+Dữ liệu thực thường không tách được hoàn toàn. Lề mềm cho phép vi phạm với biến bù $\xi_i \geq 0$:
+\begin{equation}
+    \min_{\mathbf{w}, b, \boldsymbol{\xi}} \frac{1}{2}\|\mathbf{w}\|^2 + C\sum_{i=1}^{n}\xi_i \quad \text{với} \quad y_i(\mathbf{w}^\top\mathbf{x}_i + b) \geq 1 - \xi_i .
+\end{equation}
+$C$ lớn: phạt vi phạm nặng, lề hẹp, dễ quá khớp; $C$ nhỏ: lề rộng, chấp nhận sai một số điểm, tổng quát tốt hơn.
+
+\subsection{Thủ thuật nhân}
+
+Ý tưởng: ánh xạ dữ liệu sang không gian nhiều chiều hơn, nơi chúng tách được tuyến tính. Vì bài toán đối ngẫu của SVM chỉ cần tích vô hướng giữa các điểm, ta thay tích vô hướng bằng một \textbf{hàm nhân} $k(\mathbf{x}, \mathbf{z})$ mà không cần tính ánh xạ tường minh:
+\begin{itemize}
+    \item Tuyến tính: $k(\mathbf{x}, \mathbf{z}) = \mathbf{x}^\top\mathbf{z}$.
+    \item Đa thức: $k(\mathbf{x}, \mathbf{z}) = (\gamma\,\mathbf{x}^\top\mathbf{z} + r)^p$.
+    \item RBF (Gauss): $k(\mathbf{x}, \mathbf{z}) = \exp(-\gamma\|\mathbf{x} - \mathbf{z}\|^2)$ --- mặc định trong scikit-learn; $\gamma$ lớn cho biên càng ``uốn lượn''.
+\end{itemize}
+
+\hinhchuachen{ch-classify-svm.png}{SVM tuyến tính: siêu phẳng phân tách, lề cực đại và các vector hỗ trợ (khoanh tròn).}{fig:svm}
+
+\begin{lstlisting}[caption={SVM với tìm kiếm tham số C và gamma}]
+from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV
+
+svm = make_pipeline(StandardScaler(), SVC(kernel="rbf"))
+grid = GridSearchCV(svm, {"svc__C": [0.1, 1, 10, 100],
+                          "svc__gamma": [0.01, 0.1, 1]}, cv=5)
+grid.fit(X_train, y_train)
+print(grid.best_params_, grid.score(X_test, y_test))
+print("So vector ho tro:", grid.best_estimator_[-1].n_support_)
+\end{lstlisting}
+
+SVM cần \textbf{chuẩn hóa dữ liệu} (vì dựa trên khoảng cách và tích vô hướng), hoạt động tốt trên dữ liệu số chiều cao như văn bản, nhưng huấn luyện chậm khi số mẫu lớn (độ phức tạp cỡ $O(n^2)$ đến $O(n^3)$) và không trực tiếp cho xác suất.
+
+% ---------------------------------------------------------
+\section{So sánh các thuật toán}
+% ---------------------------------------------------------
+
+\begin{lstlisting}[caption={So sánh năm thuật toán bằng kiểm định chéo}]
+from sklearn.model_selection import cross_val_score
+
+models = {
+    "KNN":         make_pipeline(StandardScaler(), KNeighborsClassifier(5)),
+    "NaiveBayes":  GaussianNB(),
+    "Logistic":    make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000)),
+    "DecisionTree": DecisionTreeClassifier(max_depth=3, random_state=42),
+    "SVM":         make_pipeline(StandardScaler(), SVC()),
+}
+for name, m in models.items():
+    s = cross_val_score(m, X, y, cv=5)
+    print(f"{name:12s} {s.mean():.3f} +/- {s.std():.3f}")
+\end{lstlisting}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|p{2.4cm}|p{2cm}|p{2cm}|p{3.4cm}|p{3.4cm}|}
+\hline
+\textbf{Thuật toán} & \textbf{Biên quyết định} & \textbf{Cần chuẩn hóa} & \textbf{Ưu điểm} & \textbf{Nhược điểm} \\
+\hline
+KNN & Linh hoạt & Có & Đơn giản, không cần huấn luyện & Chậm khi dự đoán, kém ở số chiều cao \\ \hline
+Naive Bayes & Tuyến tính/bậc 2 & Không & Rất nhanh, tốt với văn bản & Giả định độc lập, xác suất quá tự tin \\ \hline
+Logistic Regression & Tuyến tính & Có & Cho xác suất, dễ diễn giải & Không nắm bắt phi tuyến nếu không tạo đặc trưng \\ \hline
+Decision Tree & Song song trục & Không & Dễ giải thích, xử lý dữ liệu hỗn hợp & Dễ quá khớp, không ổn định \\ \hline
+SVM & Tuyến tính hoặc theo nhân & Có & Mạnh ở số chiều cao, lề tối ưu & Chậm với dữ liệu lớn, khó chọn tham số \\ \hline
+\end{tabular}
+\caption{So sánh các thuật toán phân lớp cơ bản}
+\end{table}
+
+Các chỉ số đánh giá như ma trận nhầm lẫn, precision, recall, F1 và ROC-AUC được trình bày ở chương Đánh giá mô hình.
+
+% ---------------------------------------------------------
+\section{Tóm tắt chương}
+% ---------------------------------------------------------
+\begin{itemize}
+    \item KNN gán nhãn theo đa số của $K$ láng giềng gần nhất; bỏ phiếu có trọng số $1/(d + \varepsilon)$ giúp phá thế hòa; với hồi quy, KNN lấy trung bình (có trọng số) giá trị mục tiêu của láng giềng. Cần chuẩn hóa dữ liệu và chọn $K$ phù hợp.
+    \item Naive Bayes áp dụng định lý Bayes với giả định độc lập có điều kiện; rất hiệu quả cho văn bản.
+    \item Logistic Regression ước lượng xác suất qua hàm sigmoid/softmax, tối ưu entropy chéo; biên tuyến tính, dễ diễn giải.
+    \item Cây quyết định chia nút theo Gini hoặc Entropy; dễ giải thích nhưng dễ quá khớp.
+    \item SVM tìm siêu phẳng lề cực đại; thủ thuật nhân cho phép biên phi tuyến.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Bài tập}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Cho 6 điểm $P_1(1, 1)$, $P_2(2, 1)$, $P_3(1, 2)$ thuộc lớp A và $P_4(5, 5)$, $P_5(6, 5)$, $P_6(5, 6)$ thuộc lớp B. (a) Phân lớp $\mathbf{q} = (2{,}5;\ 2{,}5)$ với $K = 3$ (đáp số: A). (b) Phân lớp $\mathbf{q} = (4, 4)$ với $K = 1, 3, 5$. Khi $K = 5$, kết quả có thay đổi nếu dùng bỏ phiếu có trọng số $1/d$ không?
+    \item Với dữ liệu Bảng~\ref{tab:knn-reg}, dự đoán $y$ tại $\mathbf{q} = (6, 6)$ bằng KNN hồi quy với $K = 2$ và $K = 3$, theo cả trung bình đều và trung bình có trọng số. Kiểm tra bằng \texttt{KNeighborsRegressor}.
+    \item Trong ví dụ lọc thư rác, tính lại xác suất spam khi email có cả ``free'' và ``meeting''.
+    \item Một nút có 8 mẫu (5 A, 3 B) được chia thành hai nút (4 A, 0 B) và (1 A, 3 B). Tính Gini, Entropy trước và sau chia và độ lợi thông tin.
+    \item Chứng minh $\sigma'(z) = \sigma(z)(1 - \sigma(z))$ và suy ra công thức gradient của hàm log loss.
+    \item Trên bộ dữ liệu \texttt{load\_breast\_cancer}, so sánh năm thuật toán có và không có \texttt{StandardScaler}. Thuật toán nào nhạy với chuẩn hóa nhất? Giải thích.
+    \item Dùng \texttt{TfidfVectorizer} kết hợp \texttt{MultinomialNB} và \texttt{LinearSVC} trên bộ dữ liệu 20 Newsgroups (hàm \texttt{fetch\_20newsgroups}, chọn 4 chủ đề). So sánh độ chính xác và thời gian huấn luyện.
+\end{enumerate}
+
+% ---------------------------------------------------------
+\section*{Tài liệu tham khảo của chương}
+\addcontentsline{toc}{section}{Tài liệu tham khảo của chương}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Bayes, T. (1763). An Essay towards Solving a Problem in the Doctrine of Chances. \textit{Philosophical Transactions of the Royal Society of London}, 53, 370--418.
+    \item Boser, B. E., Guyon, I. M., \& Vapnik, V. N. (1992). A training algorithm for optimal margin classifiers. \textit{Proceedings of COLT '92}, 144--152.
+    \item Breiman, L., Friedman, J., Olshen, R., \& Stone, C. (1984). \textit{Classification and Regression Trees}. Wadsworth.
+    \item Cortes, C., \& Vapnik, V. (1995). Support-vector networks. \textit{Machine Learning}, 20(3), 273--297.
+    \item Cover, T., \& Hart, P. (1967). Nearest neighbor pattern classification. \textit{IEEE Transactions on Information Theory}, 13(1), 21--27.
+    \item Cox, D. R. (1958). The Regression Analysis of Binary Sequences. \textit{Journal of the Royal Statistical Society, Series B}, 20(2), 215--242.
+    \item Dudani, S. A. (1976). The Distance-Weighted k-Nearest-Neighbor Rule. \textit{IEEE Transactions on Systems, Man, and Cybernetics}, SMC-6(4), 325--327.
+    \item Fisher, R. A. (1936). The use of multiple measurements in taxonomic problems. \textit{Annals of Eugenics}, 7(2), 179--188.
+    \item Fix, E., \& Hodges, J. L. (1951). \textit{Discriminatory Analysis. Nonparametric Discrimination: Consistency Properties}. USAF School of Aviation Medicine, Randolph Field, Texas.
+    \item Maron, M. E. (1961). Automatic Indexing: An Experimental Inquiry. \textit{Journal of the ACM}, 8(3), 404--417.
+    \item Quinlan, J. R. (1986). Induction of decision trees. \textit{Machine Learning}, 1(1), 81--106.
+\end{enumerate}

@@ -1,0 +1,357 @@
+% =========================================================
+% CHUONG: PHAN CUM (CLUSTERING)
+% =========================================================
+
+\chapter{Phân cụm \\ (Clustering)}
+\label{chap:clustering}
+
+Các chương trước đều là \textbf{học có giám sát}: dữ liệu có sẵn nhãn $y$. Trong thực tế, phần lớn dữ liệu \textbf{không có nhãn} --- gán nhãn tốn kém, hoặc ta chưa biết dữ liệu có những nhóm nào. \textbf{Phân cụm} (clustering) là bài toán \textbf{học không giám sát} (unsupervised learning): tự động chia dữ liệu thành các nhóm (cụm) sao cho các điểm trong cùng cụm \textit{giống nhau} và các điểm ở cụm khác nhau thì \textit{khác nhau}. Ứng dụng tiêu biểu: phân khúc khách hàng, gom nhóm tài liệu, nén ảnh (lượng tử hóa màu), phát hiện bất thường.
+
+Theo kế hoạch giảng dạy, chương này trình bày bốn thuật toán: \textbf{K-Means, Hierarchical clustering, DBSCAN, Mean-shift}.
+
+\noindent Sau khi học xong chương này, người học có khả năng:
+\begin{itemize}
+    \item Phân biệt học có giám sát và không giám sát; nêu các họ thuật toán phân cụm chính.
+    \item Tự chạy tay thuật toán K-Means và DBSCAN trên dữ liệu nhỏ.
+    \item Đọc và cắt cây phân cấp (dendrogram).
+    \item Chọn số cụm và đánh giá chất lượng phân cụm bằng phương pháp khuỷu tay và hệ số Silhouette.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Bài toán phân cụm}
+% ---------------------------------------------------------
+
+\begin{definition}[Phân cụm]
+Cho tập dữ liệu $\{\mathbf{x}_1, \dots, \mathbf{x}_n\} \subset \mathbb{R}^d$ \textbf{không có nhãn}. Phân cụm là tìm một phép gán $c: \{1, \dots, n\} \to \{1, \dots, K\}$ (hoặc thêm nhãn ``nhiễu'') sao cho độ tương tự trong cụm cao và độ tương tự giữa các cụm thấp.
+\end{definition}
+
+``Giống nhau'' được đo bằng \textbf{khoảng cách}, nên mọi lưu ý ở Chương~\ref{chap:preprocessing} đều áp dụng: phải \textbf{chuẩn hóa thang đo} và \textbf{mã hóa One Hot} các biến định danh; nếu không, đặc trưng có thang đo lớn sẽ quyết định toàn bộ kết quả phân cụm.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{3cm}|p{5.5cm}|p{4.5cm}|}
+\hline
+\textbf{Họ thuật toán} & \textbf{Ý tưởng} & \textbf{Đại diện} \\
+\hline
+Phân hoạch & Chia thành $K$ cụm, tối ưu một hàm mục tiêu & K-Means, K-Medoids \\ \hline
+Phân cấp & Xây dựng cây gộp/tách cụm lồng nhau & Agglomerative (single, complete, average, Ward) \\ \hline
+Dựa trên mật độ & Cụm là vùng dày đặc, ngăn cách bởi vùng thưa & DBSCAN, OPTICS, Mean-shift \\ \hline
+Dựa trên mô hình & Dữ liệu sinh ra từ hỗn hợp phân phối & Gaussian Mixture Model \\ \hline
+\end{tabular}
+\caption{Các họ thuật toán phân cụm}
+\end{table}
+
+% ---------------------------------------------------------
+\section{K-Means}
+% ---------------------------------------------------------
+
+Thuật toán K-Means được Stuart Lloyd tại Bell Labs đề xuất năm 1957 cho bài toán lượng tử hóa tín hiệu (công bố chính thức năm 1982); tên gọi ``k-means'' do James MacQueen đặt năm 1967. Đến nay đây vẫn là thuật toán phân cụm được dùng nhiều nhất nhờ đơn giản và nhanh.
+
+\begin{definition}[Hàm mục tiêu K-Means]
+Cho số cụm $K$, tìm các tâm cụm $\boldsymbol{\mu}_1, \dots, \boldsymbol{\mu}_K$ và phép gán $c$ để cực tiểu \textbf{tổng bình phương khoảng cách trong cụm} (Within-Cluster Sum of Squares -- WCSS, thuộc tính \texttt{inertia\_} trong scikit-learn):
+\begin{equation}
+    J = \sum_{i=1}^{n} \big\|\mathbf{x}_i - \boldsymbol{\mu}_{c(i)}\big\|^2 .
+\end{equation}
+\end{definition}
+
+\noindent\textbf{Thuật toán Lloyd:}
+\begin{enumerate}
+    \item \textbf{Khởi tạo} $K$ tâm cụm (ngẫu nhiên, chọn điểm dữ liệu, hoặc K-Means++).
+    \item \textbf{Bước gán}: gán mỗi điểm vào cụm có tâm gần nhất.
+    \item \textbf{Bước cập nhật}: tâm cụm mới = trung bình cộng các điểm thuộc cụm.
+    \item Lặp lại bước 2--3 đến khi phép gán không đổi.
+\end{enumerate}
+Mỗi bước đều không làm tăng $J$, nên thuật toán luôn hội tụ --- nhưng chỉ đến \textbf{cực tiểu địa phương}, phụ thuộc vào khởi tạo. Arthur và Vassilvitskii (2007) đề xuất \textbf{K-Means++}: chọn tâm đầu tiên ngẫu nhiên, các tâm tiếp theo được chọn với xác suất tỉ lệ với bình phương khoảng cách đến tâm gần nhất đã chọn, giúp các tâm tản ra; đây là khởi tạo mặc định của scikit-learn. Tham số \texttt{n\_init} chạy nhiều lần khởi tạo và giữ kết quả có $J$ nhỏ nhất.
+
+\begin{example}[Chạy tay K-Means]
+Cho 5 điểm $P_1(22, 10)$, $P_2(25, 15)$, $P_3(45, 50)$, $P_4(50, 55)$, $P_5(23, 12)$, $K = 2$, khởi tạo tâm $\boldsymbol{\mu}_1 = P_1 = (22, 10)$ và $\boldsymbol{\mu}_2 = P_4 = (50, 55)$.
+\end{example}
+
+\noindent\textbf{Vòng 1 -- bước gán:}
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{Điểm} & \textbf{Tọa độ} & $d(\cdot, \boldsymbol{\mu}_1)$ & $d(\cdot, \boldsymbol{\mu}_2)$ & \textbf{Cụm} \\
+\hline
+$P_1$ & (22, 10) & 0.00 & 53.00 & 1 \\ \hline
+$P_2$ & (25, 15) & 5.83 & 47.17 & 1 \\ \hline
+$P_3$ & (45, 50) & 46.14 & 7.07 & 2 \\ \hline
+$P_4$ & (50, 55) & 53.00 & 0.00 & 2 \\ \hline
+$P_5$ & (23, 12) & 2.24 & 50.77 & 1 \\ \hline
+\end{tabular}
+\caption{Khoảng cách Euclid đến hai tâm khởi tạo}
+\end{table}
+
+\noindent\textbf{Vòng 1 -- bước cập nhật:}
+\begin{align*}
+    \boldsymbol{\mu}_1 &= \tfrac{1}{3}\big[(22, 10) + (25, 15) + (23, 12)\big] = (23{,}33;\ 12{,}33), \\
+    \boldsymbol{\mu}_2 &= \tfrac{1}{2}\big[(45, 50) + (50, 55)\big] = (47{,}5;\ 52{,}5).
+\end{align*}
+
+\noindent\textbf{Vòng 2:} khoảng cách mới từ $P_1, \dots, P_5$ đến $\boldsymbol{\mu}_1$ là $(2{,}69;\ 3{,}14;\ 43{,}45;\ 50{,}31;\ 0{,}47)$ và đến $\boldsymbol{\mu}_2$ là $(49{,}56;\ 43{,}73;\ 3{,}54;\ 3{,}54;\ 47{,}33)$. Phép gán không đổi $\{P_1, P_2, P_5\}$, $\{P_3, P_4\}$ $\Rightarrow$ \textbf{hội tụ}. Giá trị hàm mục tiêu $J = 42{,}33$.
+
+\begin{lstlisting}[caption={K-Means với scikit-learn (ví dụ trên lớp)}]
+import numpy as np
+from sklearn.cluster import KMeans
+
+X = np.array([[22, 10], [25, 15], [45, 50], [50, 55], [23, 12]])
+
+kmeans = KMeans(n_clusters=2, init=X[[0, 3]], n_init=1)
+kmeans.fit(X)
+print(kmeans.cluster_centers_)   # [[23.33 12.33] [47.5 52.5]]
+print(kmeans.labels_)            # [0 0 1 1 0]
+print(kmeans.inertia_)           # 42.33
+print(kmeans.predict([[30, 20]]))  # gan diem moi vao cum gan nhat
+\end{lstlisting}
+
+\hinhchuachen{ch-clustering-kmeans-steps.png}{Các vòng lặp của K-Means trên 5 điểm: khởi tạo tâm, bước gán, bước cập nhật và hội tụ.}{fig:kmeans-steps}
+
+\subsection{Chọn số cụm $K$}
+
+\paragraph{Phương pháp khuỷu tay (elbow).} Vẽ $J$ (inertia) theo $K$. $J$ luôn giảm khi $K$ tăng (bằng 0 khi $K = n$), nhưng đến một điểm thì giảm chậm lại rõ rệt --- ``khuỷu tay'' của đường cong là ứng viên tốt cho $K$.
+
+\paragraph{Hệ số Silhouette} (Rousseeuw, 1987). Với mỗi điểm $i$: $a(i)$ là khoảng cách trung bình đến các điểm \textbf{cùng cụm}, $b(i)$ là khoảng cách trung bình nhỏ nhất đến các điểm của \textbf{một cụm khác}:
+\begin{equation}
+    s(i) = \frac{b(i) - a(i)}{\max\{a(i), b(i)\}} \in [-1, 1].
+\end{equation}
+$s(i)$ gần 1: điểm nằm đúng cụm và xa cụm khác; gần 0: nằm ở ranh giới; âm: có lẽ bị gán sai cụm. Silhouette trung bình càng cao, phân cụm càng tốt.
+
+\begin{lstlisting}[caption={Chọn K bằng elbow và silhouette}]
+from sklearn.datasets import make_blobs
+from sklearn.metrics import silhouette_score
+import matplotlib.pyplot as plt
+
+X, _ = make_blobs(n_samples=500, centers=4, cluster_std=1.0, random_state=42)
+ks, inertias, sils = range(2, 10), [], []
+for k in ks:
+    km = KMeans(n_clusters=k, n_init=10, random_state=42).fit(X)
+    inertias.append(km.inertia_)
+    sils.append(silhouette_score(X, km.labels_))
+
+fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+ax[0].plot(ks, inertias, "o-"); ax[0].set_title("Elbow (inertia)")
+ax[1].plot(ks, sils, "o-");     ax[1].set_title("Silhouette")
+plt.show()
+\end{lstlisting}
+
+\hinhchuachen{ch-clustering-elbow.png}{Đường cong inertia (khuỷu tay tại $K = 4$) và hệ số Silhouette theo số cụm.}{fig:elbow}
+
+\paragraph{Hạn chế của K-Means.} Phải chọn trước $K$; giả định cụm có dạng ``cầu'' và kích thước tương đương; nhạy với ngoại lai (trung bình bị kéo lệch); chỉ dùng được với khoảng cách Euclid (biến thể K-Medoids dùng được khoảng cách bất kỳ).
+
+% ---------------------------------------------------------
+\section{Phân cụm phân cấp (Hierarchical Clustering)}
+% ---------------------------------------------------------
+
+Phân cụm phân cấp bắt nguồn từ ngành phân loại học số (numerical taxonomy) của Sokal và Sneath (1963) và được Johnson (1967) hệ thống hóa. Kết quả không phải một phân hoạch duy nhất mà là một \textbf{cây phân cấp} (dendrogram): cắt cây ở độ cao nào sẽ được số cụm tương ứng.
+
+\noindent\textbf{Thuật toán gộp dần (agglomerative, từ dưới lên):}
+\begin{enumerate}
+    \item Ban đầu mỗi điểm là một cụm.
+    \item Tìm hai cụm \textbf{gần nhau nhất} và gộp chúng lại.
+    \item Lặp lại đến khi chỉ còn một cụm.
+\end{enumerate}
+
+Khoảng cách giữa hai cụm $A$, $B$ được định nghĩa bởi \textbf{tiêu chí liên kết} (linkage):
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|l|p{6cm}|}
+\hline
+\textbf{Liên kết} & \textbf{Công thức} & \textbf{Đặc điểm} \\
+\hline
+Single & $\min_{a \in A, b \in B} d(a, b)$ & Tạo cụm dài, hình dạng tùy ý; dễ bị ``hiệu ứng chuỗi'' \\ \hline
+Complete & $\max_{a \in A, b \in B} d(a, b)$ & Cụm gọn, đường kính nhỏ \\ \hline
+Average & trung bình mọi cặp $d(a, b)$ & Cân bằng giữa hai loại trên \\ \hline
+Ward (1963) & mức tăng WCSS khi gộp & Cụm kích thước đều; mặc định của scikit-learn \\ \hline
+\end{tabular}
+\caption{Các tiêu chí liên kết}
+\end{table}
+
+\begin{example}[Single linkage trên dữ liệu một chiều]
+Cho 5 điểm trên trục số: $1, 2, 4, 7, 11$.
+\begin{enumerate}
+    \item Khoảng cách nhỏ nhất là $d(1, 2) = 1$ $\Rightarrow$ gộp $\{1, 2\}$ ở độ cao 1.
+    \item Khoảng cách từ $\{1, 2\}$ đến 4 là $\min(3, 2) = 2$ (nhỏ nhất) $\Rightarrow$ gộp $\{1, 2, 4\}$ ở độ cao 2.
+    \item Khoảng cách từ $\{1, 2, 4\}$ đến 7 là 3 $\Rightarrow$ gộp $\{1, 2, 4, 7\}$ ở độ cao 3.
+    \item Cuối cùng gộp với 11 ở độ cao 4.
+\end{enumerate}
+Cắt dendrogram ở độ cao 3,5 được 2 cụm: $\{1, 2, 4, 7\}$ và $\{11\}$.
+\end{example}
+
+\begin{lstlisting}[caption={Phân cụm phân cấp và vẽ dendrogram}]
+import numpy as np
+from sklearn.cluster import AgglomerativeClustering
+from scipy.cluster.hierarchy import linkage, dendrogram
+import matplotlib.pyplot as plt
+
+p = np.array([[1], [2], [4], [7], [11]])
+print(AgglomerativeClustering(n_clusters=2, linkage="single")
+      .fit_predict(p))                        # [0 0 0 0 1]
+
+Z = linkage(p, method="single")
+print(Z)        # moi dong: [cum_a, cum_b, do_cao, so_diem]
+dendrogram(Z, labels=["1", "2", "4", "7", "11"])
+plt.axhline(3.5, linestyle="--")              # duong cat -> 2 cum
+plt.show()
+\end{lstlisting}
+
+\hinhchuachen{ch-clustering-dendrogram.png}{Dendrogram của 5 điểm với single linkage; đường nét đứt ở độ cao 3,5 cắt cây thành 2 cụm.}{fig:dendrogram}
+
+Ưu điểm: không cần chọn trước $K$, kết quả trực quan. Nhược điểm: độ phức tạp tối thiểu $O(n^2)$ bộ nhớ, không phù hợp với dữ liệu rất lớn; quyết định gộp không thể hoàn tác.
+
+% ---------------------------------------------------------
+\section{DBSCAN}
+% ---------------------------------------------------------
+
+\textbf{DBSCAN} (Density-Based Spatial Clustering of Applications with Noise) do Ester, Kriegel, Sander và Xu công bố năm 1996, được trao giải ``Test of Time'' của hội nghị KDD năm 2014. DBSCAN định nghĩa cụm là \textbf{vùng có mật độ điểm cao}, nhờ đó tìm được cụm có \textbf{hình dạng bất kỳ} và tự nhận diện \textbf{nhiễu}, không cần biết trước số cụm.
+
+\begin{definition}[Các khái niệm của DBSCAN]
+Với hai tham số $\varepsilon$ (\texttt{eps}) và $\mathit{MinPts}$ (\texttt{min\_samples}):
+\begin{itemize}
+    \item \textbf{$\varepsilon$-lân cận} của $p$: $N_\varepsilon(p) = \{q : d(p, q) \leq \varepsilon\}$ (bao gồm cả $p$).
+    \item \textbf{Điểm lõi} (core): $|N_\varepsilon(p)| \geq \mathit{MinPts}$.
+    \item \textbf{Điểm biên} (border): không phải điểm lõi nhưng nằm trong $\varepsilon$-lân cận của một điểm lõi.
+    \item \textbf{Điểm nhiễu} (noise): không phải lõi, cũng không phải biên.
+\end{itemize}
+Một cụm là tập lớn nhất các điểm \textbf{liên thông mật độ}: bắt đầu từ một điểm lõi, lan rộng qua các điểm lõi trong lân cận của nhau, kèm theo các điểm biên của chúng.
+\end{definition}
+
+\begin{example}[Chạy tay DBSCAN]
+Cho 9 điểm (đánh số từ 0 theo Python), $\varepsilon = 2$, $\mathit{MinPts} = 3$:
+\end{example}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{Điểm} & \textbf{Tọa độ} & \textbf{$\varepsilon$-lân cận} & \textbf{$|N_\varepsilon|$} & \textbf{Loại} \\
+\hline
+0 & (2, 10) & \{0\} & 1 & Nhiễu \\ \hline
+1 & (2, 5) & \{1\} & 1 & Nhiễu \\ \hline
+2 & (8, 4) & \{2, 4, 5\} & 3 & \textbf{Lõi} \\ \hline
+3 & (5, 8) & \{3, 7\} & 2 & Biên (gần lõi 7) \\ \hline
+4 & (7, 5) & \{2, 4, 5\} & 3 & \textbf{Lõi} \\ \hline
+5 & (6, 4) & \{2, 4, 5\} & 3 & \textbf{Lõi} \\ \hline
+6 & (1, 2) & \{6\} & 1 & Nhiễu \\ \hline
+7 & (4, 9) & \{3, 7, 8\} & 3 & \textbf{Lõi} \\ \hline
+8 & (3, 7.5) & \{7, 8\} & 2 & Biên (gần lõi 7) \\ \hline
+\end{tabular}
+\caption{Phân loại điểm của DBSCAN ($\varepsilon = 2$, $\mathit{MinPts} = 3$)}
+\label{tab:dbscan}
+\end{table}
+
+Ví dụ $d(2, 4) = \sqrt{1^2 + 1^2} = 1{,}41$, $d(2, 5) = 2{,}00$, $d(7, 3) = 1{,}41$, $d(7, 8) = 1{,}80$, còn $d(3, 8) = 2{,}06 > 2$. Kết quả: cụm 0 = \{2, 4, 5\}, cụm 1 = \{3, 7, 8\} (lõi 7 với hai điểm biên 3 và 8), nhiễu = \{0, 1, 6\}.
+
+\begin{lstlisting}[caption={DBSCAN với scikit-learn (ví dụ trên lớp)}]
+from sklearn.cluster import DBSCAN
+
+X = [[2, 10], [2, 5], [8, 4], [5, 8], [7, 5],
+     [6, 4], [1, 2], [4, 9], [3, 7.5]]
+dbscan = DBSCAN(eps=2, min_samples=3).fit(X)
+print(dbscan.labels_)               # [-1 -1  0  1  0  0 -1  1  1]  (-1 = nhieu)
+print(dbscan.core_sample_indices_)  # [2 4 5 7]
+print(dbscan.components_)           # toa do cac diem loi
+\end{lstlisting}
+
+\hinhchuachen{ch-clustering-dbscan.png}{Kết quả DBSCAN trên 9 điểm: điểm lõi, điểm biên, điểm nhiễu và vòng tròn bán kính $\varepsilon = 2$ quanh các điểm lõi.}{fig:dbscan}
+
+\paragraph{Chọn tham số.} Quy tắc kinh nghiệm: $\mathit{MinPts} \geq d + 1$ (thường $2d$); để chọn $\varepsilon$, vẽ \textbf{đồ thị k-khoảng cách}: khoảng cách từ mỗi điểm đến láng giềng thứ $\mathit{MinPts}$, sắp xếp tăng dần; điểm ``gãy'' của đồ thị là ứng viên cho $\varepsilon$. DBSCAN gặp khó khi các cụm có \textbf{mật độ rất khác nhau} --- khi đó dùng OPTICS (Ankerst và cộng sự, 1999) hoặc HDBSCAN.
+
+% ---------------------------------------------------------
+\section{Mean-shift}
+% ---------------------------------------------------------
+
+Mean-shift được Fukunaga và Hostetler đề xuất năm 1975 để ước lượng gradient của hàm mật độ, và được Comaniciu và Meer (2002) phổ biến trong thị giác máy tính (phân đoạn ảnh, theo vết đối tượng). Ý tưởng: coi dữ liệu là mẫu từ một hàm mật độ; mỗi \textbf{đỉnh} (mode) của hàm mật độ là một cụm.
+
+\noindent\textbf{Thuật toán:} với mỗi điểm khởi đầu $\mathbf{x}$, lặp:
+\begin{equation}
+    \mathbf{x} \leftarrow \frac{\sum_{i} K(\mathbf{x}_i - \mathbf{x})\,\mathbf{x}_i}{\sum_{i} K(\mathbf{x}_i - \mathbf{x})},
+\end{equation}
+tức dịch $\mathbf{x}$ về \textbf{trung bình có trọng số} của các điểm trong cửa sổ (nhân $K$ có độ rộng \texttt{bandwidth}). Điểm ``leo dốc'' dần lên đỉnh mật độ gần nhất; các điểm hội tụ về cùng một đỉnh thuộc cùng một cụm.
+
+\begin{lstlisting}[caption={Mean-shift với ước lượng bandwidth}]
+from sklearn.cluster import MeanShift, estimate_bandwidth
+
+X, _ = make_blobs(n_samples=500, centers=4, cluster_std=1.0, random_state=42)
+bw = estimate_bandwidth(X, quantile=0.2)
+ms = MeanShift(bandwidth=bw).fit(X)
+print("So cum tim duoc:", len(ms.cluster_centers_))
+\end{lstlisting}
+
+Ưu điểm: không cần chọn số cụm, tìm được cụm hình dạng tùy ý. Nhược điểm: chi phí tính toán lớn và kết quả phụ thuộc nhiều vào \texttt{bandwidth}.
+
+% ---------------------------------------------------------
+\section{So sánh và ứng dụng}
+% ---------------------------------------------------------
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|p{2.3cm}|p{1.6cm}|p{2.1cm}|p{1.6cm}|p{2.2cm}|p{2.6cm}|}
+\hline
+\textbf{Thuật toán} & \textbf{Cần biết $K$} & \textbf{Hình dạng cụm} & \textbf{Phát hiện nhiễu} & \textbf{Tham số chính} & \textbf{Quy mô dữ liệu} \\
+\hline
+K-Means & Có & Cầu, đều nhau & Không & $K$ & Rất lớn \\ \hline
+Phân cấp & Không (cắt cây) & Tùy liên kết & Không & linkage, ngưỡng cắt & Nhỏ -- vừa \\ \hline
+DBSCAN & Không & Tùy ý & Có & \texttt{eps}, \texttt{min\_samples} & Vừa -- lớn \\ \hline
+Mean-shift & Không & Tùy ý & Không & \texttt{bandwidth} & Nhỏ -- vừa \\ \hline
+\end{tabular}
+\caption{So sánh các thuật toán phân cụm}
+\end{table}
+
+\hinhchuachen{ch-clustering-compare.png}{Kết quả của K-Means, Agglomerative, DBSCAN và Mean-shift trên các tập dữ liệu dạng ``mặt trăng'', ``vòng tròn'' và ``khối cầu''.}{fig:cluster-compare}
+
+\begin{lstlisting}[caption={Phân khúc khách hàng: tiền xử lý rồi phân cụm}]
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+
+# customers: DataFrame cac cot so (tuoi, thu nhap, so lan mua, tong chi tieu)
+seg = make_pipeline(StandardScaler(), KMeans(n_clusters=4, n_init=10, random_state=0))
+labels = seg.fit_predict(customers)
+customers["segment"] = labels
+print(customers.groupby("segment").mean())   # chan dung tung phan khuc
+
+# Truc quan hoa tren 2 chieu bang PCA (xem chuong Giam chieu du lieu)
+X2 = PCA(2).fit_transform(StandardScaler().fit_transform(customers.drop(columns="segment")))
+\end{lstlisting}
+
+% ---------------------------------------------------------
+\section{Tóm tắt chương}
+% ---------------------------------------------------------
+\begin{itemize}
+    \item Phân cụm là học không giám sát, dựa trên khoảng cách nên bắt buộc tiền xử lý đúng.
+    \item K-Means lặp hai bước gán -- cập nhật để cực tiểu WCSS; dùng K-Means++ và nhiều lần khởi tạo; chọn $K$ bằng elbow và Silhouette.
+    \item Phân cụm phân cấp xây dendrogram bằng cách gộp dần theo tiêu chí liên kết; cắt cây để lấy số cụm.
+    \item DBSCAN tìm cụm theo mật độ, phân loại điểm lõi -- biên -- nhiễu, tìm được cụm hình dạng tùy ý.
+    \item Mean-shift dịch chuyển điểm về đỉnh mật độ, không cần biết số cụm.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Bài tập}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Chạy tay K-Means cho 5 điểm ở ví dụ nhưng khởi tạo tâm là $P_1$ và $P_2$. Kết quả cuối có giống ví dụ không? Rút ra nhận xét về vai trò của khởi tạo.
+    \item Cho 6 điểm 1 chiều: $2, 3, 8, 9, 10, 25$. Vẽ dendrogram với single linkage và complete linkage.
+    \item Với 9 điểm của ví dụ DBSCAN, chạy lại với $\varepsilon = 3$, $\mathit{MinPts} = 3$. Lập bảng phân loại điểm như Bảng~\ref{tab:dbscan}.
+    \item Sinh dữ liệu \texttt{make\_moons(n\_samples=300, noise=0.05)}, so sánh K-Means ($K = 2$) và DBSCAN. Giải thích sự khác biệt.
+    \item Lượng tử hóa màu: dùng K-Means với $K \in \{4, 16, 64\}$ để nén màu một bức ảnh (mỗi pixel là một điểm trong không gian RGB). So sánh ảnh kết quả.
+    \item Phân cụm các căn nhà trong Ames Housing theo \texttt{Gr Liv Area}, \texttt{Overall Qual}, \texttt{Year Built} (đã chuẩn hóa). Mô tả đặc điểm và giá trung bình của từng cụm.
+\end{enumerate}
+
+% ---------------------------------------------------------
+\section*{Tài liệu tham khảo của chương}
+\addcontentsline{toc}{section}{Tài liệu tham khảo của chương}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Ankerst, M., Breunig, M. M., Kriegel, H.-P., \& Sander, J. (1999). OPTICS: Ordering Points To Identify the Clustering Structure. \textit{Proceedings of ACM SIGMOD '99}, 49--60.
+    \item Arthur, D., \& Vassilvitskii, S. (2007). k-means++: The Advantages of Careful Seeding. \textit{Proceedings of SODA '07}, 1027--1035.
+    \item Comaniciu, D., \& Meer, P. (2002). Mean Shift: A Robust Approach Toward Feature Space Analysis. \textit{IEEE Transactions on Pattern Analysis and Machine Intelligence}, 24(5), 603--619.
+    \item Ester, M., Kriegel, H.-P., Sander, J., \& Xu, X. (1996). A Density-Based Algorithm for Discovering Clusters in Large Spatial Databases with Noise. \textit{Proceedings of KDD '96}, 226--231.
+    \item Fukunaga, K., \& Hostetler, L. (1975). The estimation of the gradient of a density function, with applications in pattern recognition. \textit{IEEE Transactions on Information Theory}, 21(1), 32--40.
+    \item Johnson, S. C. (1967). Hierarchical clustering schemes. \textit{Psychometrika}, 32(3), 241--254.
+    \item Lloyd, S. P. (1982). Least squares quantization in PCM. \textit{IEEE Transactions on Information Theory}, 28(2), 129--137.
+    \item MacQueen, J. (1967). Some methods for classification and analysis of multivariate observations. \textit{Proceedings of the Fifth Berkeley Symposium on Mathematical Statistics and Probability}, 1, 281--297.
+    \item Rousseeuw, P. J. (1987). Silhouettes: a graphical aid to the interpretation and validation of cluster analysis. \textit{Journal of Computational and Applied Mathematics}, 20, 53--65.
+    \item Ward, J. H. (1963). Hierarchical Grouping to Optimize an Objective Function. \textit{Journal of the American Statistical Association}, 58(301), 236--244.
+\end{enumerate}

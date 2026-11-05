@@ -1,0 +1,298 @@
+% =========================================================
+% CHUONG: HOC KET HOP (ENSEMBLE LEARNING)
+% =========================================================
+
+\chapter{Học kết hợp \\ (Ensemble Learning)}
+\label{chap:ensemble}
+
+Một cây quyết định đơn lẻ dễ quá khớp và không ổn định; một mô hình tuyến tính có thể quá đơn giản. \textbf{Học kết hợp} (ensemble learning) xây dựng \textbf{nhiều mô hình} rồi gộp dự đoán của chúng, thường cho kết quả tốt hơn bất kỳ mô hình thành phần nào. Trong kế hoạch giảng dạy, các thuật toán \textbf{Random Forest, AdaBoost, XGBoost} thuộc nhóm phân lớp; chúng cũng dùng được cho hồi quy. Trên dữ liệu dạng bảng (tabular), các phương pháp boosting hiện vẫn là lựa chọn hàng đầu trong nhiều cuộc thi khoa học dữ liệu.
+
+\noindent Sau khi học xong chương này, người học có khả năng:
+\begin{itemize}
+    \item Giải thích vì sao kết hợp nhiều mô hình yếu lại cho mô hình mạnh (định lý bồi thẩm đoàn Condorcet, phân rã độ chệch -- phương sai).
+    \item Phân biệt hai chiến lược chính: \textbf{bagging} (song song, giảm phương sai) và \textbf{boosting} (tuần tự, giảm độ chệch).
+    \item Tự tính một vòng cập nhật trọng số của AdaBoost.
+    \item Cài đặt và tinh chỉnh Random Forest, AdaBoost, Gradient Boosting, XGBoost; đọc mức độ quan trọng của đặc trưng.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Trí tuệ đám đông}
+% ---------------------------------------------------------
+
+Năm 1785, Hầu tước de Condorcet phát biểu \textbf{định lý bồi thẩm đoàn}: nếu mỗi thành viên độc lập đưa ra quyết định đúng với xác suất $p > 0{,}5$, thì xác suất quyết định theo đa số là đúng sẽ tăng dần về 1 khi số thành viên tăng. Năm 1907, Francis Galton quan sát 787 người dự đoán cân nặng một con bò tại hội chợ: giá trị \textit{trung vị} các dự đoán chỉ lệch khoảng 1\% so với cân nặng thật --- chính xác hơn hầu hết từng cá nhân.
+
+\begin{example}
+Ba bộ phân lớp \textbf{độc lập}, mỗi bộ đúng với xác suất $0{,}7$. Bỏ phiếu đa số đúng khi có ít nhất 2 trong 3 bộ đúng:
+\begin{equation*}
+    P(\text{đa số đúng}) = 0{,}7^3 + 3 \times 0{,}7^2 \times 0{,}3 = 0{,}343 + 0{,}441 = 0{,}784 > 0{,}7 .
+\end{equation*}
+\end{example}
+
+Điều kiện then chốt là các mô hình phải \textbf{đủ tốt} (tốt hơn đoán ngẫu nhiên) và \textbf{đa dạng} (sai ở những chỗ khác nhau). Nếu cả ba mô hình giống hệt nhau, bỏ phiếu chẳng cải thiện gì. Mọi phương pháp ensemble đều là các cách khác nhau để tạo ra sự đa dạng.
+
+\subsection{Độ chệch và phương sai}
+
+Sai số kỳ vọng của một mô hình trên dữ liệu mới có thể phân rã thành
+\begin{equation}
+    \text{Sai số} = \text{Độ chệch}^2 + \text{Phương sai} + \text{Nhiễu không thể giảm}.
+\end{equation}
+\textbf{Độ chệch} (bias) cao: mô hình quá đơn giản, thiếu khớp. \textbf{Phương sai} (variance) cao: mô hình thay đổi mạnh theo dữ liệu huấn luyện, quá khớp. Lấy trung bình $B$ mô hình có phương sai $\sigma^2$, tương quan đôi một $\rho$, phương sai của trung bình là
+\begin{equation}
+    \rho\,\sigma^2 + \frac{1 - \rho}{B}\,\sigma^2 ,
+\end{equation}
+nên \textbf{giảm tương quan $\rho$} giữa các mô hình là chìa khóa --- đây chính là ý tưởng của Random Forest.
+
+\hinhchuachen{ch-ensemble-bagging-boosting.png}{So sánh hai chiến lược: bagging huấn luyện song song trên các mẫu bootstrap rồi bỏ phiếu; boosting huấn luyện tuần tự, mỗi mô hình tập trung vào lỗi của mô hình trước.}{fig:bag-boost}
+
+% ---------------------------------------------------------
+\section{Bagging và Random Forest}
+% ---------------------------------------------------------
+
+\subsection{Bagging}
+
+\textbf{Bagging} (Bootstrap AGGregatING) do Leo Breiman đề xuất năm 1996:
+\begin{enumerate}
+    \item Tạo $B$ \textbf{mẫu bootstrap}: mỗi mẫu gồm $n$ điểm được rút \textbf{có hoàn lại} từ $n$ điểm huấn luyện (kỹ thuật bootstrap của Efron, 1979).
+    \item Huấn luyện một mô hình (thường là cây quyết định sâu) trên mỗi mẫu.
+    \item Dự đoán bằng bỏ phiếu đa số (phân lớp) hoặc lấy trung bình (hồi quy).
+\end{enumerate}
+Xác suất một điểm \textbf{không} được chọn vào một mẫu bootstrap là $(1 - 1/n)^n \approx e^{-1} \approx 0{,}368$. Như vậy mỗi cây chỉ thấy khoảng 63,2\% dữ liệu; 36,8\% còn lại gọi là \textbf{dữ liệu ngoài túi} (out-of-bag, OOB) và được dùng để ước lượng sai số miễn phí, không cần tập kiểm tra riêng.
+
+\subsection{Random Forest}
+
+Năm 2001, Breiman đề xuất \textbf{Random Forest}: bagging cây quyết định, và thêm một nguồn ngẫu nhiên --- \textbf{tại mỗi nút}, chỉ xét một tập con ngẫu nhiên gồm $m$ đặc trưng để chọn phép chia (thường $m = \sqrt{d}$ cho phân lớp). Nhờ vậy, dù có một đặc trưng rất mạnh, không phải cây nào cũng dùng nó ở gốc; các cây ít tương quan hơn và phương sai của rừng giảm mạnh.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|p{9.5cm}|}
+\hline
+\textbf{Tham số} & \textbf{Ý nghĩa} \\
+\hline
+\texttt{n\_estimators} & Số cây; càng nhiều càng ổn định (không gây quá khớp), chỉ tốn thời gian. \\ \hline
+\texttt{max\_features} & Số đặc trưng xét ở mỗi nút (\texttt{"sqrt"}, \texttt{"log2"}, số thực); nhỏ $\Rightarrow$ cây đa dạng hơn. \\ \hline
+\texttt{max\_depth}, \texttt{min\_samples\_leaf} & Giới hạn độ sâu và kích thước lá của từng cây. \\ \hline
+\texttt{oob\_score} & Tính độ chính xác trên dữ liệu ngoài túi. \\ \hline
+\texttt{n\_jobs=-1} & Huấn luyện song song trên mọi nhân CPU. \\ \hline
+\end{tabular}
+\caption{Các tham số chính của \texttt{RandomForestClassifier}}
+\end{table}
+
+\paragraph{Mức độ quan trọng của đặc trưng.} Random Forest cung cấp \texttt{feature\_importances\_}: tổng mức giảm Gini do mỗi đặc trưng đóng góp, lấy trung bình qua các cây. Chỉ số này thiên vị đặc trưng có nhiều giá trị; \textbf{permutation importance} (xáo trộn một cột và đo mức giảm độ chính xác trên tập kiểm tra) đáng tin cậy hơn.
+
+\begin{lstlisting}[caption={Random Forest trên dữ liệu ung thư vú Wisconsin}]
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.inspection import permutation_importance
+import pandas as pd
+
+data = load_breast_cancer()
+X, y = data.data, data.target              # 569 mau, 30 dac trung
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.25, random_state=42, stratify=y)
+
+rf = RandomForestClassifier(n_estimators=300, max_features="sqrt",
+                            oob_score=True, n_jobs=-1, random_state=42)
+rf.fit(X_train, y_train)
+print("OOB score :", rf.oob_score_)
+print("Test score:", rf.score(X_test, y_test))
+
+imp = pd.Series(rf.feature_importances_, index=data.feature_names)
+print(imp.sort_values(ascending=False).head(5))
+
+perm = permutation_importance(rf, X_test, y_test, n_repeats=10, random_state=0)
+print(pd.Series(perm.importances_mean, index=data.feature_names)
+        .sort_values(ascending=False).head(5))
+\end{lstlisting}
+
+\hinhchuachen{ch-ensemble-rf-importance.png}{Mức độ quan trọng của 10 đặc trưng hàng đầu theo Random Forest trên dữ liệu ung thư vú.}{fig:rf-imp}
+
+% ---------------------------------------------------------
+\section{AdaBoost}
+% ---------------------------------------------------------
+
+Năm 1988, Michael Kearns và Leslie Valiant đặt câu hỏi: liệu có thể ``khuếch đại'' một tập các bộ học \textbf{yếu} (chỉ tốt hơn đoán ngẫu nhiên một chút) thành một bộ học \textbf{mạnh}? Robert Schapire trả lời khẳng định năm 1990, và năm 1997 Yoav Freund cùng Schapire công bố \textbf{AdaBoost} (Adaptive Boosting) --- công trình được trao giải Gödel năm 2003.
+
+\begin{definition}[Thuật toán AdaBoost nhị phân, $y_i \in \{-1, +1\}$]
+\begin{enumerate}
+    \item Khởi tạo trọng số các mẫu $w_i = 1/n$.
+    \item Với $t = 1, \dots, T$:
+    \begin{enumerate}
+        \item Huấn luyện bộ học yếu $h_t$ (thường là \textbf{gốc cây} -- decision stump, cây độ sâu 1) trên dữ liệu có trọng số $w$.
+        \item Tính sai số có trọng số $\varepsilon_t = \sum_{i:\, h_t(\mathbf{x}_i) \neq y_i} w_i$.
+        \item Tính trọng số của bộ học: $\alpha_t = \frac{1}{2}\ln\frac{1 - \varepsilon_t}{\varepsilon_t}$.
+        \item Cập nhật: $w_i \leftarrow w_i \cdot e^{-\alpha_t y_i h_t(\mathbf{x}_i)}$, rồi chuẩn hóa để $\sum_i w_i = 1$.
+    \end{enumerate}
+    \item Dự đoán: $H(\mathbf{x}) = \mathrm{sign}\Big(\sum_{t=1}^{T} \alpha_t h_t(\mathbf{x})\Big)$.
+\end{enumerate}
+\end{definition}
+
+Mẫu bị đoán sai được nhân với $e^{\alpha_t} > 1$ (tăng trọng số), mẫu đoán đúng nhân với $e^{-\alpha_t} < 1$ (giảm trọng số). Bộ học kế tiếp vì thế phải ``chú ý'' nhiều hơn đến các mẫu khó. Bộ học có sai số nhỏ có $\alpha_t$ lớn, tức tiếng nói lớn hơn trong lần bỏ phiếu cuối.
+
+\begin{example}[Một vòng AdaBoost]
+Có 10 mẫu, trọng số ban đầu $0{,}1$. Bộ học yếu đầu tiên đoán sai 3 mẫu:
+\begin{itemize}
+    \item $\varepsilon_1 = 3 \times 0{,}1 = 0{,}3$; \quad $\alpha_1 = \frac{1}{2}\ln\frac{0{,}7}{0{,}3} = 0{,}4236$.
+    \item Mẫu sai: $0{,}1 \times e^{0{,}4236} = 0{,}1 \times 1{,}5275 = 0{,}15275$.
+    \item Mẫu đúng: $0{,}1 \times e^{-0{,}4236} = 0{,}1 \times 0{,}6547 = 0{,}06547$.
+    \item Hằng số chuẩn hóa: $Z = 3 \times 0{,}15275 + 7 \times 0{,}06547 = 0{,}9165$.
+    \item Trọng số mới: mẫu sai $0{,}15275/0{,}9165 = 0{,}1667$; mẫu đúng $0{,}06547/0{,}9165 = 0{,}0714$.
+\end{itemize}
+Tổng trọng số của các mẫu sai bây giờ là $3 \times 0{,}1667 = 0{,}5$: đối với trọng số mới, bộ học vừa rồi chỉ còn ngang đoán ngẫu nhiên, buộc bộ học tiếp theo phải khác nó.
+\end{example}
+
+\begin{lstlisting}[caption={AdaBoost với gốc cây}]
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.tree import DecisionTreeClassifier
+
+ada = AdaBoostClassifier(
+    estimator=DecisionTreeClassifier(max_depth=1),   # decision stump
+    n_estimators=200, learning_rate=0.5, random_state=42)
+ada.fit(X_train, y_train)
+print("Test score:", ada.score(X_test, y_test))
+print(ada.estimator_weights_[:5].round(3))    # cac alpha_t dau tien
+\end{lstlisting}
+
+AdaBoost nhạy với \textbf{nhiễu nhãn và ngoại lai}: các mẫu bị gán nhãn sai liên tục được tăng trọng số và kéo mô hình lệch đi.
+
+% ---------------------------------------------------------
+\section{Gradient Boosting và XGBoost}
+% ---------------------------------------------------------
+
+\subsection{Gradient Boosting}
+
+Năm 2001, Jerome Friedman tổng quát hóa boosting thành \textbf{Gradient Boosting}: xây dựng mô hình cộng $F_M(\mathbf{x}) = F_0 + \sum_{m=1}^{M} \eta\, h_m(\mathbf{x})$, trong đó mỗi cây mới $h_m$ được huấn luyện để khớp với \textbf{gradient âm của hàm mất mát} (gọi là \textit{giả phần dư}) tại mô hình hiện tại:
+\begin{equation}
+    r_{im} = -\left[\frac{\partial L(y_i, F(\mathbf{x}_i))}{\partial F(\mathbf{x}_i)}\right]_{F = F_{m-1}} .
+\end{equation}
+Với mất mát bình phương $L = \frac{1}{2}(y - F)^2$, giả phần dư chính là \textbf{phần dư} $y_i - F_{m-1}(\mathbf{x}_i)$: mỗi cây mới học cách sửa sai số còn lại của các cây trước. Đây là Gradient Descent trong \textit{không gian hàm}. Tốc độ học $\eta$ (\texttt{learning\_rate}, thường 0,01--0,1) càng nhỏ càng cần nhiều cây nhưng tổng quát càng tốt.
+
+\begin{example}[Ý tưởng phần dư]
+Cần dự đoán giá ba căn nhà (nghìn USD): 150, 200, 250. Mô hình khởi đầu $F_0$ = trung bình = 200, phần dư là $(-50, 0, +50)$. Cây thứ nhất học phần dư này, giả sử dự đoán được $(-40, 0, +40)$; với $\eta = 0{,}5$, mô hình mới là $200 + 0{,}5 \times (-40, 0, 40) = (180, 200, 220)$, phần dư còn $(-30, 0, 30)$. Cây thứ hai tiếp tục học phần dư mới, cứ thế sai số giảm dần.
+\end{example}
+
+\subsection{XGBoost}
+
+\textbf{XGBoost} (eXtreme Gradient Boosting) do Tianqi Chen và Carlos Guestrin công bố năm 2016, trở nên nổi tiếng nhờ thống trị các cuộc thi Kaggle. So với Gradient Boosting gốc, XGBoost:
+\begin{itemize}
+    \item Thêm \textbf{chính quy hóa} vào hàm mục tiêu: $\mathcal{L} = \sum_i L(y_i, \hat{y}_i) + \sum_m \Big(\gamma T_m + \frac{1}{2}\lambda \|\mathbf{w}_m\|^2\Big)$, với $T_m$ là số lá và $\mathbf{w}_m$ là giá trị các lá của cây $m$.
+    \item Dùng \textbf{khai triển Taylor bậc hai} (gradient $g_i$ và hessian $h_i$), cho công thức tối ưu tường minh của giá trị lá $w_j^* = -\frac{\sum_{i \in j} g_i}{\sum_{i \in j} h_i + \lambda}$ và độ lợi khi chia nút:
+    \begin{equation}
+        \text{Gain} = \frac{1}{2}\left[\frac{G_L^2}{H_L + \lambda} + \frac{G_R^2}{H_R + \lambda} - \frac{(G_L + G_R)^2}{H_L + H_R + \lambda}\right] - \gamma .
+    \end{equation}
+    \item Tự xử lý \textbf{giá trị thiếu} (học hướng đi mặc định ở mỗi nút), lấy mẫu con theo hàng và theo cột, tính toán song song và tối ưu bộ nhớ đệm.
+\end{itemize}
+Các thư viện cùng họ: \textbf{LightGBM} (Microsoft, 2017) và \textbf{CatBoost} (Yandex, 2017, xử lý biến phân loại trực tiếp). scikit-learn có \texttt{HistGradientBoostingClassifier} với ý tưởng tương tự LightGBM.
+
+\begin{lstlisting}[caption={Gradient Boosting và XGBoost}]
+from sklearn.ensemble import GradientBoostingClassifier, HistGradientBoostingClassifier
+
+gb = GradientBoostingClassifier(n_estimators=300, learning_rate=0.05,
+                                max_depth=3, subsample=0.8, random_state=42)
+gb.fit(X_train, y_train)
+print("GradientBoosting:", gb.score(X_test, y_test))
+
+hgb = HistGradientBoostingClassifier(max_iter=300, learning_rate=0.05)
+print("HistGB:", hgb.fit(X_train, y_train).score(X_test, y_test))
+
+# pip install xgboost
+from xgboost import XGBClassifier
+xgb = XGBClassifier(n_estimators=500, learning_rate=0.05, max_depth=4,
+                    subsample=0.8, colsample_bytree=0.8,
+                    reg_lambda=1.0, eval_metric="logloss",
+                    early_stopping_rounds=30)
+xgb.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=False)
+print("XGBoost:", xgb.score(X_test, y_test), "so cay:", xgb.best_iteration)
+\end{lstlisting}
+
+\begin{quote}
+\textbf{Lưu ý:} Ví dụ trên dùng tập kiểm tra để dừng sớm cho gọn. Trong thực tế cần tách thêm một \textbf{tập kiểm định} (validation) riêng; dùng tập kiểm tra để chọn số cây là một dạng rò rỉ dữ liệu (xem chương Đánh giá mô hình).
+\end{quote}
+
+\hinhchuachen{ch-ensemble-boosting-curve.png}{Sai số trên tập huấn luyện và tập kiểm định theo số cây của Gradient Boosting; điểm dừng sớm (early stopping) là nơi sai số kiểm định nhỏ nhất.}{fig:boost-curve}
+
+% ---------------------------------------------------------
+\section{Voting và Stacking}
+% ---------------------------------------------------------
+
+Ngoài việc dùng nhiều phiên bản của cùng một thuật toán, ta có thể kết hợp các thuật toán \textbf{khác loại}:
+\begin{itemize}
+    \item \textbf{Voting}: bỏ phiếu cứng (đa số nhãn) hoặc mềm (trung bình xác suất) giữa các mô hình như Logistic Regression, SVM, Random Forest.
+    \item \textbf{Stacking} (Wolpert, 1992): dùng dự đoán của các mô hình tầng 1 làm đầu vào cho một \textbf{mô hình tầng 2} (meta-learner); các dự đoán này phải lấy từ kiểm định chéo để tránh rò rỉ.
+\end{itemize}
+
+\begin{lstlisting}[caption={Voting và Stacking}]
+from sklearn.ensemble import VotingClassifier, StackingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+base = [
+    ("lr",  make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))),
+    ("svm", make_pipeline(StandardScaler(), SVC(probability=True))),
+    ("rf",  RandomForestClassifier(n_estimators=200, random_state=42)),
+]
+vote = VotingClassifier(base, voting="soft").fit(X_train, y_train)
+stack = StackingClassifier(base, final_estimator=LogisticRegression(), cv=5)
+stack.fit(X_train, y_train)
+print("Voting:", vote.score(X_test, y_test), "Stacking:", stack.score(X_test, y_test))
+\end{lstlisting}
+
+% ---------------------------------------------------------
+\section{Tổng kết so sánh}
+% ---------------------------------------------------------
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|p{2.4cm}|p{2.2cm}|p{2.4cm}|p{3.2cm}|p{3cm}|}
+\hline
+\textbf{Phương pháp} & \textbf{Chiến lược} & \textbf{Giảm chủ yếu} & \textbf{Ưu điểm} & \textbf{Nhược điểm} \\
+\hline
+Bagging / Random Forest & Song song & Phương sai & Ổn định, ít cần tinh chỉnh, có OOB & Mô hình lớn, khó diễn giải \\ \hline
+AdaBoost & Tuần tự & Độ chệch & Đơn giản, lý thuyết đẹp & Nhạy nhiễu và ngoại lai \\ \hline
+Gradient Boosting / XGBoost & Tuần tự & Độ chệch (và phương sai nhờ chính quy hóa) & Độ chính xác cao nhất trên dữ liệu bảng & Nhiều tham số, dễ quá khớp nếu không dừng sớm \\ \hline
+Voting / Stacking & Kết hợp khác loại & Cả hai & Tận dụng thế mạnh từng mô hình & Tốn tài nguyên \\ \hline
+\end{tabular}
+\caption{So sánh các phương pháp học kết hợp}
+\end{table}
+
+% ---------------------------------------------------------
+\section{Tóm tắt chương}
+% ---------------------------------------------------------
+\begin{itemize}
+    \item Ensemble dựa trên ``trí tuệ đám đông'': các mô hình tốt hơn ngẫu nhiên và đa dạng, khi kết hợp sẽ cho kết quả tốt hơn.
+    \item Bagging huấn luyện trên các mẫu bootstrap, giảm phương sai; Random Forest thêm chọn đặc trưng ngẫu nhiên ở mỗi nút để giảm tương quan giữa các cây.
+    \item AdaBoost tăng trọng số các mẫu bị đoán sai; $\alpha_t = \frac{1}{2}\ln\frac{1 - \varepsilon_t}{\varepsilon_t}$.
+    \item Gradient Boosting khớp từng cây với gradient âm của hàm mất mát; XGBoost bổ sung chính quy hóa, đạo hàm bậc hai và nhiều tối ưu kỹ thuật.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Bài tập}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Tính xác suất bỏ phiếu đa số đúng với 5 bộ phân lớp độc lập, mỗi bộ đúng với xác suất 0,6. So sánh với trường hợp 1 bộ phân lớp.
+    \item Mô phỏng bằng Python: rút 1000 mẫu bootstrap từ $n = 100$ điểm và kiểm chứng tỉ lệ điểm ngoài túi xấp xỉ 36,8\%.
+    \item Làm tiếp ví dụ AdaBoost: ở vòng 2, bộ học yếu đoán sai 2 mẫu vốn được đoán đúng ở vòng 1. Tính $\varepsilon_2$, $\alpha_2$ và trọng số mới.
+    \item Trên dữ liệu ung thư vú, vẽ độ chính xác của Random Forest theo \texttt{n\_estimators} $\in \{1, 5, 10, 50, 100, 300\}$ và theo \texttt{max\_features}. Nhận xét.
+    \item So sánh Decision Tree, Random Forest, AdaBoost, Gradient Boosting và XGBoost trên Ames Housing (bài toán hồi quy, dùng các lớp \texttt{...Regressor}). Mô hình nào có RMSE thấp nhất?
+\end{enumerate}
+
+% ---------------------------------------------------------
+\section*{Tài liệu tham khảo của chương}
+\addcontentsline{toc}{section}{Tài liệu tham khảo của chương}
+% ---------------------------------------------------------
+\begin{enumerate}
+    \item Breiman, L. (1996). Bagging Predictors. \textit{Machine Learning}, 24(2), 123--140.
+    \item Breiman, L. (2001). Random Forests. \textit{Machine Learning}, 45(1), 5--32.
+    \item Chen, T., \& Guestrin, C. (2016). XGBoost: A Scalable Tree Boosting System. \textit{Proceedings of KDD '16}, 785--794.
+    \item Condorcet, M. de (1785). \textit{Essai sur l'application de l'analyse à la probabilité des décisions rendues à la pluralité des voix}. Paris.
+    \item Efron, B. (1979). Bootstrap Methods: Another Look at the Jackknife. \textit{The Annals of Statistics}, 7(1), 1--26.
+    \item Freund, Y., \& Schapire, R. E. (1997). A Decision-Theoretic Generalization of On-Line Learning and an Application to Boosting. \textit{Journal of Computer and System Sciences}, 55(1), 119--139.
+    \item Friedman, J. H. (2001). Greedy Function Approximation: A Gradient Boosting Machine. \textit{The Annals of Statistics}, 29(5), 1189--1232.
+    \item Galton, F. (1907). Vox Populi. \textit{Nature}, 75, 450--451.
+    \item Ke, G. et al. (2017). LightGBM: A Highly Efficient Gradient Boosting Decision Tree. \textit{Advances in Neural Information Processing Systems 30}.
+    \item Schapire, R. E. (1990). The Strength of Weak Learnability. \textit{Machine Learning}, 5(2), 197--227.
+    \item Wolpert, D. H. (1992). Stacked Generalization. \textit{Neural Networks}, 5(2), 241--259.
+\end{enumerate}
